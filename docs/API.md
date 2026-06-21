@@ -69,7 +69,7 @@ Errors: `400 UNSUPPORTED_FILE_TYPE`, `400 FILE_TOO_LARGE`.
 
 ## 5. Auth & Access Control
 
-Base path: `/auth`. **Permission:** none — auth endpoints establish identity, they don't require it (except `/auth/me`, which requires a valid token but no module permission).
+Base path: `/auth`. **Permission:** none — auth endpoints establish identity, they don't require it.
 
 | Method | Path | Auth | Description |
 |---|---|---|---|
@@ -78,7 +78,7 @@ Base path: `/auth`. **Permission:** none — auth endpoints establish identity, 
 | POST | `/auth/logout` | required | Clears refresh cookie |
 | POST | `/auth/forgot-password` | none | Issues `PasswordResetToken`, emails link |
 | POST | `/auth/reset-password` | none | Consumes token, sets new password — **also used for first-time account setup** (see Users §6) |
-| GET | `/auth/me` | required | Current user + permissions, used to hydrate the auth store on app load |
+| GET | `/auth/me` | optional | Current user + permissions, used to hydrate the auth store on app load. Returns `{ data: null }` when unauthenticated (no 401). |
 
 #### `POST /auth/login`
 ```json
@@ -97,6 +97,25 @@ Base path: `/auth`. **Permission:** none — auth endpoints establish identity, 
 ```
 Refresh token is set as an httpOnly secure cookie in the same response, never in the JSON body.
 Errors: `401 INVALID_CREDENTIALS`, `423 ACCOUNT_DEACTIVATED` (when `User.isActive === false`).
+
+#### `GET /auth/me`
+```json
+// Response 200 — authenticated
+{
+  "data": {
+    "id": "...",
+    "name": "...",
+    "email": "...",
+    "role": "manager",
+    "isActive": true,
+    "permissions": [{ "module": "pos", "actions": ["view", "create"] }]
+  }
+}
+```
+```json
+// Response 200 — unauthenticated (no token, expired, or invalid)
+{ "data": null }
+```
 
 #### `POST /auth/reset-password`
 ```json

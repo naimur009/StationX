@@ -8,6 +8,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { resetPasswordSchema, type ResetPasswordInput } from '@/features/auth/schema';
 import { useResetPassword } from '@/features/auth/api';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { AppError } from '@/lib/utils';
 
 function ResetPasswordForm() {
@@ -99,14 +100,12 @@ function ResetPasswordForm() {
           >
             New Password
           </label>
-          <input
+          <Input
             id="newPassword"
             type="password"
             autoComplete="new-password"
             placeholder="At least 8 characters"
-            className={`w-full rounded-xl border bg-white px-3.5 py-2.5 text-sm text-slate-800 placeholder-slate-400 ring-ring focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-ring ${
-              errors.newPassword ? 'border-red-400' : 'border-slate-300'
-            }`}
+            error={!!errors.newPassword}
             {...register('newPassword')}
           />
           {errors.newPassword && (
@@ -123,14 +122,12 @@ function ResetPasswordForm() {
           >
             Confirm Password
           </label>
-          <input
+          <Input
             id="confirmPassword"
             type="password"
             autoComplete="new-password"
             placeholder="Re-enter your password"
-            className={`w-full rounded-xl border bg-white px-3.5 py-2.5 text-sm text-slate-800 placeholder-slate-400 ring-ring focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-ring ${
-              errors.confirmPassword ? 'border-red-400' : 'border-slate-300'
-            }`}
+            error={!!errors.confirmPassword}
             {...register('confirmPassword')}
           />
           {errors.confirmPassword && (

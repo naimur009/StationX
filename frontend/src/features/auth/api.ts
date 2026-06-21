@@ -11,6 +11,8 @@ export interface UserResponse {
   permissions: { module: string; actions: string[] }[];
 }
 
+export type MeResponse = { data: UserResponse } | { data: null };
+
 interface LoginPayload {
   accessToken: string;
   user: UserResponse;
@@ -59,7 +61,7 @@ export function useResetPassword() {
 export function useMe() {
   return useQuery({
     queryKey: ['auth', 'me'],
-    queryFn: () => apiClient<{ data: UserResponse }>('/auth/me'),
+    queryFn: () => apiClient<MeResponse>('/auth/me'),
     retry: false,
     staleTime: 5 * 60 * 1000,
   });

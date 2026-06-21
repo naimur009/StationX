@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from '@/stores/auth-store';
 import { useUIStore } from '@/stores/ui-store';
 import { useMe } from '@/features/auth/api';
@@ -17,20 +18,28 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }>) {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const { isAuthenticated, setAuth, clearAuth, user } = useAuthStore();
-  const { data: meData, isLoading, isError } = useMe();
+  const { data: meData, isLoading } = useMe();
   const logoutMutation = useLogout();
   const sidebarCollapsed = useUIStore((state) => state.sidebarCollapsed);
   const mobileDrawerOpen = useUIStore((state) => state.mobileDrawerOpen);
   const closeMobileDrawer = useUIStore((state) => state.closeMobileDrawer);
 
   useEffect(() => {
-    if (!isAuthenticated && !meData && !isLoading) {
+    if (!isLoading && meData && meData.data === null) {
+      clearAuth();
       router.replace('/login');
       return;
     }
 
-    if (meData && !isAuthenticated) {
+    if (!isLoading && !meData) {
+      clearAuth();
+      router.replace('/login');
+      return;
+    }
+
+    if (meData && meData.data && !isAuthenticated) {
       const userData = meData.data;
       const token = useAuthStore.getState().accessToken || '';
       setAuth(
@@ -52,13 +61,6 @@ export default function DashboardLayout({
     }
   }, [isAuthenticated, user, clearAuth]);
 
-  useEffect(() => {
-    if (isError) {
-      clearAuth();
-      router.replace('/login');
-    }
-  }, [isError, clearAuth, router]);
-
   async function handleLogout() {
     try {
       await logoutMutation.mutateAsync();
@@ -66,6 +68,7 @@ export default function DashboardLayout({
       // proceed with local logout regardless
     }
     clearAuth();
+    queryClient.removeQueries({ queryKey: ['auth', 'me'] });
     router.replace('/login');
   }
 
@@ -83,7 +86,7 @@ export default function DashboardLayout({
 
   return (
     <div className="flex min-h-screen bg-slate-50">
-      <TopBar />
+      <TopBar onLogout={handleLogout} />
 
       <div className="hidden md:block">
         <Sidebar onLogout={handleLogout} />

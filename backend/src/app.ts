@@ -41,7 +41,11 @@ app.use((req, _res, next) => {
 
     const requestOrigin = origin || (referer ? new URL(referer).origin : null);
 
-    if (requestOrigin && requestOrigin !== allowed) {
+    if (!requestOrigin) {
+      return next(createError(403, 'FORBIDDEN', 'Cross-origin request rejected'));
+    }
+
+    if (requestOrigin !== allowed) {
       return next(createError(403, 'FORBIDDEN', 'Cross-origin request rejected'));
     }
   }

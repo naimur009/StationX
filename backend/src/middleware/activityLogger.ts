@@ -57,12 +57,14 @@ function buildAction(req: AuthenticatedRequest): string {
 }
 
 function buildDescription(req: AuthenticatedRequest, action: string): string {
+  const roleLabel = req.user?.role ? ` (${req.user.role})` : '';
+
   const specialDescriptions: Record<string, string> = {
-    'login': `User logged in`,
-    'logout': `User logged out`,
-    'token.refresh': `Access token refreshed`,
-    'password.reset_requested': `Password reset requested`,
-    'password.reset': `Password was reset`,
+    'login': `User${roleLabel} logged in`,
+    'logout': `User${roleLabel} logged out`,
+    'token.refresh': `Access token refreshed${roleLabel}`,
+    'password.reset_requested': `Password reset requested${roleLabel}`,
+    'password.reset': `Password was reset${roleLabel}`,
   };
 
   if (specialDescriptions[action]) {

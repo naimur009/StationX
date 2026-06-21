@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { authenticate } from '../src/middleware/authenticate';
+import { optionalAuth } from '../src/middleware/optionalAuth';
 import { authorize } from '../src/middleware/authorize';
 import { validate } from '../src/middleware/validate';
 import { signAccessToken } from '../src/lib/jwt';
@@ -131,6 +132,58 @@ describe('authorize middleware', () => {
 
     expect(next).toHaveBeenCalledTimes(1);
     expect(next.mock.calls[0][0]).toBeUndefined();
+  });
+});
+
+describe('optionalAuth middleware', () => {
+  it('calls next without error when no Authorization header', () => {
+    const { req, res, next } = mockReqResNext({});
+    optionalAuth(req, res, next);
+
+    expect(next).toHaveBeenCalledTimes(1);
+    expect(next.mock.calls[0][0]).toBeUndefined();
+    expect(req.user).toBeUndefined();
+  });
+
+  it('calls next without error when header does not start with Bearer', () => {
+    const { req, res, next } = mockReqResNext({ authorization: 'Basic abc123' });
+    optionalAuth(req, res, next);
+
+    expect(next).toHaveBeenCalledTimes(1);
+    expect(next.mock.calls[0][0]).toBeUndefined();
+    expect(req.user).toBeUndefined();
+  });
+
+  it('calls next without error when Bearer token is empty', () => {
+    const { req, res, next } = mockReqResNext({ authorization: 'Bearer ' });
+    optionalAuth(req, res, next);
+
+    expect(next).toHaveBeenCalledTimes(1);
+    expect(next.mock.calls[0][0]).toBeUndefined();
+    expect(req.user).toBeUndefined();
+  });
+
+  it('calls next without error for garbage token (no throw)', () => {
+    const { req, res, next } = mockReqResNext({ authorization: 'Bearer garbage-token' });
+    optionalAuth(req, res, next);
+
+    expect(next).toHaveBeenCalledTimes(1);
+    expect(next.mock.calls[0][0]).toBeUndefined();
+    expect(req.user).toBeUndefined();
+  });
+
+  it('attaches user to req when token is valid', () => {
+    const token = signAccessToken('user-1', 'manager', [
+      { module: 'pos', actions: ['view'] },
+    ]);
+    const { req, res, next } = mockReqResNext({ authorization: `Bearer ${token}` });
+    optionalAuth(req, res, next);
+
+    expect(next).toHaveBeenCalledTimes(1);
+    expect(next.mock.calls[0][0]).toBeUndefined();
+    expect(req.user).toBeDefined();
+    expect(req.user.id).toBe('user-1');
+    expect(req.user.role).toBe('manager');
   });
 });
 

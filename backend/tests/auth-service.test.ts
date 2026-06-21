@@ -261,13 +261,9 @@ describe('auth service — getMe', () => {
     vi.clearAllMocks();
   });
 
-  function mockFindByIdSelect(user: any) {
-    return { select: vi.fn().mockResolvedValue(user) };
-  }
-
   it('returns user data without passwordHash', async () => {
     const mockUser = makeMockUser();
-    (User.findById as any).mockImplementation(() => mockFindByIdSelect(mockUser));
+    (User.findById as any).mockResolvedValue(mockUser);
 
     const result = await getMe('user-1');
 
@@ -277,7 +273,7 @@ describe('auth service — getMe', () => {
   });
 
   it('throws 404 when user not found', async () => {
-    (User.findById as any).mockImplementation(() => mockFindByIdSelect(null));
+    (User.findById as any).mockResolvedValue(null);
 
     await expect(getMe('nonexistent')).rejects.toMatchObject({
       statusCode: 404,

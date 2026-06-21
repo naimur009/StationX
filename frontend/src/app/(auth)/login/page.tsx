@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { useQueryClient } from '@tanstack/react-query';
 import { loginSchema, type LoginInput } from '@/features/auth/schema';
 import { useLogin } from '@/features/auth/api';
 import { useAuthStore } from '@/stores/auth-store';
@@ -13,6 +14,7 @@ import { AppError } from '@/lib/utils';
 
 export default function LoginPage() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const { setAuth } = useAuthStore();
   const loginMutation = useLogin();
   const [authError, setAuthError] = useState<string | null>(null);
@@ -33,6 +35,7 @@ export default function LoginPage() {
       const { accessToken, user } = response.data;
 
       setAuth(user, accessToken);
+      queryClient.invalidateQueries({ queryKey: ['auth', 'me'] });
       router.push('/overview');
     } catch (error) {
       if (error instanceof AppError) {

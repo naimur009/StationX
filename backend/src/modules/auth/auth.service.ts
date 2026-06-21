@@ -2,6 +2,7 @@ import bcrypt from 'bcrypt';
 import crypto from 'crypto';
 import User from '../../models/User';
 import PasswordResetToken from '../../models/PasswordResetToken';
+import ActivityLog from '../../models/ActivityLog';
 import {
   signAccessToken,
   signRefreshToken,
@@ -54,6 +55,13 @@ export async function login(
   user.lastLoginAt = new Date();
   await user.save();
 
+  ActivityLog.create({
+    actor: user._id,
+    module: 'auth',
+    action: 'login',
+    description: `User "${user.email}" logged in`,
+  }).catch(() => {});
+
   const accessToken = signAccessToken(
     user._id.toString(),
     user.role,
@@ -89,6 +97,13 @@ export async function refresh(refreshToken: string): Promise<{ accessToken: stri
     const accessToken = signAccessToken(user._id.toString(), user.role, user.permissions);
     const newRefreshToken = signRefreshToken(user._id.toString());
 
+    ActivityLog.create({
+      actor: user._id,
+      module: 'auth',
+      action: 'token.refresh',
+      description: `Access token refreshed for user "${user.email}"`,
+    }).catch(() => {});
+
     return { accessToken, refreshToken: newRefreshToken };
   } catch {
     throw createError(401, 'UNAUTHORIZED', 'Invalid or expired refresh token');
@@ -115,6 +130,13 @@ export async function forgotPassword(email: string): Promise<void> {
   const resetLink = `${env.FRONTEND_URL}/reset-password?token=${rawToken}`;
 
   await sendPasswordResetEmail(email, resetLink);
+
+  ActivityLog.create({
+    actor: user._id,
+    module: 'auth',
+    action: 'password.reset_requested',
+    description: `Password reset requested for "${email}"`,
+  }).catch(() => {});
 }
 
 export async function resetPassword(
@@ -142,7 +164,7 @@ export async function resetPassword(
   const user = await User.findById(resetTokenDoc.userId).select('+passwordHash');
 
   if (!user) {
-    throw createError(404, 'NOT_FOUND', 'User not found');
+    return;
   }
 
   user.passwordHash = passwordHash;
@@ -150,10 +172,17 @@ export async function resetPassword(
 
   resetTokenDoc.used = true;
   await resetTokenDoc.save();
+
+  ActivityLog.create({
+    actor: user._id,
+    module: 'auth',
+    action: 'password.reset',
+    description: `Password reset completed for user "${user.email}"`,
+  }).catch(() => {});
 }
 
 export async function getMe(userId: string) {
-  const user = await User.findById(userId).select('-passwordHash');
+  const user = await User.findById(userId);
 
   if (!user) {
     throw createError(404, 'NOT_FOUND', 'User not found');

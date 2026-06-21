@@ -3,6 +3,7 @@ import { Request, Response, NextFunction } from 'express';
 export interface AppError extends Error {
   statusCode?: number;
   code?: string;
+  details?: Array<{ path: string; message: string }>;
 }
 
 export function errorHandler(
@@ -19,17 +20,26 @@ export function errorHandler(
     console.error('[errorHandler] Unhandled error: code=%s message="%s" path=%s', code, message, req.path);
   }
 
+  const body: Record<string, unknown> = { code, message };
+
+  if (err.details) {
+    body.details = err.details;
+  }
+
   res.status(statusCode).json({
-    error: {
-      code,
-      message,
-    },
+    error: body,
   });
 }
 
-export function createError(statusCode: number, code: string, message: string): AppError {
+export function createError(
+  statusCode: number,
+  code: string,
+  message: string,
+  details?: Array<{ path: string; message: string }>
+): AppError {
   const error = new Error(message) as AppError;
   error.statusCode = statusCode;
   error.code = code;
+  error.details = details;
   return error;
 }

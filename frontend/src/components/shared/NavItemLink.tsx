@@ -22,7 +22,7 @@ export default function NavItemLink({ item, collapsed, onClick }: NavItemLinkPro
       href={item.href}
       onClick={onClick}
       className={cn(
-        'flex items-center rounded-xl text-sm font-medium transition-colors',
+        'flex min-h-[44px] items-center rounded-xl text-sm font-medium transition-colors',
         collapsed
           ? 'justify-center px-0 py-2.5'
           : 'gap-3 px-3 py-2.5',

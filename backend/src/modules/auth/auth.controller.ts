@@ -65,7 +65,7 @@ export async function handleRefresh(
 }
 
 export async function handleLogout(
-  _req: Request,
+  req: AuthenticatedRequest,
   res: Response,
   _next: NextFunction
 ): Promise<void> {
@@ -111,7 +111,8 @@ export async function handleMe(
 ): Promise<void> {
   try {
     if (!req.user) {
-      return next(createError(401, 'UNAUTHORIZED', 'Authentication required'));
+      res.status(200).json({ data: null });
+      return;
     }
 
     const user = await authService.getMe(req.user.id);

@@ -1,11 +1,15 @@
 'use client';
 
-import { Menu, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
+import { LogOut, Menu, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import { useAuthStore } from '@/stores/auth-store';
 import { useUIStore } from '@/stores/ui-store';
 import { cn } from '@/lib/utils';
 
-export default function TopBar() {
+interface TopBarProps {
+  onLogout?: () => void;
+}
+
+export default function TopBar({ onLogout }: TopBarProps) {
   const user = useAuthStore((state) => state.user);
   const sidebarCollapsed = useUIStore((state) => state.sidebarCollapsed);
   const toggleSidebar = useUIStore((state) => state.toggleSidebar);
@@ -64,6 +68,16 @@ export default function TopBar() {
           </div>
         )}
 
+        {onLogout && (
+          <button
+            type="button"
+            onClick={onLogout}
+            className="flex h-9 w-9 items-center justify-center rounded-xl text-slate-400 transition-colors hover:bg-red-50 hover:text-red-500"
+            aria-label="Sign out"
+          >
+            <LogOut className="h-5 w-5" />
+          </button>
+        )}
       </div>
     </header>
   );

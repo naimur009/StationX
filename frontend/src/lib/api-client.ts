@@ -1,3 +1,5 @@
+'use client';
+
 import { AppError } from './utils';
 import { useAuthStore } from '@/stores/auth-store';
 
@@ -6,8 +8,6 @@ const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v
 interface RequestConfig extends RequestInit {
   skipAuth?: boolean;
 }
-
-let refreshPromise: Promise<string | null> | null = null;
 
 async function refreshAccessToken(): Promise<string | null> {
   try {
@@ -34,62 +34,49 @@ async function refreshAccessToken(): Promise<string | null> {
   }
 }
 
+function buildHeaders(token?: string | null): Record<string, string> {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+  return headers;
+}
+
 export async function apiClient<T>(
   path: string,
   config: RequestConfig = {}
 ): Promise<T> {
   const { skipAuth = false, ...fetchConfig } = config;
+  const store = useAuthStore.getState();
 
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-    ...(fetchConfig.headers as Record<string, string>),
-  };
+  let token = store.accessToken;
 
-  if (!skipAuth) {
-    let token = useAuthStore.getState().accessToken;
+  const isAuthPage = typeof window !== 'undefined' && ['/login', '/forgot-password', '/reset-password'].includes(window.location.pathname);
 
-    if (!token) {
-      if (!refreshPromise) {
-        refreshPromise = refreshAccessToken();
-      }
-      token = await refreshPromise;
-      refreshPromise = null;
-    }
-
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
-    }
+  if (!token && !skipAuth && (store.isAuthenticated || (path === '/auth/me' && !isAuthPage))) {
+    token = await refreshAccessToken();
   }
 
-  let response: Response;
-
-  try {
-    response = await fetch(`${API_BASE}${path}`, {
-      ...fetchConfig,
-      headers,
-      credentials: 'include',
-    });
-  } catch {
+  const response = await fetch(`${API_BASE}${path}`, {
+    ...fetchConfig,
+    headers: buildHeaders(token),
+    credentials: 'include',
+  }).catch(() => {
     throw new AppError(
       'NETWORK_ERROR',
       'Unable to reach the server. Please check your connection.'
     );
-  }
+  });
 
-  if (response.status === 401 && !skipAuth) {
-    if (!refreshPromise) {
-      refreshPromise = refreshAccessToken();
-    }
-
-    const newToken = await refreshPromise;
-    refreshPromise = null;
+  if (response.status === 401 && !skipAuth && store.isAuthenticated) {
+    const newToken = await refreshAccessToken();
 
     if (newToken) {
-      headers['Authorization'] = `Bearer ${newToken}`;
-
       const retryResponse = await fetch(`${API_BASE}${path}`, {
         ...fetchConfig,
-        headers,
+        headers: buildHeaders(newToken),
         credentials: 'include',
       });
 
@@ -100,7 +87,8 @@ export async function apiClient<T>(
 
     useAuthStore.getState().clearAuth();
 
-    if (typeof window !== 'undefined') {
+    const authPaths = ['/login', '/forgot-password', '/reset-password'];
+    if (typeof window !== 'undefined' && !authPaths.includes(window.location.pathname)) {
       window.location.href = '/login';
     }
 
