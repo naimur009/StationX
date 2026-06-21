@@ -10,7 +10,7 @@
 
 ## Progress Tracker
 
-- [ ] 0. Project Setup
+- [ok] 0. Project Setup
 - [ ] 1. Auth & Access Control
 - [ ] 2. Users & Permissions
 - [ ] 3. Settings

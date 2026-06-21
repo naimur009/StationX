@@ -39,8 +39,9 @@ Your job is to fully understand the feature, identify all requirements, and crea
 13. Do NOT make assumptions.
 14. If any requirement is unclear, ask questions before proceeding.
 15. Record all approved decisions.
-16. If this feature resolves any open item tracked in `AI_rules.md` §13, `database.md` §8, or `API.md` §25, write the exact edit (old text → new text) needed in that upstream doc. Do not silently resolve it only in this plan.
-17. Produce a complete implementation plan that can be saved as `tasks/implementation_plan.md`.
+16. check the existing project structure to understand what's already set up.
+17. If this feature resolves any open item tracked in `AI_rules.md` §13, `database.md` §8, or `API.md` §25, write the exact edit (old text → new text) needed in that upstream doc. Do not silently resolve it only in this plan.
+18. Produce a complete implementation plan that can be saved as `tasks/implementation_plan.md`.
 
 # OUTPUT FORMAT
 

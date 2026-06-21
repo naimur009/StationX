@@ -1,0 +1,48 @@
+import { Server as HttpServer } from 'http';
+import { Server as SocketServer } from 'socket.io';
+import { verifyAccessToken } from '../lib/jwt';
+import { env } from './env';
+
+let io: SocketServer | null = null;
+
+export function initSocket(httpServer: HttpServer): SocketServer {
+  io = new SocketServer(httpServer, {
+    cors: {
+      origin: env.FRONTEND_URL,
+      credentials: true,
+    },
+  });
+
+  io.use((socket, next) => {
+    const token = socket.handshake.auth?.token;
+
+    if (!token) {
+      return next(new Error('Authentication required'));
+    }
+
+    try {
+      const payload = verifyAccessToken(token);
+      socket.data.user = { id: payload.sub, role: payload.role, permissions: payload.permissions };
+      next();
+    } catch {
+      next(new Error('Invalid or expired access token'));
+    }
+  });
+
+  io.on('connection', (socket) => {
+    console.log(`Socket connected: ${socket.id}`);
+
+    socket.on('disconnect', () => {
+      console.log(`Socket disconnected: ${socket.id}`);
+    });
+  });
+
+  return io;
+}
+
+export function getIO(): SocketServer {
+  if (!io) {
+    throw new Error('Socket.io not initialized. Call initSocket first.');
+  }
+  return io;
+}

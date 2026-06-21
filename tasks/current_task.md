@@ -1,108 +1,100 @@
-# Current Task — Project Setup (Frontend + Backend Scaffolding + Home Page)
+# Current Task — Auth & Access Control
 
 > Status: **Not started**
-> Source: `backlog.md` → Task 0, plus PRD Feature 1 (Home Page) pulled forward from Task 19, plus `theme.md` (now established — wired in here rather than at Task 1)
-> Depends on: `PRD.md`, `architecture.md` §2/§3/§4/§10, `AI_rules.md` §1/§2
-> Blocks: every feature task in `backlog.md` — nothing else can start until this is done.
+> Depends on: `PRD.md` Feature 2 | `API.md` §5 | `DATABASE.md` §3.1, §3.2 | `ARCHITECTURE.md` §6 | `theme.md` (tokens already established) | Project Setup (✅ done)
+> Blocks: everything — no other module is reachable without login.
 
 ---
 
 ## Goal
 
-Stand up empty, correctly-configured `frontend/` and `backend/` projects matching the stack and folder structure already locked in `architecture.md`. No features, no business logic, no database models with real fields yet — just a skeleton that runs, lints, and is ready for the first real feature (Auth & Access Control) to be built into it.
-
-`docs/`, `prompt/`, and `tasks/` already exist and are populated (Phase 1–2 of `guideline.md` is done) — this task only adds `frontend/` and `backend/` alongside them.
-
-**Definition of done:** a fresh clone can run `frontend` and `backend` locally, they can talk to each other over a placeholder route, the public Home Page renders with a working "Admin Login" link to `/login`, and the folder structure matches `architecture.md` §3/§4 exactly so no future module has to "fix" the scaffolding around it.
+Implement real login/session/token infrastructure so every other module has something to authenticate against. Along the way, resolve a gap that's genuinely unspecified upstream: **nothing in `PRD.md`/`architecture.md`/`database.md`/`API.md` says how the very first user account comes to exist.** The decision made here: the first Admin is created by a one-time **seed script** that writes directly to MongoDB — not through any HTTP endpoint. That Admin then logs in normally through the real `/auth/login` flow and creates every subsequent user from the dashboard (Task 2: Users & Permissions). There is no public self-registration anywhere in this app — `PRD.md` Feature 2 lists "Login" only, never "Register."
 
 ---
 
 ## Scope
 
-### In scope
-- `frontend/`, `backend/` folders at repo root (alongside the existing `docs/`, `prompt/`, `tasks/`)
-- Frontend: Next.js 14 App Router + TypeScript init, Tailwind + shadcn/ui wired in, route groups created empty (`(public)`, `(auth)`, `(dashboard)`)
-- **Real public Home Page** (`app/(public)/page.tsx`) — PRD Feature 1, pulled forward from backlog Task 19 since it's simple, low-risk, and gives the placeholder `/health` round trip a real page to live on
-- Backend: Node.js + Express + TypeScript init, layered folder skeleton (`modules/`, `models/`, `middleware/`, `lib/`, `config/`)
-- Shared tooling: ESLint, Prettier, TypeScript strict mode, `.env.example` for both apps
-- MongoDB connection wiring (`config/db.ts`) — connects, no models yet
-- One placeholder end-to-end round trip: `GET /api/v1/health` on backend, called from one frontend page, to prove the two layers are wired correctly
-- Socket.io server initialized (no events yet)
-- Base `app.ts`/`server.ts`, Helmet, CORS restricted to the frontend origin per `architecture.md` §12
-- Git repo init, `.gitignore`, root `README.md` stub
+### In scope (this task)
+- Real `User` + `PasswordResetToken` Mongoose models
+- JWT issuing/verification, bcrypt hashing
+- `authenticate` middleware (real implementation)
+- `/auth/login`, `/auth/refresh`, `/auth/logout`, `/auth/forgot-password`, `/auth/reset-password`, `/auth/me`
+- Rate limiting on login + forgot-password
+- Global `activityLogger` middleware wiring
+- Frontend: login / forgot-password / reset-password pages, auth store, API client with transparent refresh, dashboard layout's session gate
+- **New addition:** a one-time **seed script** that inserts exactly one Admin user directly into the database (bcrypt-hashed password, read from env vars) — this is how the very first login becomes possible at all, since `POST /users` (Task 2) requires an *already-authenticated* Admin to call it, and nothing can call it before one exists.
 
-### Explicitly out of scope (belongs to later tasks in `backlog.md`)
-- Any Mongoose model with real fields (Task 1 — Auth — defines `User` first)
-- Any auth logic, JWT, login form
-- Any of the 15 permission-gated modules' actual routes/pages
-- **Wiring the Home Page to real `Settings` data** (restaurant name/logo) — `Settings` doesn't exist until Task 3, so the Home Page uses hardcoded placeholder branding for now; swapping it for live data is what's left of backlog Task 19
-- CI/CD pipeline (Task 20 — Pre-Launch Hardening)
-- Docker/deployment config beyond a local dev setup
+### Explicitly out of scope (belongs to Task 2: Users & Permissions)
+- `POST /users` — Admin creating additional users from the dashboard
+- The permission editor UI
+- `authorize(module, action)` real enforcement — this task's routes only need `authenticate`; there's nothing to permission-gate until other modules exist
+- Deciding whether account creation reuses the password-reset token mechanism (`API.md` §25.4) — that decision belongs to Task 2's `POST /users`, not to the seeded bootstrap Admin, which never goes through that mechanism at all
 
 ---
 
 ## Checklist
 
-### Backend (`architecture.md` §4)
-- [ ] `npm init` + TypeScript + Express setup
-- [ ] Create `src/config/db.ts` (Mongo connection via Mongoose, validated env vars)
-- [ ] Create `src/config/env.ts` (Zod-validated env vars)
-- [ ] Create `src/config/socket.ts` (Socket.io server init, attached to the HTTP server, no events yet)
-- [ ] Create empty `src/modules/` folder with **one placeholder module** (e.g. `health/health.routes.ts`, `health.controller.ts`) to confirm the routes → controller → service convention before Auth is built
-- [ ] Create empty `src/models/` folder (no models yet — first real one lands in the Auth task)
-- [ ] Create `src/middleware/errorHandler.ts` (generic error → `{ error: { code, message } }` envelope per `API.md` §2, even before any module needs it)
-- [ ] Create `src/middleware/validate.ts` skeleton (generic Zod-body validator, no schemas yet)
-- [ ] Stub `src/middleware/authenticate.ts` and `src/middleware/authorize.ts` as empty pass-through files — **not implemented yet**, just present so the Auth task isn't also responsible for inventing the file layout
-- [ ] Create `src/lib/` with empty `jwt.ts`, `pdf.ts`, `upload.ts` placeholders (no implementation — just confirms the folder per `architecture.md` §4)
-- [ ] Wire Helmet + CORS (restricted to frontend's local dev origin)
-- [ ] `GET /api/v1/health` route returning `{ data: { success: true } }` per the success envelope in `API.md` §2 — this is the **only** real endpoint in this task
-- [ ] `src/app.ts` / `src/server.ts` entry point, starts HTTP + Socket.io server together
+### Backend
 
-### Frontend (`architecture.md` §3)
-- [ ] `npx create-next-app` with App Router + TypeScript + Tailwind
-- [ ] Install + configure shadcn/ui
-- [ ] Implement `theme.md` §2's CSS variables (light + dark) in `app/globals.css`, load the §3 fonts (Space Grotesk / IBM Plex Sans / IBM Plex Mono, plus Fraunces for the Home Page hero) self-hosted via `next/font/google` per `theme.md` §3's decision, and set `darkMode: 'class'` in `tailwind.config`
-- [ ] Create route group folders: `app/(auth)/login/`, `app/(auth)/forgot-password/`, `app/(dashboard)/` with placeholder `page.tsx`/`layout.tsx` files (just enough to render, no real content — these stay placeholders until their own backlog tasks)
-- [ ] Create empty `features/` folder with one placeholder module folder to confirm the convention (no real feature yet)
-- [ ] Create `components/ui/` (shadcn output) and `components/shared/` (empty, ready for `DataTable`, `PermissionGate`, etc.)
-- [ ] Create `lib/api-client.ts` skeleton (fetch wrapper, JWT attach stub — no real refresh logic yet)
-- [ ] Create `lib/socket.ts` skeleton (Socket.io client init, not connected to real events yet)
-- [ ] Create `stores/auth-store.ts` skeleton (Zustand store shape, no real auth wiring yet)
-- [ ] Install TanStack Query, Zustand, React Hook Form, Zod — confirm versions resolve cleanly together
+- [ ] `User` Mongoose model (`name`, `email` unique/lowercase, `passwordHash`, `role` enum, `permissions[]`, `isActive`, `lastLoginAt`) — fields exactly per `DATABASE.md` §3.1, no extras
+- [ ] `PasswordResetToken` model (`userId`, `tokenHash`, `expiresAt` with TTL index, `used`) per §3.2
+- [ ] **Seed script** — `backend/src/seed/seed-admin.ts`, run via `npm run seed:admin`:
+  - [ ] Reads `SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD` from env vars (validated by `env.ts`'s Zod schema per `AI_rules.md` §10 — never hardcoded in source, never committed)
+  - [ ] Hashes the password with bcrypt (cost 12) — same code path as every other password write, no shortcut
+  - [ ] Upserts (by `email`) a single `User` with `role: 'admin'`, `isActive: true`, `permissions: []` (irrelevant for admin per `DATABASE.md` §3.1 — admin bypasses granular checks regardless of what's in this array)
+  - [ ] **Idempotent:** re-running the script doesn't reset an admin who already changed their password — if a user with that email already exists, log a message and exit without overwriting
+  - [ ] Writes through the real `User` Mongoose model (same schema validation the API uses), connects via `config/db.ts`, then disconnects cleanly — not a raw driver script
+  - [ ] Bypasses HTTP entirely: no API endpoint exists for this. It's an ops-only, one-time step — document it in the README under first-time environment setup
+- [ ] `lib/jwt.ts` — sign/verify access token (15 min) and refresh token (7 days)
+- [ ] `middleware/authenticate.ts` — real implementation: verify Bearer token, attach `req.user = { id, role, permissions }`
+- [ ] bcrypt hashing (cost 12) on password set/reset — never log or return `passwordHash`, exclude it at query projection level
+- [ ] `POST /auth/login` — credential check, `423 ACCOUNT_DEACTIVATED` if `isActive: false`, `401 INVALID_CREDENTIALS` for both wrong password and unknown email (no enumeration leak), set refresh cookie httpOnly+secure, return access token + user + permissions in body
+- [ ] `POST /auth/refresh` — verify refresh cookie, issue new access token
+- [ ] `POST /auth/logout` — clear refresh cookie
+- [ ] `POST /auth/forgot-password` — issue `PasswordResetToken`, send email via provider (Resend/SendGrid placeholder OK for now)
+- [ ] `POST /auth/reset-password` — consume token by `tokenHash` lookup, `400 INVALID_OR_EXPIRED_TOKEN` if expired/used/not found, set new password, mark token `used: true`
+- [ ] `GET /auth/me` — return current user + permissions for store hydration
+- [ ] Rate limiting on `/auth/login` and `/auth/forgot-password` (`ARCHITECTURE.md` §12) → `429 RATE_LIMITED`
+- [ ] Wire the global `activityLogger` middleware now (it's infrastructure, not feature-specific) so every mutating route from this point on is automatically logged — note the seed script itself is **not** logged here; it runs before any `req`/`res` cycle exists, outside the middleware chain entirely
 
-### Home Page (`app/(public)/page.tsx` — PRD Feature 1, pulled forward from backlog Task 19)
-- [ ] Build the real public landing page — not a bare placeholder
-- [ ] Navbar with an "Admin Login" button that routes to `/login`
-- [ ] Minimal placeholder branding (restaurant name/tagline) — hardcoded for now, clearly marked as temporary; swapped for real `Settings` data once Task 3 exists
-- [ ] Confirm the route is genuinely public — no auth check applied anywhere in the `(public)` route group
-- [ ] Mobile responsive per the PRD's NFR
-- [ ] This page also hosts the `GET /api/v1/health` round-trip call from the Backend checklist above, so it doubles as the scaffolding's proof-of-life screen
+### Frontend
 
-### Shared Tooling
-- [ ] ESLint config (shared rule set, TypeScript strict, no `any` per `AI_rules.md` §1) for both `frontend/` and `backend/`
-- [ ] Prettier config, consistent between both apps
-- [ ] `.env.example` for both apps (no real secrets committed)
-- [ ] Confirm `npm run dev` works for both apps independently and concurrently (e.g. via a root-level script or two terminals — document whichever is chosen)
+- [ ] `features/auth/api.ts` — React Query hooks: `useLogin`, `useLogout`, `useForgotPassword`, `useResetPassword`, `useMe`
+- [ ] `features/auth/schema.ts` — Zod schemas shared in shape with backend validation (login, forgot-password, reset-password forms)
+- [ ] `app/(auth)/login/page.tsx` — login form (React Hook Form + Zod). No "Register" link or route anywhere — confirms the no-self-registration decision above
+- [ ] `app/(auth)/forgot-password/page.tsx` — forgot-password form
+- [ ] A reset-password page/route that consumes the emailed token (confirm route path, e.g. `app/(auth)/reset-password/page.tsx?token=`)
+- [ ] `stores/auth-store.ts` — real implementation: holds user, permissions, access token in memory; hydrates from `GET /auth/me` on app load
+- [ ] `lib/api-client.ts` — real implementation: attaches `Authorization: Bearer`, transparently calls `/auth/refresh` and retries once on `401`
+- [ ] `(dashboard)/layout.tsx` — session check, redirect unauthenticated users to `/login`
+- [ ] Logout action (clears store, calls `POST /auth/logout`, redirects to `/login`)
 
 ### Design
-- [ ] Decide actual content/copy for the public Home Page hero (PRD only specifies "public landing page" + login button — content is still open); revisit branding once Settings (Task 3) provides real restaurant name/logo. Visual treatment (type, color, the Fraunces hero face) is already decided in `theme.md` §1/§3 — this checklist item is copy only.
-- [ ] Confirm the global token wiring above actually renders correctly in both light and dark mode before moving on — this is the one place a token mistake would silently propagate into every later task
-- [ ] Beyond the Home Page, no other UI decisions needed yet — the first full Design checklist (forms, error states, etc.) starts at the Auth & Access Control task
 
-### Verification
-- [ ] Fresh clone → install deps → run both apps → frontend's placeholder page successfully displays the backend's `/health` response
-- [ ] Public Home Page loads at `/` with no auth required, "Admin Login" button navigates to `/login`
-- [ ] `tsc --noEmit` passes clean on both apps (no type errors in the empty skeleton)
-- [ ] Lint passes clean on both apps
-- [ ] Confirm folder structure visually matches `architecture.md` §3 and §4 — no extra ad hoc folders invented mid-setup
+- [ ] Decide login page layout (centered card vs split-screen vs full illustration) — consult the `frontend-design` skill before building
+- [ ] Decide error-state presentation for `INVALID_CREDENTIALS` (inline field error vs toast vs banner) — keep consistent with how validation errors will look everywhere else in the app, since this is the first form built
+- [ ] Decide loading/pending state for the login button (disabled + spinner vs skeleton)
+- [ ] Decide forgot/reset-password flow's confirmation messaging (e.g. "if that email exists, a reset link was sent" — ties to Open Item 2 below)
+- [ ] Tokens are already established in `theme.md` and wired in during Project Setup — confirm the login/forgot-password/reset-password forms actually use them; no new color/type/spacing decisions get made here
+
+---
+
+## Open Items
+
+1. **`API.md` §25.4 — narrowed, not resolved:** whether `POST /users` (Task 2) reuses the password-reset token mechanism vs. an admin-sets-password-directly flow is now *only* about Task 2's account creation. It has no bearing on the seeded bootstrap Admin, which never goes through either mechanism. Resolve when Task 2 starts.
+2. **Forgot-password anti-enumeration:** still open — generic `200` regardless of whether the email exists, or an explicit error. Pick one, note it in `API.md` §5.
+3. **Seed script scope:** this task assumes exactly **one** bootstrap Admin, created once, with every other account going through `POST /users` afterward (Task 2) — not a general-purpose fixtures/seeding tool for dev data. If multi-admin local-dev seeding is wanted later, treat that as separate dev tooling, not a change to this script's contract.
+4. **Seed credentials in `.env.example`:** `SEED_ADMIN_EMAIL`/`SEED_ADMIN_PASSWORD` need a placeholder entry in `.env.example` per Project Setup's existing convention — confirm this gets added, not just documented in a README.
 
 ---
 
 ## Notes / Decisions Made During This Task
 
-*(Fill in as setup proceeds — record any deviation from `architecture.md` here so docs can be reconciled afterward, per `AI_rules.md` §12. Before clearing this file once done, copy anything here into `docs/decisions.md` per `backlog.md`'s "How to Use This File" step 5.)*
+*(Fill in as work proceeds, per `AI_rules.md` §12 — record any deviation from upstream docs here so they can be reconciled afterward.)*
 
-- **Pulled forward:** Home Page (PRD Feature 1 / backlog Task 19) was originally scheduled last, since it "benefits from Settings existing first." Built here instead with hardcoded placeholder branding, since the `/health` proof-of-life needed a real page to render on anyway. `backlog.md` Task 19 has been trimmed to just the remaining work: swapping the placeholder branding for live `Settings` data once Task 3 exists.
+- **Decided:** the first Admin account is bootstrapped by a one-time seed script writing directly to MongoDB (bcrypt-hashed password from env vars) — not through `POST /auth/...` or any HTTP endpoint. This fills a gap left genuinely unspecified in `PRD.md`/`architecture.md`/`database.md`/`API.md`.
+- **Decided:** every account after that first Admin is created exclusively through Task 2's `POST /users`, called by an already-authenticated Admin from the dashboard. There is no second account-creation path, public or otherwise.
+
 -
 
 ---

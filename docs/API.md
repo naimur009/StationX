@@ -476,14 +476,14 @@ Single namespace, all authenticated dashboard clients join one shared room — n
 | 401 | `INVALID_CREDENTIALS` | Login failed |
 | 403 | `FORBIDDEN` | Valid token, but `authorize(module, action)` denied it |
 | 404 | `NOT_FOUND` | Resource doesn't exist (or is soft-deleted and the route doesn't opt into `includeInactive`) |
-| 409 | `ACCOUNT_DEACTIVATED` | Login attempt on a deactivated user |
 | 409 | `COUPON_IN_USE` | Hard-delete blocked, `usageCount > 0` |
 | 409 | `COUPON_USAGE_LIMIT_REACHED` | Lost a race at order-commit time |
 | 409 | `ALREADY_CHECKED_IN` | Attendance unique-index violation |
 | 409 | `LAST_ADMIN_PROTECTED` / `CANNOT_DEACTIVATE_SELF` | User-deactivation guard rails |
 | 409 | `ORDER_NOT_DELETABLE` | See §10 open item |
 | 409 | `PRODUCT_UNAVAILABLE` | A submitted product went inactive mid-checkout |
-| 429 | `RATE_LIMITED` | Hit on `/auth/login`, `/auth/forgot-password` per `ARCHITECTURE.md` §12 |
+| 423 | `ACCOUNT_DEACTIVATED` | Login attempt on a deactivated user (`isActive: false`) |
+| 429 | `RATE_LIMITED` | Hit on `/auth/login`, `/auth/refresh`, `/auth/forgot-password`, `/auth/reset-password` per `ARCHITECTURE.md` §12 |
 | 500 | `INTERNAL_ERROR` | Unhandled — never exposes stack traces or raw DB errors to the client |
 
 ---

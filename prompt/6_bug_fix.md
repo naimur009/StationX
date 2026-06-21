@@ -9,10 +9,8 @@ Fix review findings without changing unrelated code.
 # INPUT
 
 Review Findings:
-[paste findings]
 
-Code:
-[paste code]
+
 
 # REQUIREMENTS
 
