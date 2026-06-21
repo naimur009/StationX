@@ -10,7 +10,7 @@ Fix review findings without changing unrelated code.
 
 Review Findings:
 
-
+the issue is fixed, but add one thing without signout user cant access to login page, i mean when user is loggedin it can access to home page or loginin page forget password, reset password or other page without the dashboard, 
 
 # REQUIREMENTS
 

@@ -1,15 +1,28 @@
 import jwt from 'jsonwebtoken';
+import { z } from 'zod';
 import { env } from '../config/env';
 
-export interface AccessTokenPayload {
-  sub: string;
-  role: string;
-  permissions: { module: string; actions: string[] }[];
-}
+const accessTokenPayloadSchema = z.object({
+  sub: z.string(),
+  role: z.string(),
+  permissions: z.array(
+    z.object({
+      module: z.string(),
+      actions: z.array(z.string()),
+    })
+  ),
+  iat: z.number().optional(),
+  exp: z.number().optional(),
+});
 
-export interface RefreshTokenPayload {
-  sub: string;
-}
+const refreshTokenPayloadSchema = z.object({
+  sub: z.string(),
+  iat: z.number().optional(),
+  exp: z.number().optional(),
+});
+
+export type AccessTokenPayload = z.infer<typeof accessTokenPayloadSchema>;
+export type RefreshTokenPayload = z.infer<typeof refreshTokenPayloadSchema>;
 
 export function signAccessToken(
   userId: string,
@@ -17,7 +30,7 @@ export function signAccessToken(
   permissions: { module: string; actions: string[] }[]
 ): string {
   return jwt.sign(
-    { sub: userId, role, permissions } satisfies AccessTokenPayload,
+    { sub: userId, role, permissions },
     env.JWT_ACCESS_SECRET,
     { expiresIn: '15m' }
   );
@@ -25,16 +38,18 @@ export function signAccessToken(
 
 export function signRefreshToken(userId: string): string {
   return jwt.sign(
-    { sub: userId } satisfies RefreshTokenPayload,
+    { sub: userId },
     env.JWT_REFRESH_SECRET,
     { expiresIn: '7d' }
   );
 }
 
 export function verifyAccessToken(token: string): AccessTokenPayload {
-  return jwt.verify(token, env.JWT_ACCESS_SECRET) as AccessTokenPayload;
+  const decoded = jwt.verify(token, env.JWT_ACCESS_SECRET);
+  return accessTokenPayloadSchema.parse(decoded);
 }
 
 export function verifyRefreshToken(token: string): RefreshTokenPayload {
-  return jwt.verify(token, env.JWT_REFRESH_SECRET) as RefreshTokenPayload;
+  const decoded = jwt.verify(token, env.JWT_REFRESH_SECRET);
+  return refreshTokenPayloadSchema.parse(decoded);
 }

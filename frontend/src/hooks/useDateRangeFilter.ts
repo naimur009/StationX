@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 
 export type DateRange = 'today' | 'week' | 'month' | 'custom';
 
@@ -23,20 +23,24 @@ export function useDateRangeFilter(initialRange: DateRange = 'today') {
     setFilter({ range: 'custom', from, to });
   }, []);
 
-  const queryParams = new URLSearchParams();
+  const queryString = useMemo(() => {
+    const queryParams = new URLSearchParams();
 
-  if (filter.range !== 'custom') {
-    queryParams.set('range', filter.range);
-  } else {
-    queryParams.set('range', 'custom');
-    if (filter.from) queryParams.set('from', filter.from);
-    if (filter.to) queryParams.set('to', filter.to);
-  }
+    if (filter.range !== 'custom') {
+      queryParams.set('range', filter.range);
+    } else {
+      queryParams.set('range', 'custom');
+      if (filter.from) queryParams.set('from', filter.from);
+      if (filter.to) queryParams.set('to', filter.to);
+    }
+
+    return queryParams.toString();
+  }, [filter.range, filter.from, filter.to]);
 
   return {
     filter,
     setRange,
     setCustomRange,
-    queryString: queryParams.toString(),
+    queryString,
   };
 }

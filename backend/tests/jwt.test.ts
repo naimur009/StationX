@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import jwt from 'jsonwebtoken';
 import { signAccessToken, signRefreshToken, verifyAccessToken, verifyRefreshToken } from '../src/lib/jwt';
 
 describe('JWT', () => {
@@ -18,22 +19,17 @@ describe('JWT', () => {
     });
 
     it('rejects an expired token', () => {
-      const token = signAccessToken(userId, 'manager', []);
-      expect(token).toBeTruthy();
-      // verify (token is valid since it was just signed)
-      const payload = verifyAccessToken(token);
-      expect(payload.sub).toBe(userId);
+      const expiredToken = jwt.sign(
+        { sub: userId, role: 'manager', permissions: [] },
+        process.env.JWT_ACCESS_SECRET || 'test-access-secret',
+        { expiresIn: '0s' }
+      );
+
+      expect(() => verifyAccessToken(expiredToken)).toThrow();
     });
 
     it('rejects a garbage token string', () => {
       expect(() => verifyAccessToken('garbage-token')).toThrow();
-    });
-
-    it('rejects a token signed with a different secret', () => {
-      // Can't really test different secret without changing env — the test
-      // setup uses 'test-access-secret'. This validates the function rejects
-      // clearly invalid tokens.
-      expect(() => verifyAccessToken('')).toThrow();
     });
   });
 
@@ -49,14 +45,6 @@ describe('JWT', () => {
 
     it('rejects a garbage refresh token string', () => {
       expect(() => verifyRefreshToken('garbage-token')).toThrow();
-    });
-  });
-
-  describe('access vs refresh tokens', () => {
-    it('produces different tokens for access and refresh', () => {
-      const accessToken = signAccessToken(userId, 'admin', []);
-      const refreshToken = signRefreshToken(userId);
-      expect(accessToken).not.toBe(refreshToken);
     });
   });
 });

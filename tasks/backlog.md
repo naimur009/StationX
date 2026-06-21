@@ -11,26 +11,27 @@
 ## Progress Tracker
 
 - [ok] 0. Project Setup
-- [ ] 1. Auth & Access Control
-- [ ] 2. Users & Permissions
-- [ ] 3. Settings
-- [ ] 4. Categories
-- [ ] 5. Shared Uploads
-- [ ] 6. Products
-- [ ] 7. Coupons
-- [ ] 8. Customers
-- [ ] 9. POS
-- [ ] 10. Orders
-- [ ] 11. Dashboard
-- [ ] 12. Income
-- [ ] 13. Vendors
-- [ ] 14. Expenses
-- [ ] 15. Task Management
-- [ ] 16. Attendance
-- [ ] 17. Reports
-- [ ] 18. Activity Log (read endpoint — middleware ships with #1)
-- [ ] 19. Home Page (Public) — page built in Task 0; this is just the Settings-data wiring follow-up
-- [ ] 20. Pre-Launch hardening
+- [ok] 1. Auth & Access Control
+- [ok] 2. Dashboard Shell & Layout Design
+- [ ] 3. Users & Permissions
+- [ ] 4. Settings
+- [ ] 5. Categories
+- [ ] 6. Shared Uploads
+- [ ] 7. Products
+- [ ] 8. Coupons
+- [ ] 9. Customers
+- [ ] 10. POS
+- [ ] 11. Orders
+- [ ] 12. Dashboard (Overview)
+- [ ] 13. Income
+- [ ] 14. Vendors
+- [ ] 15. Expenses
+- [ ] 16. Task Management
+- [ ] 17. Attendance
+- [ ] 18. Reports
+- [ ] 19. Activity Log (read endpoint — middleware ships with #1)
+- [ ] 20. Home Page (Public) — page built in Task 0; this is just the Settings-data wiring follow-up
+- [ ] 21. Pre-Launch hardening
 
 ---
 
@@ -138,10 +139,50 @@ Stand up empty, correctly-configured `frontend/` and `backend/` projects matchin
 
 ---
 
-## 2. Users & Permissions
+## 2. Dashboard Shell & Layout Design
+
+**Infrastructure/UI task — not a standalone PRD feature** | `architecture.md` §3 (`(dashboard)` route group, `components/shared/`) | `theme.md` (tokens — **referenced throughout this backlog but not found among the current project docs; see Open Items below**)
+**Depends on:** Auth & Access Control (needs the session-gated `(dashboard)/layout.tsx` skeleton and `stores/auth-store.ts` built there)
+**Blocks:** every dashboard-area module from Task 3 onward — every page from here forward renders inside this shell, so its layout, responsive behavior, and theming need to be locked in before module pages multiply and each has to be retrofitted individually.
+
+This task designs and builds the **persistent chrome** every authenticated page lives inside: sidebar navigation, top bar, responsive collapse behavior, and dark/light theme wiring. It is deliberately separate from PRD Feature 3 (the Dashboard *Overview* page with metrics/top-items — see Task 12, "Dashboard (Overview)"), which is the first thing a user sees **inside** this shell, not the shell itself.
+
+**Known dependency gap — flagged, not silently worked around:** the sidebar's nav-link visibility is supposed to be permission-gated (`<PermissionGate module action>`), but that component and `lib/permissions.ts`'s `hasPermission` helper aren't built until Task 3 (Users & Permissions), which comes *after* this task. Resolution: this task ships the shell with **all nav links visible unconditionally**; Task 3 wires real permission-based visibility into the same `Sidebar` component as one of its own checklist items (added below). Don't invent a temporary permission stub here that could diverge from Task 3's real implementation.
+
+### Backend
+- [ ] None — this is a frontend-only task.
+
+### Frontend
+- [ ] `components/shared/Sidebar.tsx` — nav-link list for all 15 permission-gated modules plus Dashboard Overview and Activity Log; icon + label, active-route highlighting; all links visible unconditionally for now (see dependency gap above)
+- [ ] `components/shared/TopBar.tsx` — restaurant name/logo (reads from `Settings` once Task 4 exists; placeholder text/logo until then), current user name, logout action, theme toggle
+- [ ] `components/shared/MobileNav.tsx` — hamburger-triggered drawer/sheet for narrow viewports, reusing the same nav-link data as `Sidebar` (single source of truth, not a duplicated list)
+- [ ] `app/(dashboard)/layout.tsx` — extend the session-gate-only version from Task 1 to render `Sidebar` + `TopBar` + page content, swapping to `MobileNav` below the chosen breakpoint
+- [ ] Dark/light mode toggle wired to `theme.md`'s CSS variables and Tailwind's `darkMode: 'class'` (already configured in Project Setup) — toggle lives in `TopBar`, persisted via the auth/UI Zustand store (never `localStorage`/`sessionStorage`)
+- [ ] Route-level code splitting: each `(dashboard)/<module>/page.tsx` lazy-loads its own feature bundle rather than the shell pulling in every module's JS upfront
+- [ ] `lucide-react` icons imported individually (named imports only) so unused module icons don't bloat the shared shell bundle
+- [ ] Skeleton/loading state for the content area during route transitions, to avoid a blank-screen flash on navigation
+- [ ] Sidebar collapsed/expanded state persisted in a Zustand UI store, not browser storage
+
+### Design
+- [ ] Decide the sidebar pattern per breakpoint — consult the `frontend-design` skill before building:
+  - **Desktop (≥1024px):** persistent full sidebar (icon + label)
+  - **Tablet (768–1023px):** collapsible icon-only rail, expandable on hover/tap
+  - **Mobile (<768px):** hidden by default; hamburger in `TopBar` opens a full-height drawer/sheet over the content — not a bottom tab bar, since 15+ modules won't fit legibly in one
+- [ ] Decide `TopBar` content priority on the smallest supported width (restaurant name/logo vs. user menu vs. theme toggle — what survives at ~320px without crowding or truncation)
+- [ ] Confirm all interactive nav/touch targets meet ≥44px per `TEST_CASES.md` CC-MOB-01
+- [ ] Confirm dark-mode token application has no flash-of-wrong-theme on initial load, per `TEST_CASES.md` CC-MOB-05
+- [ ] Re-confirm `theme.md`'s breakpoint values match the ones used here — every later module's "Mobile" design checklist item inherits these breakpoints, so a mismatch here propagates everywhere
+
+### Open items to resolve during this task
+- **`theme.md` is referenced as the authoritative source for tokens/breakpoints throughout this backlog (Project Setup and every later module's Design checklist) but was not found among the project docs provided for this task.** Locate/attach the actual file before finalizing colors, type, spacing, radius, and breakpoints here — if it genuinely doesn't exist yet, this task should produce those tokens as a byproduct rather than each later module inventing its own. Flag explicitly; don't silently guess values.
+- Sidebar permission-gating is intentionally deferred to Task 3 (see "Known dependency gap" above) — confirmed picked up there; don't let it get silently dropped when Task 3 is scoped.
+
+---
+
+## 3. Users & Permissions
 
 **PRD Feature 13** | `API.md` §6 | `DATABASE.md` §3.1 | `ARCHITECTURE.md` §6
-**Depends on:** Auth & Access Control
+**Depends on:** Auth & Access Control, Dashboard Shell & Layout Design (Task 2) — wires real permission checks into the `Sidebar` component built there
 **Blocks:** every other module's real permission enforcement (everything currently relies on the Auth task's `authenticate` only — `authorize` becomes real here).
 
 ### Backend
@@ -165,6 +206,7 @@ Stand up empty, correctly-configured `frontend/` and `backend/` projects matchin
 - [ ] `lib/permissions.ts` — `hasPermission(user, module, action)` helper
 - [ ] `<PermissionGate module action>` shared component (`components/shared/`) — build it here, every later module's pages wrap content in it
 - [ ] `hooks/usePermission.ts`
+- [ ] Wire real permission-based visibility into `components/shared/Sidebar.tsx` (built in Task 2) — replace its unconditional nav-link list with `hasPermission` checks per module, closing the gap flagged in Task 2
 
 ### Design
 - [ ] Decide the permission editor's interaction pattern — matrix/grid (modules × actions) vs per-module accordion — this is the most complex UI decision in the whole admin area, worth deliberate thought
@@ -176,7 +218,7 @@ Stand up empty, correctly-configured `frontend/` and `backend/` projects matchin
 
 ---
 
-## 3. Settings
+## 4. Settings
 
 **PRD Feature 14** | `API.md` §20 | `DATABASE.md` §3.14
 **Depends on:** Users & Permissions
@@ -202,7 +244,7 @@ Stand up empty, correctly-configured `frontend/` and `backend/` projects matchin
 
 ---
 
-## 4. Categories
+## 5. Categories
 
 **PRD Feature 12** | `API.md` §17 | `DATABASE.md` §3.3
 **Depends on:** Users & Permissions
@@ -223,7 +265,7 @@ Stand up empty, correctly-configured `frontend/` and `backend/` projects matchin
 
 ---
 
-## 5. Shared Uploads
+## 6. Shared Uploads
 
 **Utility, not its own PRD feature** | `API.md` §4
 **Depends on:** Users & Permissions (permission check happens at the calling route, not here)
@@ -244,7 +286,7 @@ Stand up empty, correctly-configured `frontend/` and `backend/` projects matchin
 
 ---
 
-## 6. Products
+## 7. Products
 
 **PRD Feature 11** | `API.md` §16 | `DATABASE.md` §3.4
 **Depends on:** Categories, Shared Uploads
@@ -266,7 +308,7 @@ Stand up empty, correctly-configured `frontend/` and `backend/` projects matchin
 
 ---
 
-## 7. Coupons
+## 8. Coupons
 
 **PRD Feature 6** | `API.md` §11 | `DATABASE.md` §3.5
 **Depends on:** Users & Permissions
@@ -293,7 +335,7 @@ Stand up empty, correctly-configured `frontend/` and `backend/` projects matchin
 
 ---
 
-## 8. Customers
+## 9. Customers
 
 **PRD Feature 17** | `API.md` §18 | `DATABASE.md` §3.6
 **Depends on:** Users & Permissions
@@ -315,7 +357,7 @@ Stand up empty, correctly-configured `frontend/` and `backend/` projects matchin
 
 ---
 
-## 9. POS
+## 10. POS
 
 **PRD Feature 4** | `API.md` §9 | `DATABASE.md` §3.8, §3.9 | `ARCHITECTURE.md` §5
 **Depends on:** Products, Categories, Coupons, Customers, Settings (tax config)
@@ -349,7 +391,7 @@ Stand up empty, correctly-configured `frontend/` and `backend/` projects matchin
 
 ---
 
-## 10. Orders
+## 11. Orders
 
 **PRD Feature 5** | `API.md` §10 | `DATABASE.md` §3.8
 **Depends on:** POS
@@ -382,7 +424,7 @@ Stand up empty, correctly-configured `frontend/` and `backend/` projects matchin
 
 ---
 
-## 11. Dashboard
+## 12. Dashboard (Overview)
 
 **PRD Feature 3** | `API.md` §7 | `DATABASE.md` §5.4
 **Depends on:** Orders (needs real completed orders to aggregate)
@@ -408,10 +450,10 @@ Stand up empty, correctly-configured `frontend/` and `backend/` projects matchin
 
 ---
 
-## 12. Income
+## 13. Income
 
 **PRD Feature 16** | `API.md` §8
-**Depends on:** Dashboard (reuses its aggregation helper and permission key)
+**Depends on:** Dashboard (Overview) (reuses its aggregation helper and permission key)
 
 ### Backend
 - [ ] `GET /income?range=&groupBy=product` — per-product breakdown reusing the Dashboard aggregation helper
@@ -428,7 +470,7 @@ Stand up empty, correctly-configured `frontend/` and `backend/` projects matchin
 
 ---
 
-## 13. Vendors
+## 14. Vendors
 
 **PRD Feature 10** | `API.md` §15 | `DATABASE.md` §3.7
 **Depends on:** Users & Permissions
@@ -447,7 +489,7 @@ Stand up empty, correctly-configured `frontend/` and `backend/` projects matchin
 
 ---
 
-## 14. Expenses
+## 15. Expenses
 
 **PRD Feature 9** | `API.md` §14 | `DATABASE.md` §3.12
 **Depends on:** Vendors (optional `vendorId` link)
@@ -469,7 +511,7 @@ Stand up empty, correctly-configured `frontend/` and `backend/` projects matchin
 
 ---
 
-## 15. Task Management
+## 16. Task Management
 
 **PRD Feature 7** | `API.md` §12 | `DATABASE.md` §3.10
 **Depends on:** Users & Permissions
@@ -492,7 +534,7 @@ Stand up empty, correctly-configured `frontend/` and `backend/` projects matchin
 
 ---
 
-## 16. Attendance
+## 17. Attendance
 
 **PRD Feature 8** | `API.md` §13 | `DATABASE.md` §3.11
 **Depends on:** Users & Permissions
@@ -517,10 +559,10 @@ Stand up empty, correctly-configured `frontend/` and `backend/` projects matchin
 
 ---
 
-## 17. Reports
+## 18. Reports
 
 **PRD Feature 18** | `API.md` §19
-**Depends on:** Dashboard, Income, Expenses, Attendance (reports on all four data sources)
+**Depends on:** Dashboard (Overview), Income, Expenses, Attendance (reports on all four data sources)
 
 ### Backend
 - [ ] `GET /reports/:type?range=&from=&to=` for `sales|income|expense|attendance`, reusing the Dashboard aggregation helper
@@ -538,7 +580,7 @@ Stand up empty, correctly-configured `frontend/` and `backend/` projects matchin
 
 ---
 
-## 18. Activity Log
+## 19. Activity Log
 
 **PRD Feature 15** | `API.md` §21 | `DATABASE.md` §3.13
 **Note:** the writing middleware (`activityLogger`) ships in Task 1 (Auth), since it's global infrastructure. This task is the **read-only endpoint + viewer UI** only.
@@ -557,7 +599,7 @@ Stand up empty, correctly-configured `frontend/` and `backend/` projects matchin
 
 ---
 
-## 19. Home Page (Public)
+## 20. Home Page (Public)
 
 **PRD Feature 1** | `architecture.md` §3 (`app/(public)`)
 **Status note:** the page itself (`app/(public)/page.tsx`, navbar, "Admin Login" button, mobile responsiveness) was pulled forward and built in **Task 0 (Project Setup)** — see `current_task.md`'s Notes for that task. What's left here is narrower than originally scoped.
@@ -575,7 +617,7 @@ Stand up empty, correctly-configured `frontend/` and `backend/` projects matchin
 
 ---
 
-## 20. Pre-Launch Hardening
+## 21. Pre-Launch Hardening
 
 Not a feature — run once all modules above are checked off.
 

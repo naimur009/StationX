@@ -7,7 +7,7 @@ export interface AppError extends Error {
 
 export function errorHandler(
   err: AppError,
-  _req: Request,
+  req: Request,
   res: Response,
   _next: NextFunction
 ): void {
@@ -16,7 +16,7 @@ export function errorHandler(
   const message = statusCode === 500 ? 'An unexpected error occurred' : err.message;
 
   if (statusCode === 500) {
-    console.error('[errorHandler] Unhandled error: code=%s message="%s" path=%s', code, message, _req.path);
+    console.error('[errorHandler] Unhandled error: code=%s message="%s" path=%s', code, message, req.path);
   }
 
   res.status(statusCode).json({

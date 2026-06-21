@@ -4,34 +4,29 @@ import ActivityLog from '../models/ActivityLog';
 
 export function activityLogger(
   req: AuthenticatedRequest,
-  _res: Response,
+  res: Response,
   next: NextFunction
 ): void {
-  const originalSend = _res.json.bind(_res);
-
-  _res.json = function (body: unknown) {
+  res.on('finish', () => {
     if (
-      _res.statusCode >= 200 &&
-      _res.statusCode < 300 &&
+      res.statusCode >= 200 &&
+      res.statusCode < 300 &&
       req.method !== 'GET' &&
       req.user
     ) {
       const moduleName = extractModule(req.path);
-      const rawAction = req.path.endsWith('/logout') ? 'logout' : methodToAction(req.method);
-      const action = `${moduleName}.${rawAction}`;
+      const action = buildAction(req);
 
       ActivityLog.create({
         actor: req.user.id,
         module: moduleName,
         action,
-        description: `${action} via ${req.method} ${req.path}`,
+        description: buildDescription(req, action),
       }).catch((err) => {
         console.error('[activityLog] Failed to write activity log:', moduleName, action, err);
       });
     }
-
-    return originalSend(body);
-  };
+  });
 
   next();
 }
@@ -39,6 +34,42 @@ export function activityLogger(
 function extractModule(path: string): string {
   const parts = path.replace('/api/v1/', '').split('/');
   return parts[0] || 'unknown';
+}
+
+function buildAction(req: AuthenticatedRequest): string {
+  const moduleName = extractModule(req.path);
+
+  const specialPaths: Record<string, string> = {
+    '/auth/login': 'login',
+    '/auth/logout': 'logout',
+    '/auth/refresh': 'token.refresh',
+    '/auth/forgot-password': 'password.reset_requested',
+    '/auth/reset-password': 'password.reset',
+  };
+
+  const pathKey = req.path.replace('/api/v1', '');
+  if (specialPaths[pathKey]) {
+    return specialPaths[pathKey];
+  }
+
+  const rawAction = methodToAction(req.method);
+  return `${moduleName}.${rawAction}`;
+}
+
+function buildDescription(req: AuthenticatedRequest, action: string): string {
+  const specialDescriptions: Record<string, string> = {
+    'login': `User logged in`,
+    'logout': `User logged out`,
+    'token.refresh': `Access token refreshed`,
+    'password.reset_requested': `Password reset requested`,
+    'password.reset': `Password was reset`,
+  };
+
+  if (specialDescriptions[action]) {
+    return specialDescriptions[action];
+  }
+
+  return `${action} via ${req.method} ${req.path}`;
 }
 
 function methodToAction(method: string): string {

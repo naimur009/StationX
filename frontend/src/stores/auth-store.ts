@@ -22,42 +22,17 @@ interface AuthState {
   clearAuth: () => void;
 }
 
-function getStoredAccessToken(): string | null {
-  if (typeof window === 'undefined') return null;
-  try {
-    return localStorage.getItem('accessToken');
-  } catch {
-    return null;
-  }
-}
-
-function persistAccessToken(token: string | null): void {
-  if (typeof window === 'undefined') return;
-  try {
-    if (token === null) {
-      localStorage.removeItem('accessToken');
-    } else {
-      localStorage.setItem('accessToken', token);
-    }
-  } catch {
-    // ignore storage errors
-  }
-}
-
 export const useAuthStore = create<AuthState>((set) => ({
   user: null,
-  accessToken: getStoredAccessToken(),
+  accessToken: null,
   isAuthenticated: false,
   setAuth: (user, accessToken) => {
-    persistAccessToken(accessToken);
     set({ user, accessToken, isAuthenticated: true });
   },
   setAccessToken: (token) => {
-    persistAccessToken(token);
     set({ accessToken: token });
   },
   clearAuth: () => {
-    persistAccessToken(null);
     set({ user: null, accessToken: null, isAuthenticated: false });
   },
 }));

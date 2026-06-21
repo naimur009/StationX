@@ -46,7 +46,16 @@ export async function apiClient<T>(
   };
 
   if (!skipAuth) {
-    const token = useAuthStore.getState().accessToken;
+    let token = useAuthStore.getState().accessToken;
+
+    if (!token) {
+      if (!refreshPromise) {
+        refreshPromise = refreshAccessToken();
+      }
+      token = await refreshPromise;
+      refreshPromise = null;
+    }
+
     if (token) {
       headers['Authorization'] = `Bearer ${token}`;
     }

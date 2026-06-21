@@ -12,6 +12,9 @@ import { AppError } from '@/lib/utils';
 
 function ResetPasswordForm() {
   const searchParams = useSearchParams();
+  // NOTE: token in query string is visible in browser history, referrer headers,
+  // and server logs. For production, consider using a hash fragment (#token=...)
+  // to avoid server-side exposure. ARCHITECTURE.md §6.5.
   const token = searchParams.get('token') || '';
   const resetPasswordMutation = useResetPassword();
   const [error, setError] = useState<string | null>(null);

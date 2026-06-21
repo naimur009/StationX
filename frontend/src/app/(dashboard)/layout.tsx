@@ -1,29 +1,15 @@
 'use client';
 
 import { useEffect } from 'react';
-import Link from 'next/link';
-import { useRouter, usePathname } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/stores/auth-store';
+import { useUIStore } from '@/stores/ui-store';
 import { useMe } from '@/features/auth/api';
 import { useLogout } from '@/features/auth/api';
-
-const NAV_ITEMS = [
-  { href: '/overview', label: 'Dashboard', module: 'dashboard' },
-  { href: '/pos', label: 'POS', module: 'pos' },
-  { href: '/orders', label: 'Orders', module: 'orders' },
-  { href: '/coupons', label: 'Coupons', module: 'coupons' },
-  { href: '/tasks', label: 'Tasks', module: 'tasks' },
-  { href: '/attendance', label: 'Attendance', module: 'attendance' },
-  { href: '/expenses', label: 'Expenses', module: 'expenses' },
-  { href: '/vendors', label: 'Vendors', module: 'vendors' },
-  { href: '/products', label: 'Products', module: 'products' },
-  { href: '/categories', label: 'Categories', module: 'categories' },
-  { href: '/customers', label: 'Customers', module: 'customers' },
-  { href: '/users', label: 'Users', module: 'users' },
-  { href: '/settings', label: 'Settings', module: 'settings' },
-  { href: '/reports', label: 'Reports', module: 'reports' },
-  { href: '/activity-log', label: 'Activity Log', module: 'activity-log' },
-];
+import Sidebar from '@/components/shared/Sidebar';
+import TopBar from '@/components/shared/TopBar';
+import MobileNav from '@/components/shared/MobileNav';
+import { cn } from '@/lib/utils';
 
 export default function DashboardLayout({
   children,
@@ -31,10 +17,12 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }>) {
   const router = useRouter();
-  const pathname = usePathname();
   const { isAuthenticated, setAuth, clearAuth, user } = useAuthStore();
   const { data: meData, isLoading, isError } = useMe();
   const logoutMutation = useLogout();
+  const sidebarCollapsed = useUIStore((state) => state.sidebarCollapsed);
+  const mobileDrawerOpen = useUIStore((state) => state.mobileDrawerOpen);
+  const closeMobileDrawer = useUIStore((state) => state.closeMobileDrawer);
 
   useEffect(() => {
     if (!isAuthenticated && !meData && !isLoading) {
@@ -95,59 +83,28 @@ export default function DashboardLayout({
 
   return (
     <div className="flex min-h-screen bg-slate-50">
-      <aside className="sidebar-transition fixed left-0 top-0 z-50 flex h-screen w-64 flex-col border-r border-white/10 bg-gradient-to-b from-slate-900 to-slate-800">
-        <div className="flex min-h-[64px] items-center gap-3 border-b border-white/10 p-4">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-600 shadow-lg">
-            <span className="text-sm font-bold text-white">W</span>
-          </div>
-          <div>
-            <div className="text-sm font-bold text-white">Whatta Cup</div>
-            <div className="text-xs text-slate-400">Management</div>
-          </div>
-        </div>
+      <TopBar />
 
-        <nav className="flex-1 space-y-1 overflow-y-auto p-3">
-          {NAV_ITEMS.filter((item) => {
-            if (!user) return false;
-            if (user.role === 'admin') return true;
-            return user.permissions.some(
-              (p) => p.module === item.module && p.actions.includes('view')
-            );
-          }).map((item) => {
-            const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors ${
-                  isActive
-                    ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/30'
-                    : 'text-slate-400 hover:bg-white/10 hover:text-white'
-                }`}
-              >
-                {item.label}
-              </Link>
-            );
-          })}
-        </nav>
+      <div className="hidden md:block">
+        <Sidebar onLogout={handleLogout} />
+      </div>
 
-        <div className="border-t border-white/10 p-3">
-          {user && (
-            <div className="mb-2 px-3 py-2">
-              <div className="text-sm font-semibold text-white">{user.name}</div>
-              <div className="text-xs capitalize text-slate-400">{user.role}</div>
-            </div>
-          )}
-          <button
-            type="button"
-            onClick={handleLogout}
-            className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-slate-400 transition-colors hover:bg-red-500/10 hover:text-red-400"
-          >
-            Sign Out
-          </button>
+      <MobileNav
+        open={mobileDrawerOpen}
+        onClose={closeMobileDrawer}
+        onLogout={handleLogout}
+      />
+
+      <main
+        className={cn(
+          'flex-1 pt-16 transition-all duration-300',
+          sidebarCollapsed ? 'md:pl-16' : 'md:pl-64'
+        )}
+      >
+        <div className="p-3 sm:p-6 lg:p-8">
+          <div className="mx-auto max-w-screen-2xl">{children}</div>
         </div>
-      </aside>
-      <main className="flex-1 pl-64 pt-16">{children}</main>
+      </main>
     </div>
   );
 }

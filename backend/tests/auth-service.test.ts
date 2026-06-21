@@ -16,12 +16,6 @@ vi.mock('../src/models/PasswordResetToken', () => ({
   },
 }));
 
-vi.mock('../src/models/ActivityLog', () => ({
-  default: {
-    create: vi.fn().mockResolvedValue({}),
-  },
-}));
-
 vi.mock('../src/lib/jwt', () => ({
   signAccessToken: vi.fn(() => 'mock-access-token'),
   signRefreshToken: vi.fn(() => 'mock-refresh-token'),
@@ -44,7 +38,6 @@ vi.mock('bcrypt', () => ({
 import bcrypt from 'bcrypt';
 import User from '../src/models/User';
 import PasswordResetToken from '../src/models/PasswordResetToken';
-import ActivityLog from '../src/models/ActivityLog';
 import * as jwt from '../src/lib/jwt';
 import * as email from '../src/lib/email';
 import { login, refresh, forgotPassword, resetPassword, getMe } from '../src/modules/auth/auth.service';
@@ -89,9 +82,6 @@ describe('auth service — login', () => {
     expect(result.refreshToken).toBe('mock-refresh-token');
     expect(result.user.email).toBe('test@example.com');
     expect(result.user.role).toBe('admin');
-    expect(ActivityLog.create).toHaveBeenCalledWith(
-      expect.objectContaining({ action: 'login' })
-    );
   });
 
   it('throws 401 INVALID_CREDENTIALS when email does not exist', async () => {
@@ -207,20 +197,15 @@ describe('auth service — forgotPassword', () => {
       'test@example.com',
       expect.stringContaining('/reset-password?token=')
     );
-    expect(ActivityLog.create).toHaveBeenCalledWith(
-      expect.objectContaining({ action: 'forgot-password' })
-    );
   });
 
   it('silently returns when email does not exist (anti-enumeration)', async () => {
     (User.findOne as any).mockResolvedValue(null);
 
-    // Should not throw
     await forgotPassword('unknown@example.com');
 
     expect(PasswordResetToken.create).not.toHaveBeenCalled();
     expect(email.sendPasswordResetEmail).not.toHaveBeenCalled();
-    expect(ActivityLog.create).not.toHaveBeenCalled();
   });
 });
 
@@ -250,9 +235,6 @@ describe('auth service — resetPassword', () => {
     expect(mockUser.save).toHaveBeenCalled();
     expect(mockTokenDoc.used).toBe(true);
     expect(mockTokenDoc.save).toHaveBeenCalled();
-    expect(ActivityLog.create).toHaveBeenCalledWith(
-      expect.objectContaining({ action: 'password-reset' })
-    );
   });
 
   it('throws 400 when token is expired', async () => {
@@ -265,10 +247,6 @@ describe('auth service — resetPassword', () => {
   });
 
   it('throws 400 when token is already used', async () => {
-    const mockTokenDoc = {
-      used: true,
-      save: vi.fn(),
-    };
     (PasswordResetToken.findOne as any).mockResolvedValue(null);
 
     await expect(resetPassword('used-token', 'NewPassword123')).rejects.toMatchObject({

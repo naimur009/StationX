@@ -2,7 +2,6 @@ import bcrypt from 'bcrypt';
 import crypto from 'crypto';
 import User from '../../models/User';
 import PasswordResetToken from '../../models/PasswordResetToken';
-import ActivityLog from '../../models/ActivityLog';
 import {
   signAccessToken,
   signRefreshToken,
@@ -55,13 +54,6 @@ export async function login(
   user.lastLoginAt = new Date();
   await user.save();
 
-  await ActivityLog.create({
-    actor: user._id,
-    module: 'auth',
-    action: 'login',
-    description: `User ${user.email} logged in`,
-  });
-
   const accessToken = signAccessToken(
     user._id.toString(),
     user.role,
@@ -83,6 +75,9 @@ export async function login(
 }
 
 export async function refresh(refreshToken: string): Promise<{ accessToken: string; refreshToken: string }> {
+  // NOTE: Old refresh tokens remain valid until natural expiry (7d).
+  // A Redis denylist (Phase 2+) is needed for immediate revocation of
+  // rotated tokens. See ARCHITECTURE.md §6.6 and DATABASE.md §3.2.
   try {
     const payload = verifyRefreshToken(refreshToken);
     const user = await User.findById(payload.sub);
@@ -120,13 +115,6 @@ export async function forgotPassword(email: string): Promise<void> {
   const resetLink = `${env.FRONTEND_URL}/reset-password?token=${rawToken}`;
 
   await sendPasswordResetEmail(email, resetLink);
-
-  await ActivityLog.create({
-    actor: user._id,
-    module: 'auth',
-    action: 'forgot-password',
-    description: `Password reset requested for ${user.email}`,
-  });
 }
 
 export async function resetPassword(
@@ -162,13 +150,6 @@ export async function resetPassword(
 
   resetTokenDoc.used = true;
   await resetTokenDoc.save();
-
-  await ActivityLog.create({
-    actor: user._id,
-    module: 'auth',
-    action: 'password-reset',
-    description: `Password reset for user ${user.email}`,
-  });
 }
 
 export async function getMe(userId: string) {

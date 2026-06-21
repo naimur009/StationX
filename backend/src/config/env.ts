@@ -18,7 +18,9 @@ const envSchema = z.object({
   EMAIL_USER: z.string().optional().default(''),
   EMAIL_PASS: z.string().optional().default(''),
   RATE_LIMIT_WINDOW_MS: z.coerce.number().default(900000),
-  RATE_LIMIT_MAX: z.coerce.number().default(5),
+  RATE_LIMIT_MAX: z.coerce.number().default(10),
+  RATE_LIMIT_REFRESH_MAX: z.coerce.number().default(30),
+  RATE_LIMIT_STRICT_MAX: z.coerce.number().default(5),
 });
 
 const parsed = envSchema.safeParse(process.env);
