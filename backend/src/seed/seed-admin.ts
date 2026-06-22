@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import { connectDatabase } from '../config/db';
 import { env } from '../config/env';
 import User from '../models/User';
@@ -19,6 +20,7 @@ async function seedAdmin(): Promise<void> {
 
   if (existing) {
     console.log(`Admin user "${env.SEED_ADMIN_EMAIL}" already exists, skipping.`);
+    await mongoose.disconnect();
     process.exit(0);
   }
 
@@ -34,6 +36,7 @@ async function seedAdmin(): Promise<void> {
   });
 
   console.log(`Admin user "${env.SEED_ADMIN_EMAIL}" created successfully.`);
+  await mongoose.disconnect();
   process.exit(0);
 }
 

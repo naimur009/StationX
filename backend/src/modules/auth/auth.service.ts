@@ -11,8 +11,11 @@ import {
 import { createError } from '../../middleware/errorHandler';
 import { env } from '../../config/env';
 import { sendPasswordResetEmail } from '../../lib/email';
+import { withTransaction } from '../../lib/transaction';
 
 const SALT_ROUNDS = 12;
+
+const DUMMY_PASSWORD_HASH = bcrypt.hashSync('dummy-timing-attack-mitigation', SALT_ROUNDS);
 
 interface LoginResult {
   accessToken: string;
@@ -30,17 +33,26 @@ export async function login(
   email: string,
   password: string
 ): Promise<LoginResult> {
-  const user = await User.findOne({ email: email.toLowerCase() }).select(
+  const user = await User.findOne({ email }).select(
     '+passwordHash'
   );
 
   if (!user) {
+    await bcrypt.compare(password, DUMMY_PASSWORD_HASH);
     throw createError(401, 'INVALID_CREDENTIALS', 'Invalid email or password');
   }
 
   const isMatch = await bcrypt.compare(password, user.passwordHash);
 
   if (!isMatch) {
+    ActivityLog.create({
+      actor: user._id,
+      module: 'auth',
+      action: 'login.failed',
+      description: `Failed login attempt for "${user.email}"`,
+    }).catch((err) => {
+      console.error('[activityLog] Failed to write failed login log:', err);
+    });
     throw createError(401, 'INVALID_CREDENTIALS', 'Invalid email or password');
   }
 
@@ -60,7 +72,9 @@ export async function login(
     module: 'auth',
     action: 'login',
     description: `User "${user.email}" logged in`,
-  }).catch(() => {});
+  }).catch((err) => {
+    console.error('[activityLog] Failed to write login log:', err);
+  });
 
   const accessToken = signAccessToken(
     user._id.toString(),
@@ -102,7 +116,9 @@ export async function refresh(refreshToken: string): Promise<{ accessToken: stri
       module: 'auth',
       action: 'token.refresh',
       description: `Access token refreshed for user "${user.email}"`,
-    }).catch(() => {});
+    }).catch((err) => {
+      console.error('[activityLog] Failed to write token refresh log:', err);
+    });
 
     return { accessToken, refreshToken: newRefreshToken };
   } catch {
@@ -111,7 +127,7 @@ export async function refresh(refreshToken: string): Promise<{ accessToken: stri
 }
 
 export async function forgotPassword(email: string): Promise<void> {
-  const user = await User.findOne({ email: email.toLowerCase(), isActive: true });
+  const user = await User.findOne({ email, isActive: true });
 
   if (!user) {
     return;
@@ -136,7 +152,9 @@ export async function forgotPassword(email: string): Promise<void> {
     module: 'auth',
     action: 'password.reset_requested',
     description: `Password reset requested for "${email}"`,
-  }).catch(() => {});
+  }).catch((err) => {
+    console.error('[activityLog] Failed to write password reset request log:', err);
+  });
 }
 
 export async function resetPassword(
@@ -145,40 +163,44 @@ export async function resetPassword(
 ): Promise<void> {
   const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
 
-  const resetTokenDoc = await PasswordResetToken.findOne({
-    tokenHash,
-    used: false,
-    expiresAt: { $gt: new Date() },
-  });
-
-  if (!resetTokenDoc) {
-    throw createError(
-      400,
-      'INVALID_OR_EXPIRED_TOKEN',
-      'Invalid or expired reset link'
-    );
-  }
-
   const passwordHash = await bcrypt.hash(newPassword, SALT_ROUNDS);
 
-  const user = await User.findById(resetTokenDoc.userId).select('+passwordHash');
+  await withTransaction(async (session) => {
+    const resetTokenDoc = await PasswordResetToken.findOne({
+      tokenHash,
+      used: false,
+      expiresAt: { $gt: new Date() },
+    }).session(session);
 
-  if (!user) {
-    return;
-  }
+    if (!resetTokenDoc) {
+      throw createError(
+        400,
+        'INVALID_OR_EXPIRED_TOKEN',
+        'Invalid or expired reset link'
+      );
+    }
 
-  user.passwordHash = passwordHash;
-  await user.save();
+    const user = await User.findById(resetTokenDoc.userId).select('+passwordHash').session(session);
 
-  resetTokenDoc.used = true;
-  await resetTokenDoc.save();
+    if (!user) {
+      return;
+    }
 
-  ActivityLog.create({
-    actor: user._id,
-    module: 'auth',
-    action: 'password.reset',
-    description: `Password reset completed for user "${user.email}"`,
-  }).catch(() => {});
+    user.passwordHash = passwordHash;
+    await user.save({ session });
+
+    resetTokenDoc.used = true;
+    await resetTokenDoc.save({ session });
+
+    ActivityLog.create({
+      actor: user._id,
+      module: 'auth',
+      action: 'password.reset',
+      description: `Password reset completed for user "${user.email}"`,
+    }).catch((err) => {
+      console.error('[activityLog] Failed to write password reset log:', err);
+    });
+  });
 }
 
 export async function getMe(userId: string) {

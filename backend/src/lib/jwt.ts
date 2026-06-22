@@ -32,7 +32,7 @@ export function signAccessToken(
   return jwt.sign(
     { sub: userId, role, permissions },
     env.JWT_ACCESS_SECRET,
-    { expiresIn: '15m' }
+    { algorithm: 'HS256', expiresIn: '15m' }
   );
 }
 
@@ -40,16 +40,16 @@ export function signRefreshToken(userId: string): string {
   return jwt.sign(
     { sub: userId },
     env.JWT_REFRESH_SECRET,
-    { expiresIn: '7d' }
+    { algorithm: 'HS256', expiresIn: '7d' }
   );
 }
 
 export function verifyAccessToken(token: string): AccessTokenPayload {
-  const decoded = jwt.verify(token, env.JWT_ACCESS_SECRET);
+  const decoded = jwt.verify(token, env.JWT_ACCESS_SECRET, { algorithms: ['HS256'] });
   return accessTokenPayloadSchema.parse(decoded);
 }
 
 export function verifyRefreshToken(token: string): RefreshTokenPayload {
-  const decoded = jwt.verify(token, env.JWT_REFRESH_SECRET);
+  const decoded = jwt.verify(token, env.JWT_REFRESH_SECRET, { algorithms: ['HS256'] });
   return refreshTokenPayloadSchema.parse(decoded);
 }

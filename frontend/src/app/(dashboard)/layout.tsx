@@ -20,20 +20,20 @@ export default function DashboardLayout({
   const router = useRouter();
   const queryClient = useQueryClient();
   const { isAuthenticated, setAuth, clearAuth, user } = useAuthStore();
-  const { data: meData, isLoading } = useMe();
+  const { data: meData, isLoading, isError } = useMe();
   const logoutMutation = useLogout();
   const sidebarCollapsed = useUIStore((state) => state.sidebarCollapsed);
   const mobileDrawerOpen = useUIStore((state) => state.mobileDrawerOpen);
   const closeMobileDrawer = useUIStore((state) => state.closeMobileDrawer);
 
   useEffect(() => {
-    if (!isLoading && meData && meData.data === null) {
+    if (!isLoading && (isError || (meData && meData.data === null))) {
       clearAuth();
       router.replace('/login');
       return;
     }
 
-    if (!isLoading && !meData) {
+    if (!isLoading && !meData && !isError) {
       clearAuth();
       router.replace('/login');
       return;
@@ -53,7 +53,7 @@ export default function DashboardLayout({
         token
       );
     }
-  }, [isAuthenticated, meData, isLoading, setAuth, clearAuth, router]);
+  }, [isAuthenticated, isError, meData, isLoading, setAuth, clearAuth, router]);
 
   useEffect(() => {
     if (isAuthenticated && !user) {

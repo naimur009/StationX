@@ -67,11 +67,14 @@ export async function handleRefresh(
 export async function handleLogout(
   req: AuthenticatedRequest,
   res: Response,
-  _next: NextFunction
+  next: NextFunction
 ): Promise<void> {
-  res.clearCookie('refreshToken', CLEAR_COOKIE_OPTIONS);
-
-  res.status(200).json({ data: { success: true } });
+  try {
+    res.clearCookie('refreshToken', CLEAR_COOKIE_OPTIONS);
+    res.status(200).json({ data: { success: true } });
+  } catch (error) {
+    next(error);
+  }
 }
 
 export async function handleForgotPassword(

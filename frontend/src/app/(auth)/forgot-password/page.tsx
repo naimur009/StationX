@@ -8,10 +8,12 @@ import { forgotPasswordSchema, type ForgotPasswordInput } from '@/features/auth/
 import { useForgotPassword } from '@/features/auth/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { AppError } from '@/lib/utils';
 
 export default function ForgotPasswordPage() {
   const forgotPasswordMutation = useForgotPassword();
   const [isSent, setIsSent] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const {
     register,
@@ -22,8 +24,17 @@ export default function ForgotPasswordPage() {
   });
 
   async function onSubmit(data: ForgotPasswordInput) {
-    await forgotPasswordMutation.mutateAsync(data);
-    setIsSent(true);
+    setError(null);
+    try {
+      await forgotPasswordMutation.mutateAsync(data);
+      setIsSent(true);
+    } catch (err) {
+      if (err instanceof AppError) {
+        setError(err.message);
+      } else {
+        setError('An unexpected error occurred. Please try again.');
+      }
+    }
   }
 
   return (
@@ -72,6 +83,12 @@ export default function ForgotPasswordPage() {
                 </p>
               )}
             </div>
+
+            {error && (
+              <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700">
+                {error}
+              </div>
+            )}
 
             <Button
               type="submit"
