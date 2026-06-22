@@ -11,6 +11,7 @@ export interface User {
   email: string;
   role: 'admin' | 'manager' | 'employee';
   permissions: UserPermission[];
+  isActive: boolean;
 }
 
 interface AuthState {

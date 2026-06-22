@@ -13,8 +13,8 @@
 - [ok] 0. Project Setup
 - [ok] 1. Auth & Access Control
 - [ok] 2. Dashboard Shell & Layout Design
-- [ ] 3. Users & Permissions
-- [ ] 4. Settings
+- [ok] 3. Users & Permissions
+- [ok] 4. Settings
 - [ ] 5. Categories
 - [ ] 6. Shared Uploads
 - [ ] 7. Products

@@ -9,6 +9,7 @@ export interface UserResponse {
   email: string;
   role: 'admin' | 'manager' | 'employee';
   permissions: { module: string; actions: string[] }[];
+  isActive: boolean;
 }
 
 export type MeResponse = { data: UserResponse } | { data: null };

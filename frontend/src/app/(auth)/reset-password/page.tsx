@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, Suspense } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useState, Suspense, useEffect } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -12,11 +12,15 @@ import { Input } from '@/components/ui/input';
 import { AppError } from '@/lib/utils';
 
 function ResetPasswordForm() {
+  const router = useRouter();
   const searchParams = useSearchParams();
-  // NOTE: token in query string is visible in browser history, referrer headers,
-  // and server logs. For production, consider using a hash fragment (#token=...)
-  // to avoid server-side exposure. ARCHITECTURE.md §6.5.
   const token = searchParams.get('token') || '';
+  useEffect(() => {
+    if (token) {
+      router.replace(window.location.pathname, undefined);
+    }
+  }, [token, router]);
+
   const resetPasswordMutation = useResetPassword();
   const [error, setError] = useState<string | null>(null);
   const [isSuccess, setIsSuccess] = useState(false);
@@ -171,7 +175,7 @@ export default function ResetPasswordPage() {
         <Suspense
           fallback={
             <div className="flex justify-center">
-              <div className="h-10 w-10 animate-spin rounded-full border-4 border-blue-600 border-t-transparent" />
+              <div className="h-10 w-10 animate-spin rounded-full border-4 border-primary border-t-transparent" />
             </div>
           }
         >

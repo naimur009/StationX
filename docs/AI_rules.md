@@ -160,5 +160,5 @@ These remain unresolved in `API.md`/`DATABASE.md` and constrain what generated c
 1. Order hard-delete scope (`API.md` §25.1) — code must keep the narrow same-day/pending/no-coupon restriction.
 2. Income's permission key folded into `dashboard` (`API.md` §25.2) — do not give Income its own permission checks until this is confirmed.
 3. `completed → cancelled` gated by plain `orders:edit` (`API.md` §25.3) — do not add a stricter check unilaterally; that needs a schema-level `approve`/`cancel` action first.
-4. User invite via reset-password token reuse (`API.md` §25.4) — do not add an admin-set-password field as an alternative path without resolving this.
-5. `Settings.taxConfig.mode: itemized` (`DATABASE.md` §8.2) — POS tax calculation assumes a single flat rate until resolved; don't build itemized per-category tax logic prematurely.
+4. ~~User invite via reset-password token reuse (`API.md` §25.4) — do not add an admin-set-password field as an alternative path without resolving this.~~ **RESOLVED:** Admin sets password directly during account creation. `API.md` §25.4 closed, §6 updated.
+5. ~~`Settings.taxConfig.mode: itemized` (`DATABASE.md` §8.2) — POS tax calculation assumes a single flat rate until resolved; don't build itemized per-category tax logic prematurely.~~ **RESOLVED:** v1 uses `mode: 'none'` — no tax calculation. POS `taxAmount` is always 0 for v1.

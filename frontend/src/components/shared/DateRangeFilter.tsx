@@ -46,7 +46,7 @@ export default function DateRangeFilter({
             }}
             className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
               value === range.value
-                ? 'bg-blue-600 text-white shadow-sm'
+                ? 'bg-primary text-primary-foreground shadow-sm'
                 : 'text-slate-500 hover:text-slate-700'
             }`}
           >
@@ -73,7 +73,7 @@ export default function DateRangeFilter({
             type="button"
             onClick={handleCustomApply}
             disabled={!customFrom || !customTo}
-            className="rounded-xl bg-blue-600 px-3 py-1.5 text-xs font-medium text-white shadow-sm transition-colors hover:bg-blue-700 disabled:opacity-50"
+            className="rounded-xl bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground shadow-sm transition-colors hover:bg-[hsl(var(--primary-hover))] disabled:opacity-50"
           >
             Apply
           </button>

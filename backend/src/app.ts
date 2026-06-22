@@ -8,6 +8,8 @@ import { errorHandler, createError } from './middleware/errorHandler';
 import { activityLogger } from './middleware/activityLogger';
 import healthRoutes from './modules/health/health.routes';
 import authRoutes from './modules/auth/auth.routes';
+import userRoutes from './modules/users/users.routes';
+import settingsRoutes from './modules/settings/settings.routes';
 
 const app = express();
 
@@ -71,11 +73,25 @@ app.use('/api/v1/auth/login', makeRateLimiter(env.RATE_LIMIT_MAX));           //
 app.use('/api/v1/auth/refresh', makeRateLimiter(env.RATE_LIMIT_REFRESH_MAX)); // 30/15min
 app.use('/api/v1/auth/forgot-password', makeRateLimiter(env.RATE_LIMIT_STRICT_MAX)); // 5/15min
 app.use('/api/v1/auth/reset-password', makeRateLimiter(env.RATE_LIMIT_STRICT_MAX));  // 5/15min
+const userMutationLimiter = makeRateLimiter(env.RATE_LIMIT_MAX);
+app.use('/api/v1/users', (req, res, next) => {
+  if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method)) {
+    return userMutationLimiter(req, res, next);
+  }
+  next();
+});
 
 app.use('/api/v1', activityLogger);
 
 app.use('/api/v1', healthRoutes);
 app.use('/api/v1', authRoutes);
+app.use('/api/v1', userRoutes);
+const settingsMutationLimiter = makeRateLimiter(env.RATE_LIMIT_MAX);
+app.use('/api/v1/settings', (req, res, next) => {
+  if (req.method === 'PUT') return settingsMutationLimiter(req, res, next);
+  next();
+});
+app.use('/api/v1', settingsRoutes);
 
 app.use(errorHandler);
 

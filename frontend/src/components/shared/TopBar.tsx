@@ -18,7 +18,7 @@ export default function TopBar({ onLogout }: TopBarProps) {
   return (
     <header
       className={cn(
-        'fixed top-0 right-0 left-0 z-30 flex h-16 items-center justify-between border-b border-slate-200 bg-white/80 px-4 backdrop-blur-md',
+        'fixed top-0 right-0 left-0 z-30 flex h-16 items-center justify-between border-b border-border bg-white/80 px-4 backdrop-blur-md',
         sidebarCollapsed ? 'lg:left-16' : 'lg:left-64'
       )}
     >

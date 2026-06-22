@@ -77,7 +77,7 @@ Base path: `/auth`. **Permission:** none — auth endpoints establish identity, 
 | POST | `/auth/refresh` | refresh cookie | Issue new access token |
 | POST | `/auth/logout` | required | Clears refresh cookie |
 | POST | `/auth/forgot-password` | none | Issues `PasswordResetToken`, emails link |
-| POST | `/auth/reset-password` | none | Consumes token, sets new password — **also used for first-time account setup** (see Users §6) |
+| POST | `/auth/reset-password` | none | Consumes token, sets new password |
 | GET | `/auth/me` | optional | Current user + permissions, used to hydrate the auth store on app load. Returns `{ data: null }` when unauthenticated (no 401). |
 
 #### `POST /auth/login`
@@ -143,7 +143,7 @@ Base path: `/users`. **Permission module key:** `users`.
 
 > **Why permissions has its own endpoint:** keeping the permission editor's writes separate from the general profile-edit form means each gets its own `ActivityLog` action (`user.updated` vs `user.permissions_updated`) — an admin auditing "who widened someone's access" shouldn't have to diff a generic edit event to find it.
 
-> **Why account creation reuses Auth's reset-password flow:** `POST /users` creates the document **without** a usable password and issues a `PasswordResetToken` behind the scenes, emailing a "set your password" link that hits the same `POST /auth/reset-password` consumer described in §5. This avoids building a second token/consume pathway for what's functionally identical to a password reset. **Assumption — flag if an admin-sets-password-directly flow is preferred instead.**
+> **Why admin sets password directly during account creation:** `POST /users` accepts a `password` field. The server hashes it with bcrypt (cost 12) before storing. No `PasswordResetToken` is generated — the new user can log in immediately. This avoids an email-provider dependency for account creation and gives the admin immediate certainty that the account is fully usable. The password field is **not** returned in the response; `passwordHash` is excluded at the query projection level.
 
 **Guard rails (service layer, not schema):**
 - A user cannot deactivate/delete their own account → `409 CANNOT_DEACTIVATE_SELF`.
@@ -491,6 +491,10 @@ Single namespace, all authenticated dashboard clients join one shared room — n
 |---|---|---|
 | 400 | `VALIDATION_ERROR` | Zod schema rejected the request body; see `details` |
 | 400 | `UNSUPPORTED_FILE_TYPE` / `FILE_TOO_LARGE` | Upload rejected before reaching Cloudinary |
+| 400 | `EMAIL_EXISTS` | A user with this email already exists |
+| 400 | `ALREADY_INACTIVE` | Attempt to deactivate an already-deactivated user |
+| 400 | `ALREADY_ACTIVE` | Attempt to reactivate an already-active user |
+| 400 | `INVALID_ACTION` | Permission action is not valid for the given module |
 | 401 | `UNAUTHORIZED` | Missing/invalid/expired access token |
 | 401 | `INVALID_CREDENTIALS` | Login failed |
 | 403 | `FORBIDDEN` | Valid token, but `authorize(module, action)` denied it |
@@ -538,5 +542,5 @@ The authoritative list referenced loosely by `DATABASE.md` §3.1 ("≤18 modules
 1. **`Order` deletion vs. schema** (§10): the PRD's "Delete order" feature doesn't cleanly map to `DATABASE.md`'s schema — `Order` has no `isActive` field (so it isn't in the soft-delete bucket) but a true hard delete would corrupt historical Reports/Income. Current behavior restricts real deletion to same-day, never-completed, no-coupon-used draft orders only. **Decide:** either accept this restriction permanently, or add `Order.isActive` / a dedicated `deletedAt` field to `DATABASE.md` §3.8 to support a real soft-delete of settled orders.
 2. **Income permission key** (§8): currently folded into `dashboard:view` rather than its own module. Confirm this matches the intended permission-editor UX before `users.permissions` data starts getting created in real accounts (changing this later is a migration, not just a doc edit).
 3. **`completed → cancelled` transition** (§10): currently gated by the same `orders:edit` action as any other status change, since `DATABASE.md`'s permission-action enum (`view|create|edit|delete`) has no `approve`/`cancel` action. If post-payment cancellations should require a stricter check than a normal edit, that needs a schema-level decision (new action type) before it can be enforced here.
-4. **User invite flow** (§6): assumes account creation reuses the password-reset token mechanism rather than an admin-set-password field. Confirm before `modules/users` is implemented, since the alternative skips the email-provider dependency entirely for this one flow.
-5. **`Settings.taxConfig.mode: itemized`** (carried from `DATABASE.md` §8, item 2): until resolved, `Order.taxAmount` calculation in `POS` (§9.3) assumes a single flat rate.
+4. ~~**User invite flow** (§6): assumes account creation reuses the password-reset token mechanism rather than an admin-set-password field. Confirm before `modules/users` is implemented, since the alternative skips the email-provider dependency entirely for this one flow.~~ **RESOLVED:** Admin sets password directly during account creation (`POST /users` accepts a `password` field). `API.md` §6 updated accordingly.
+5. ~~**`Settings.taxConfig.mode: itemized`** (carried from `DATABASE.md` §8, item 2): until resolved, `Order.taxAmount` calculation in `POS` (§9.3) assumes a single flat rate.~~ **RESOLVED:** v1 uses `mode: 'none'` — no tax calculation. See `decisions.md` and `tasks/implementation_plan.md`.

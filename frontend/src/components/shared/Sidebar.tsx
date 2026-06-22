@@ -72,7 +72,7 @@ export default function Sidebar({ onLogout }: SidebarProps) {
       )}
     >
       <div className="flex min-h-[64px] items-center gap-3 border-b border-white/10 p-4">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-600 shadow-lg">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary shadow-lg">
           <span className="text-sm font-bold text-white">W</span>
         </div>
         {!sidebarCollapsed && (

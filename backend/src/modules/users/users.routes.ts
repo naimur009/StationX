@@ -1,0 +1,37 @@
+import { Router } from 'express';
+import { z } from 'zod';
+import { authenticate } from '../../middleware/authenticate';
+import { authorize } from '../../middleware/authorize';
+import { validate } from '../../middleware/validate';
+import {
+  createUserSchema,
+  updateUserSchema,
+  deactivateUserSchema,
+  reactivateUserSchema,
+  updatePermissionsSchema,
+  listUsersSchema,
+} from './users.validation';
+import {
+  handleListUsers,
+  handleCreateUser,
+  handleGetUser,
+  handleUpdateUser,
+  handleDeactivateUser,
+  handleReactivateUser,
+  handleUpdatePermissions,
+} from './users.controller';
+
+const objectIdParam = z.object({ id: z.string().min(1) });
+
+const router = Router();
+
+router.get('/users', authenticate, authorize('users', 'view'), validate(listUsersSchema, 'query'), handleListUsers);
+router.post('/users', authenticate, authorize('users', 'create'), validate(createUserSchema), handleCreateUser);
+router.get('/users/:id', authenticate, authorize('users', 'view'), validate(objectIdParam, 'params'), handleGetUser);
+router.put('/users/:id', authenticate, authorize('users', 'edit'), validate(updateUserSchema), handleUpdateUser);
+router.patch('/users/:id/deactivate', authenticate, authorize('users', 'delete'), validate(deactivateUserSchema), handleDeactivateUser);
+router.patch('/users/:id/activate', authenticate, authorize('users', 'edit'), validate(reactivateUserSchema), handleReactivateUser);
+router.patch('/users/:id/permissions', authenticate, authorize('users', 'edit'), validate(updatePermissionsSchema), handleUpdatePermissions);
+router.delete('/users/:id', authenticate, authorize('users', 'delete'), validate(deactivateUserSchema), handleDeactivateUser);
+
+export default router;

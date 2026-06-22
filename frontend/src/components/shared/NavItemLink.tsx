@@ -27,7 +27,7 @@ export default function NavItemLink({ item, collapsed, onClick }: NavItemLinkPro
           ? 'justify-center px-0 py-2.5'
           : 'gap-3 px-3 py-2.5',
         isActive
-          ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/30'
+          ?           'bg-primary text-primary-foreground shadow-lg shadow-primary/30'
           : 'text-slate-400 hover:bg-white/10 hover:text-white'
       )}
       title={collapsed ? item.label : undefined}

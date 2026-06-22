@@ -104,8 +104,12 @@ export async function refresh(refreshToken: string): Promise<{ accessToken: stri
     const payload = verifyRefreshToken(refreshToken);
     const user = await User.findById(payload.sub);
 
-    if (!user || !user.isActive) {
+    if (!user) {
       throw createError(401, 'UNAUTHORIZED', 'Invalid or expired refresh token');
+    }
+
+    if (!user.isActive) {
+      throw createError(401, 'UNAUTHORIZED', 'Account is deactivated');
     }
 
     const accessToken = signAccessToken(user._id.toString(), user.role, user.permissions);
@@ -208,6 +212,10 @@ export async function getMe(userId: string) {
 
   if (!user) {
     throw createError(404, 'NOT_FOUND', 'User not found');
+  }
+
+  if (!user.isActive) {
+    throw createError(401, 'UNAUTHORIZED', 'Account is deactivated');
   }
 
   return {
