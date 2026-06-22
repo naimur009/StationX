@@ -143,3 +143,18 @@ export function useReactivateUser() {
     },
   });
 }
+
+export function usePermanentDeleteUser() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: string) =>
+      apiClient<{ data: { success: boolean } }>(`/users/${id}/permanent`, {
+        method: 'DELETE',
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['users'] });
+      queryClient.invalidateQueries({ queryKey: ['users', 'detail'] });
+    },
+  });
+}

@@ -13,6 +13,7 @@ export default function UsersPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [editUser, setEditUser] = useState<UserResponse | null>(null);
   const [deactivateUser, setDeactivateUser] = useState<UserResponse | null>(null);
+  const [permanentDeleteUser, setPermanentDeleteUser] = useState<UserResponse | null>(null);
 
   return (
     <PermissionGate module="users" action="view">
@@ -34,11 +35,17 @@ export default function UsersPage() {
         <UserList
           onEdit={(user) => setEditUser(user)}
           onDeactivate={(user) => setDeactivateUser(user)}
+          onPermanentDelete={(user) => setPermanentDeleteUser(user)}
         />
 
         <CreateUserForm open={createOpen} onClose={() => setCreateOpen(false)} />
         <EditUserForm user={editUser} onClose={() => setEditUser(null)} />
         <DeactivateConfirmDialog user={deactivateUser} onClose={() => setDeactivateUser(null)} />
+        <DeactivateConfirmDialog
+          user={permanentDeleteUser}
+          permanent
+          onClose={() => setPermanentDeleteUser(null)}
+        />
       </div>
     </PermissionGate>
   );

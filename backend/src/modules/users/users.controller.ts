@@ -88,6 +88,19 @@ export async function handleReactivateUser(
   }
 }
 
+export async function handlePermanentDeleteUser(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const result = await userService.permanentDeleteUser(req.params.id, req.user!.id);
+    res.status(200).json({ data: result });
+  } catch (error) {
+    next(error);
+  }
+}
+
 export async function handleUpdatePermissions(
   req: AuthenticatedRequest,
   res: Response,

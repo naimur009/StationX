@@ -218,3 +218,30 @@ export async function updatePermissions(id: string, dto: UpdatePermissionsDto, a
 
   return toUserResponse(user);
 }
+
+export async function permanentDeleteUser(id: string, actorId: string) {
+  if (id === actorId) {
+    throw createError(409, 'CANNOT_DELETE_SELF', 'You cannot delete your own account');
+  }
+
+  const user = await User.findById(id);
+
+  if (!user) {
+    throw createError(404, 'NOT_FOUND', 'User not found');
+  }
+
+  if (user.role === 'admin') {
+    const activeAdminCount = await User.countDocuments({ role: 'admin', isActive: true });
+    if (activeAdminCount <= 1) {
+      throw createError(
+        409,
+        'LAST_ADMIN_PROTECTED',
+        'Cannot permanently delete the last admin account'
+      );
+    }
+  }
+
+  await User.findByIdAndDelete(id);
+
+  return { success: true };
+}

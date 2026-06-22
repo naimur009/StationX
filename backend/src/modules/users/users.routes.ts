@@ -18,6 +18,7 @@ import {
   handleUpdateUser,
   handleDeactivateUser,
   handleReactivateUser,
+  handlePermanentDeleteUser,
   handleUpdatePermissions,
 } from './users.controller';
 
@@ -33,5 +34,6 @@ router.patch('/users/:id/deactivate', authenticate, authorize('users', 'delete')
 router.patch('/users/:id/activate', authenticate, authorize('users', 'edit'), validate(reactivateUserSchema), handleReactivateUser);
 router.patch('/users/:id/permissions', authenticate, authorize('users', 'edit'), validate(updatePermissionsSchema), handleUpdatePermissions);
 router.delete('/users/:id', authenticate, authorize('users', 'delete'), validate(deactivateUserSchema), handleDeactivateUser);
+router.delete('/users/:id/permanent', authenticate, authorize('users', 'delete'), validate(objectIdParam, 'params'), handlePermanentDeleteUser);
 
 export default router;

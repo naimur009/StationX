@@ -1,41 +1,41 @@
 'use client';
 
 import { useState } from 'react';
-import { useDeactivateUser, usePermanentDeleteUser, type UserResponse } from '../api';
+import { useDeleteCategory, usePermanentDeleteCategory, type CategoryResponse } from '../api';
 import { Dialog } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { AppError } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 
-interface DeactivateConfirmDialogProps {
-  user: UserResponse | null;
+interface DeleteCategoryDialogProps {
+  category: CategoryResponse | null;
   permanent?: boolean;
   onClose: () => void;
 }
 
-export default function DeactivateConfirmDialog({ user, permanent = false, onClose }: DeactivateConfirmDialogProps) {
+export default function DeleteCategoryDialog({ category, permanent = false, onClose }: DeleteCategoryDialogProps) {
   const [error, setError] = useState<string | null>(null);
-  const deactivateUser = useDeactivateUser();
-  const permanentDeleteUser = usePermanentDeleteUser();
+  const deleteCategory = useDeleteCategory();
+  const permanentDeleteCategory = usePermanentDeleteCategory();
 
-  const isPending = permanent ? permanentDeleteUser.isPending : deactivateUser.isPending;
+  const isPending = permanent ? permanentDeleteCategory.isPending : deleteCategory.isPending;
 
   async function handleConfirm() {
-    if (!user) return;
+    if (!category) return;
     setError(null);
 
     try {
       if (permanent) {
-        await permanentDeleteUser.mutateAsync(user.id);
+        await permanentDeleteCategory.mutateAsync(category.id);
       } else {
-        await deactivateUser.mutateAsync(user.id);
+        await deleteCategory.mutateAsync(category.id);
       }
       onClose();
     } catch (err) {
       if (err instanceof AppError) {
         setError(err.message);
       } else {
-        setError(permanent ? 'Failed to delete user' : 'Failed to deactivate user');
+        setError(permanent ? 'Failed to delete category' : 'Failed to deactivate category');
       }
     }
   }
@@ -45,13 +45,13 @@ export default function DeactivateConfirmDialog({ user, permanent = false, onClo
     onClose();
   }
 
-  if (!user) return null;
+  if (!category) return null;
 
   return (
     <Dialog
-      open={!!user}
+      open={!!category}
       onClose={handleClose}
-      title={permanent ? 'Delete User Permanently' : 'Deactivate User'}
+      title={permanent ? 'Delete Category Permanently' : 'Deactivate Category'}
       size="sm"
       footer={
         <>
@@ -66,7 +66,7 @@ export default function DeactivateConfirmDialog({ user, permanent = false, onClo
             disabled={isPending}
           >
             {isPending
-              ? (permanent ? 'Deleting…' : 'Deactivating…')
+              ? (permanent ? 'Deleting\u2026' : 'Deactivating\u2026')
               : (permanent ? 'Delete Permanently' : 'Deactivate')}
           </Button>
         </>
@@ -83,28 +83,26 @@ export default function DeactivateConfirmDialog({ user, permanent = false, onClo
           {permanent
             ? 'Are you sure you want to permanently delete'
             : 'Are you sure you want to deactivate'}{' '}
-          <span className="font-semibold text-slate-800">{user.name}</span>?
+          <span className="font-semibold text-slate-800">{category.name}</span>?
         </p>
 
         <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
           <div className="flex items-center justify-between">
-            <span>{user.name}</span>
-            <Badge variant={user.isActive ? 'green' : 'slate'}>
-              {user.isActive ? 'Active' : 'Inactive'}
+            <span>{category.name}</span>
+            <Badge variant={category.isActive ? 'green' : 'slate'}>
+              {category.isActive ? 'Active' : 'Inactive'}
             </Badge>
           </div>
-          <p className="mt-1 text-slate-500">{user.email}</p>
-          <p className="text-xs capitalize text-slate-400">{user.role}</p>
         </div>
 
         {permanent ? (
           <p className="text-xs text-red-600">
-            This action cannot be undone. The user will be permanently removed from the system.
+            This action cannot be undone. The category will be permanently removed from the system.
           </p>
         ) : (
           <p className="text-xs text-slate-400">
-            Deactivated users will not be able to log in and will be visually distinguished
-            in the users list. They can be reactivated at any time.
+            This will soft-delete this category. Products assigned to it will retain their
+            reference but the category will be hidden from active lists.
           </p>
         )}
       </div>

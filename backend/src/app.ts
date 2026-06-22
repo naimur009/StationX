@@ -10,6 +10,7 @@ import healthRoutes from './modules/health/health.routes';
 import authRoutes from './modules/auth/auth.routes';
 import userRoutes from './modules/users/users.routes';
 import settingsRoutes from './modules/settings/settings.routes';
+import categoriesRoutes from './modules/categories/categories.routes';
 
 const app = express();
 
@@ -92,6 +93,7 @@ app.use('/api/v1/settings', (req, res, next) => {
   next();
 });
 app.use('/api/v1', settingsRoutes);
+app.use('/api/v1', categoriesRoutes);
 
 app.use(errorHandler);
 
