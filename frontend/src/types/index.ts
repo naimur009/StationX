@@ -11,6 +11,11 @@ export interface ApiListResponse<T> {
   };
 }
 
+export interface UploadResponse {
+  url: string;
+  publicId: string;
+}
+
 export interface ApiError {
   error: {
     code: string;

@@ -1,531 +1,346 @@
-# Implementation Plan — Task 5: Categories
+# Implementation Plan: Task 6 — Shared Uploads
+
+> **Source:** `current_task.md` (Task 6), reviewed against `PRD.md`, `architecture.md`, `database.md`, `API.md`, `AI_rules.md`, `theme.md`, `decision.md`, `TEST_CASES.md`, `backlog.md`
+>
+> **Status:** Derived from existing `current_task.md` plan; verified against actual codebase state.
+
+---
 
 ## Feature Overview
 
-- **Feature name:** Categories
-- **PRD reference:** Feature 12
-- **Business goal:** Provide a managed list of product categories that can be assigned to products for organization, filtering in POS, and grouping in Income reports.
-- **User value:** Staff can organize products into logical groups (Beverages, Snacks, Main Course, etc.), cashiers can filter the POS catalog by category during order creation, and reports can break down income per category.
+- **Feature name:** Shared Uploads (utility, not a standalone PRD feature)
+- **Business goal:** Provide a single, reusable file-upload endpoint and frontend component that all other modules (Products, Settings, and future modules needing image uploads) use for uploading images to Cloudinary.
+- **User value:** Admins can upload restaurant logos and product photos via a drag-and-drop UI instead of pasting external URLs. One consistent upload UX across the entire dashboard.
+
+---
 
 ## Approved Scope
 
 **In scope:**
-- Backend: `Category` Mongoose model; full CRUD REST endpoints (create, read, update, soft-delete); permission-gated; Zod validation; activity-logged via global middleware.
-- Frontend: `features/categories/` feature module with React Query hooks, Zod schemas, and components; dashboard route page at `app/(dashboard)/categories/page.tsx`; create/edit via dialog; soft-delete with confirmation; hard-delete for inactive categories with separate confirmation dialog; DataTable list with search and active/inactive filter.
-- Sidebar: nav item already exists at `Sidebar.tsx:46` (`/categories`, `FolderTree` icon, `categories` module key) — only needs permission-gating (which is automatic via the existing `hasPermission` filter in `Sidebar.tsx:63`).
-- Permissions: module key `categories` with `view`, `create`, `edit`, `delete` actions — already defined in both backend and frontend `constants.ts`.
+- Backend `POST /uploads/image` endpoint — accepts `multipart/form-data`, validates MIME type + size server-side, uploads to Cloudinary, returns `{ url, publicId }`
+- Backend `lib/upload.ts` — Cloudinary client wrapper living alongside existing stubs (`jwt.ts`, `pdf.ts`, `email.ts`)
+- Frontend `<ImageUpload>` reusable component — drop zone, preview, upload progress, error states
+- Integration of `<ImageUpload>` into `LogoSettingsSection.tsx` — replacing the current URL-input + "Note: File upload is not yet available" banner
+- Cloudinary env vars in `backend/src/config/env.ts` and `backend/.env.example`
+- `cloudinary`, `multer`, `@types/multer` npm packages added to backend
 
-**Out of scope:**
-- No category grouping/hierarchy (parent-child categories) — not requested in PRD.
-- No category image/icon/color swatch — not in scope; if needed later, add as an additive field (non-breaking).
-- No separate `ExpenseCategory` collection — per DATABASE.md §3.12 note, expense categories remain free-text in v1.
+**Explicitly out of scope (future tasks):**
+- MIME spoofing via magic byte sniffing (e.g. `file-type` package) — deferred per Design Decisions below
+- Orphaned asset cleanup (uploaded image never attached to a product) — accepted v1 gap
+- Integration into Products module — that's Task 7's responsibility; the component is built here, Products wires it in
+- SVG uploads — rejected for v1 due to XSS risk
+- Non-image file uploads (PDFs, documents) — not required by any current module
 
-## Technical Decisions
+---
 
-| Decision | Rationale |
-|---|---|
-| Soft-delete via `isActive` as default delete path | Matches `DATABASE.md` §1 soft-delete list: Category is referenced by Product, so preserving historical integrity requires soft-delete. |
-| Hard-delete as explicit opt-in via `DELETE /categories/:id/permanent` | Added by user request; allows permanent removal of unused categories. Gated by same `categories:delete` permission. Blocked (via TODO) when active Products reference the category. |
-| Allow soft-delete even when Products reference the category | Per `API.md` §17 / `DATABASE.md` §3.3: products keep their (now-inactive) category reference for historical accuracy. The inactive category is hidden from active dropdowns only. |
-| Modal-driven CRUD (not a full-page editor) | Per backlog's Design checklist: Categories is low-complexity (single `name` field), so a DataTable list + create/edit dialog follows the pattern of the Users module's `CreateUserForm`/`EditUserForm` modals. |
-| Default list filter: show active only (`isActive=true`) | Matches the Users module pattern (`includeInactive` param to include deactivated). `GET /categories?isActive=true` (default) excludes soft-deleted. `GET /categories?isActive=false` shows only soft-deleted. Omitting the param shows active only (same as explicit `true`). |
-| No separate rate limiter for `/categories` | Categories is not a public/auth-sensitive endpoint; standard rate-limiting via global middleware is sufficient. |
+## Technical Analysis
 
-## Frontend Impact
+### Affected Components
 
-### New Files
-
-```
-frontend/src/
-├── features/
-│   └── categories/
-│       ├── api.ts
-│       ├── schema.ts
-│       └── components/
-│           ├── CategoryList.tsx
-│           ├── CategoryForm.tsx
-│           └── DeleteCategoryDialog.tsx
-└── app/(dashboard)/
-    └── categories/
-        └── page.tsx
-```
-
-### Files That Need No Changes
-
-- `app/(dashboard)/layout.tsx` — already renders sidebar + content area; new page is a child route
-- `Sidebar.tsx` — all 15 nav items including `/categories` are already defined at line 46; permission-gating via `hasPermission` at line 63 is already wired. No changes needed.
-- `lib/constants.ts` — `categories: ['view', 'create', 'edit', 'delete']` already defined at line 17
-- `lib/permissions.ts` — no changes needed
-- `lib/api-client.ts` — no changes needed
-
-### Component Details
-
-#### `features/categories/api.ts`
-- `CategoryResponse` type: `{ id, name, isActive, createdAt, updatedAt }`
-- `useCategoriesList(params)` — `GET /categories?isActive=&search=&page=&limit=`, returns `{ data, meta }`
-- `useCategory(id)` — `GET /categories/:id`
-- `useCreateCategory()` — `POST /categories`, invalidates `['categories']` query key
-- `useUpdateCategory()` — `PUT /categories/:id`, invalidates `['categories']`
-- `useDeleteCategory()` — `DELETE /categories/:id`, invalidates `['categories']`
-
-Pattern matches `features/users/api.ts` exactly: `useQuery` for list/detail, `useMutation` for CUD with `onSuccess` calling `queryClient.invalidateQueries({ queryKey: ['categories'] })`.
-
-#### `features/categories/schema.ts`
-- `createCategorySchema`: `name` — z.string().min(1, 'Name is required').max(100)
-- `updateCategorySchema`: `name` — z.string().min(1, 'Name is required').max(100)
-- Pattern matches `features/users/schema.ts` — both schemas are simple objects with string `name` fields
-
-#### `features/categories/components/CategoryList.tsx`
-- Uses `useCategoriesList` hook
-- Search input (debounced 300ms, matching UserList pattern)
-- Active/inactive filter dropdown (`All / Active / Deactivated`)
-- DataTable: columns = Name, Status (green dot for active, `Badge variant="slate"` "Deactivated" for inactive), Actions (Edit, Deactivate/Reactivate)
-- Pagination (matches UserList pattern)
-- Loading state: inline text "Loading categories..."
-- Empty state: "No categories yet — create one to get started"
-- Error state: inline error banner (matches UserList)
-- Color/type/spacing: uses theme.md tokens via Tailwind classes (slate-50, slate-100, slate-200, etc.)
-
-#### `features/categories/components/CategoryForm.tsx`
-- Modal dialog (shadcn `Dialog`) for create/edit
-- Single form field: `name` (text input)
-- Title: "Create Category" / "Edit Category"
-- Save button: "Create" / "Save Changes" (active voice per theme.md §19)
-- Cancel button: "Cancel"
-- Pattern matches `CreateUserForm`/`EditUserForm` — dialog open/close via props, RHF form, submit calls mutation
-
-#### `features/categories/components/DeleteCategoryDialog.tsx`
-- Confirmation dialog: "Delete Category" title, body explains "This will soft-delete this category. Products assigned to it will retain their reference but the category will be hidden from active lists."
-- Confirm button: "Delete" (destructive variant)
-- Cancel button: "Cancel"
-- On success: close dialog, show success toast (react-hot-toast per theme.md §16)
-
-#### `app/(dashboard)/categories/page.tsx`
-- Wraps content in `<PermissionGate module="categories" action="view">`
-- Page header: "Categories" title + "Create Category" button (gated by `categories:create`)
-- Renders `CategoryList`, `CategoryForm`, `DeleteCategoryDialog` with open/close state management
-- Pattern matches `app/(dashboard)/users/page.tsx` exactly
-
-## Backend Impact
-
-### New Files
-
-```
-backend/src/
-├── models/
-│   └── Category.ts
-└── modules/
-    └── categories/
-        ├── categories.routes.ts
-        ├── categories.controller.ts
-        ├── categories.service.ts
-        └── categories.validation.ts
-```
-
-### Files That Need Changes
-
-- `backend/src/app.ts` — add `import categoriesRoutes from './modules/categories/categories.routes';` and `app.use('/api/v1', categoriesRoutes);` after existing module routes.
-
-### File Details
-
-#### `models/Category.ts`
-```typescript
-// Fields per DATABASE.md §3.3:
-//   name: String, required, unique, trimmed
-//   isActive: Boolean, default true
-// Options: { timestamps: true }
-// Index: name (unique)
-// Text index on name for search
-```
-
-#### `modules/categories/categories.validation.ts`
-- `createCategorySchema`: `{ name: z.string().min(1).max(100).trim() }`
-- `updateCategorySchema`: `{ name: z.string().min(1).max(100).trim() }`
-- `listCategoriesSchema`: `{ page, limit, isActive, search }`
-- Both schemas use `.strict()` to reject unknown fields
-- Exported types: `CreateCategoryDto`, `UpdateCategoryDto`, `ListCategoriesDto`
-
-#### `modules/categories/categories.routes.ts`
-Pattern matches `users.routes.ts` exactly:
-
-```
-GET    /categories            authenticate → authorize('categories','view') → validate(listCategoriesSchema, 'query') → handleListCategories
-GET    /categories/:id        authenticate → authorize('categories','view') → validate(objectIdParam, 'params') → handleGetCategory
-POST   /categories            authenticate → authorize('categories','create') → validate(createCategorySchema) → handleCreateCategory
-PUT    /categories/:id        authenticate → authorize('categories','edit') → validate(updateCategorySchema) → handleUpdateCategory
-DELETE /categories/:id        authenticate → authorize('categories','delete') → validate(objectIdParam, 'params') → handleDeleteCategory
-```
-
-#### `modules/categories/categories.controller.ts`
-- Standard pattern: extract `req` data → call service → send response envelope `{ data: ... }`
-- Each handler wraps in try/catch, errors flow to `errorHandler` middleware
-- Uses `handleAsync` or explicit `next(error)` (whichever pattern the project uses — check existing controllers)
-
-#### `modules/categories/categories.service.ts`
-- `list(query: ListCategoriesDto)` — builds filter: by default `{ isActive: true }` (unless explicit `isActive` param provided); supports text search on `name` if `search` param provided; pagination via `.skip().limit()`
-- `getById(id: string)` — `findById(id)`, throw `NOT_FOUND` if null
-- `create(dto: CreateCategoryDto)` — check unique name (case-insensitive? — yes, unique index is case-sensitive by default in Mongo; if "Beverages" and "beverages" should be treated as same, add lowercase normalize; per DATABASE.md §3.3, name is just `unique` no lowercase note, so case-sensitive uniqueness is the default)
-- `update(id: string, dto: UpdateCategoryDto)` — check unique name if changed, `findByIdAndUpdate` with `{ new: true, runValidators: true }`, throw `NOT_FOUND` if null
-- `delete(id: string)` — `findByIdAndUpdate(id, { isActive: false }, { new: true })`, throw `NOT_FOUND` if null. Does NOT check for referencing Products (per approved decision: soft-delete allowed regardless)
-
-#### Activity logging
-- No special handling needed — the global `activityLogger` middleware (wired at `app.ts:84`) auto-generates entries for all mutating routes (POST/PUT/DELETE) on `/categories`.
-
-## Database Impact
-
-### New Collection: `Category`
-
-| Field | Type | Required | Default | Notes |
-|---|---|---|---|---|
-| `name` | String | yes | — | `unique: true`, `trim: true` |
-| `isActive` | Boolean | yes | `true` | soft-delete flag |
-| `createdAt` | Date | auto | — | Mongoose `timestamps: true` |
-| `updatedAt` | Date | auto | — | Mongoose `timestamps: true` |
-
-### Indexes
-- `{ name: 1 }` — unique (covers unique constraint)
-- `{ name: 'text' }` — text index for search (optional but matches Products/Users pattern for search; needed if search param is supported)
-- `{ isActive: 1 }` — covers the active/inactive filter query
-
-### Relationships
-- Referenced-by: `Product.categoryId` → Category (not created yet — this relationship is forward-looking)
-- Soft-delete rule: Category can be soft-deleted even when Products reference it; Products keep their (now-inactive) category reference per `DATABASE.md` §3.3
-
-## API Impact
-
-### New Endpoints
-
-Base path: `/api/v1/categories`. Permission module key: `categories`.
-
-| Method | Path | Action | Request | Response | Errors |
-|---|---|---|---|---|---|
-| GET | `/categories` | `view` | Query: `?isActive=true\|false&search=&page=1&limit=20` | `{ data: [...], meta: { total, page, limit } }` — default filters to `isActive: true` | — |
-| GET | `/categories/:id` | `view` | — | `{ data: { id, name, isActive, createdAt, updatedAt } }` | `404 NOT_FOUND` |
-| POST | `/categories` | `create` | `{ "name": "Beverages" }` | `201 { data: { id, name, isActive, ... } }` | `400 VALIDATION_ERROR`, `400` (duplicate name) |
-| PUT | `/categories/:id` | `edit` | `{ "name": "Hot Beverages" }` | `200 { data: { ... } }` | `404 NOT_FOUND`, `400 VALIDATION_ERROR` |
-| DELETE | `/categories/:id` | `delete` | — | `200 { data: { success: true } }` | `404 NOT_FOUND` |
-
-### Request/Response Contracts
-
-```
-GET /categories
-  Response 200:
-    { "data": [
-        { "id": "abc123", "name": "Beverages", "isActive": true, "createdAt": "...", "updatedAt": "..." },
-        { "id": "def456", "name": "Snacks", "isActive": true, "createdAt": "...", "updatedAt": "..." }
-      ],
-      "meta": { "total": 2, "page": 1, "limit": 20 } }
-
-POST /categories
-  Request: { "name": "Beverages" }
-  Response 201:
-    { "data": { "id": "abc123", "name": "Beverages", "isActive": true, "createdAt": "...", "updatedAt": "..." } }
-
-DELETE /categories/:id
-  Response 200:
-    { "data": { "success": true } }
-```
-
-### Error Codes Used
-
-| Code | When |
-|---|---|
-| `400 VALIDATION_ERROR` | Invalid request body (missing/empty name, name >100 chars, extra fields) |
-| `404 NOT_FOUND` | Category ID does not exist (or already soft-deleted and not found) |
-
-No new error codes needed — all failure modes are covered by existing codes in `API.md` §23.
-
-### No Real-Time Events
-
-Categories are reference data, not operational data. No Socket.io events are defined for category CRUD — no live-update requirement exists in the PRD for categories.
-
-## Authentication & Authorization
-
-| Endpoint | Auth required | Permission check |
+| Layer | Component | Change |
 |---|---|---|
-| `GET /categories` | Yes (`authenticate`) | `authorize('categories', 'view')` |
-| `GET /categories/:id` | Yes | `authorize('categories', 'view')` |
-| `POST /categories` | Yes | `authorize('categories', 'create')` |
-| `PUT /categories/:id` | Yes | `authorize('categories', 'edit')` |
-| `DELETE /categories/:id` | Yes | `authorize('categories', 'delete')` |
+| **Backend — Config** | `backend/src/config/env.ts` | Add `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`, `UPLOAD_MAX_FILE_SIZE`, `UPLOAD_ALLOWED_MIME_TYPES` |
+| **Backend — Lib** | `backend/src/lib/upload.ts` | Rewrite from empty stub to real Cloudinary client (`uploadToCloudinary`, `deleteFromCloudinary`) |
+| **Backend — Module** | `backend/src/modules/uploads/` (new) | `uploads.routes.ts`, `uploads.controller.ts`, `uploads.service.ts`, `uploads.validation.ts` — the `POST /uploads/image` endpoint |
+| **Backend — App** | `backend/src/app.ts` | Wire `uploadsRoutes` under `/api/v1` |
+| **Backend — Dependencies** | `backend/package.json` | Add `cloudinary`, `multer`; add `@types/multer` to devDeps |
+| **Backend — Env example** | `backend/.env.example` | Add Cloudinary vars + upload limits |
+| **Frontend — Shared component** | `frontend/src/components/shared/ImageUpload.tsx` (new) | Reusable upload component with all visual states |
+| **Frontend — Settings** | `frontend/src/features/settings/components/LogoSettingsSection.tsx` | Replace URL input + banner with `<ImageUpload>` |
+| **Frontend — API client** | `frontend/src/lib/api-client.ts` | Add `uploadFile` helper for `multipart/form-data` (existing client hardcodes JSON Content-Type) |
+| **Frontend — Types** | `frontend/src/types/index.ts` | Add `UploadResponse` type if not already present |
 
-- `admin` role bypasses all permission checks per `ARCHITECTURE.md` §6
-- `manager`/`employee` are evaluated against their `permissions` array with default-deny
-- Frontend `PermissionGate` wraps each page section and action button for UX convenience (not security boundary)
+### Database Impact
 
-## Security Requirements
+**None.** The upload endpoint is a thin proxy — it never touches Mongo. It returns `{ url, publicId }` for the calling route to embed in the target document (Product, Settings).
 
-| Concern | Implementation |
+### API Impact
+
+**Contract (no change to existing endpoints):**
+
+| Method | Path | Auth | Permission | Description |
+|---|---|---|---|---|
+| POST | `/uploads/image` | Required | None (checked by caller) | `multipart/form-data`, field `file`. MIME + size validated before Cloudinary. |
+
+**Request:** `multipart/form-data`, field name `file`. Content-Type not JSON — this is the one endpoint that doesn't use `Content-Type: application/json`.
+
+**Response 201:**
+```json
+{ "data": { "url": "https://res.cloudinary.com/...", "publicId": "uploads/product123" } }
+```
+
+**Error codes** (from `API.md` §23 — no new codes needed):
+- `400 UNSUPPORTED_FILE_TYPE`
+- `400 FILE_TOO_LARGE`
+- `401 UNAUTHORIZED`
+
+### Authentication & Authorization
+
+- `authenticate` middleware is required (no unauthenticated uploads).
+- `authorize` is deliberately **absent** from this endpoint per `API.md` §4 — permission is enforced by the calling route (e.g., `POST /products` with `products:create`). This endpoint is a thin utility, not a permission boundary.
+- Rate limiting: Not explicitly required per `API.md` §23 (no rate-limiter entry for uploads). Adding a moderate limiter (e.g., 20 req/15min per user) is defensive but not required by any doc.
+
+### Security Requirements
+
+| Requirement | Implementation |
 |---|---|
-| Input validation | Zod schema on every mutating endpoint (name: string, min 1, max 100, trimmed, no extra fields) |
-| Injection prevention | Mongoose query builders only (no raw/string-interpolated queries) |
-| Auth bypass | `authenticate` + `authorize` middleware on every route — no unprotected category routes |
-| Data exposure | Standard `data` envelope, no sensitive fields on Category model |
-| Rate limiting | Not needed — Categories is not a public/auth-sensitive endpoint |
+| **MIME validation** | Check `file.mimetype` against allowlist (`image/jpeg`, `image/png`, `image/webp`) via multer's `fileFilter`. Return `400 UNSUPPORTED_FILE_TYPE`. |
+| **Size validation** | Check via multer `limits.fileSize` (default 5MB). Return `400 FILE_TOO_LARGE`. |
+| **No env-var secrets in code** | Cloudinary API key/secret in env vars only, validated by Zod env schema at boot. |
+| **CSP compatibility** | Helmet config in `app.ts` already allows `https://res.cloudinary.com` in `img-src` — confirmed during code review, no change needed. |
+
+---
+
+## Design Decisions
+
+Every decision below was checked against `theme.md` and `AI_rules.md`. No new tokens are introduced.
+
+| Decision | Choice | Rationale |
+|---|---|---|
+| **Cloudinary root folder** | `whatta-cup` (env var `CLOUDINARY_ROOT_FOLDER`, default). Sub-folders: `logos/`, `products/` | Matches project name. Configurable per environment. |
+| **Allowed formats** | JPEG, PNG, WebP | Most common web image formats. SVG excluded (XSS risk). |
+| **Max file size** | 5 MB (env var `UPLOAD_MAX_FILE_SIZE`, default `5242880`) | Matches `current_task.md` plan. Adjustable per deployment. |
+| **MIME spoofing protection** | Postponed to v2 | `TEST_CASES.md` UPL-S-01 recommends magic-byte sniffing (`file-type` package). Deferred to keep the dependency list small; multer's MIME-from-extension check is accepted v1 risk. Flagged as an Open Question in `current_task.md` — answer accepted. |
+| **Orphaned asset cleanup** | Accepted v1 gap | `TEST_CASES.md` UPL-E-01 flagged — agreed it's non-blocking. |
+| **Frontend upload helper** | New `uploadFile` function in `api-client.ts` | Existing `apiClient` always sets `Content-Type: application/json`. File uploads need the browser to set `Content-Type: multipart/form-data; boundary=...` automatically. This is the only JSON-less endpoint in v1. |
+| **ImageUpload aspect ratio hints** | 1:1 for products, 2:1 for logo | Visual hint via dashed overlay/label, not enforced at the API level. |
+
+---
 
 ## Edge Cases
 
-| Edge Case | Expected Behavior |
+| Case | Expected Behavior |
 |---|---|
-| `POST /categories` with existing name (duplicate) | Mongo unique index violation → `400 VALIDATION_ERROR` (handled by Mongoose `E11000` error → `errorHandler` maps to 400) |
-| `POST /categories` with empty/whitespace-only name | Zod `.min(1)` rejects → `400 VALIDATION_ERROR` |
-| `POST /categories` with name >100 characters | Zod `.max(100)` rejects → `400 VALIDATION_ERROR` |
-| `GET /categories/:id` with nonexistent ObjectId | Service throws `createError(404, 'NOT_FOUND')` |
-| `GET /categories/:id` with invalid ObjectId format | Zod `objectIdParam` validation fails → `400 VALIDATION_ERROR` |
-| `PUT /categories/:id` renaming to an already-used name | Unique index violation → `400 VALIDATION_ERROR` |
-| `PUT /categories/:id` with no changes (same name) | Succeeds — no conflict since the same document owns the name |
-| `DELETE /categories/:id` on a category referenced by Products | Soft-delete succeeds; referencing Products keep the (now-inactive) reference (per approved decision) |
-| `DELETE /categories/:id` on an already-deleted category | `404 NOT_FOUND` (query filters by `_id` only, not `isActive`; but if `findById` returns the inactive doc, it still exists — should succeed as a no-op, or return 404? Decision: since it's a soft-delete, `findByIdAndUpdate` with `{ isActive: false }` succeeds idempotently — it's already false, but the update is a no-op. Return `200` with `{ success: true }`.) |
-| `POST /categories` with extra/unknown fields in body | Zod `.strict()` strips them; no error (matching existing pattern) |
-| `GET /categories` with `page` beyond last page | Empty `data: []` with correct `meta.total` |
-| `GET /categories` with `limit=0` or negative | Zod `z.coerce.number().positive()` rejects → `400 VALIDATION_ERROR` |
-| `GET /categories` with `limit > 100` | Capped at 100 (matching API.md §2 and existing pattern) |
-| `GET /categories` with no `isActive` param | Defaults to `isActive: true` (active only) |
-| `GET /categories` with `isActive=false` explicit | Shows only soft-deleted categories |
-| `GET /categories` with `search` param matching no categories | Empty `data: []`, correct `meta` |
-| Reactivating a category via `PUT /categories/:id` with `isActive: true` | Succeeds — `PUT` is full edit, includes `isActive` setter. Though the schema only defines `name`, the service can accept a partial body with `isActive`. Decision: the update schema includes `isActive` as an optional boolean field so re-activation doesn't need a separate endpoint. This matches the API.md §17 note: "PUT /categories/:id — Edit". |
-| `PUT /categories/:id` attempting to set `isActive` to false (deactivate via PUT) | Allowed — `PUT` includes `isActive` in the schema. This provides a quick toggle path without requiring a separate PATCH or DELETE endpoint. |
-| Multiple concurrent `POST /categories` with different names | Both succeed — no race condition |
-| Creating a category with name that differs only by case from an existing one | Allowed — Mongoose unique index is case-sensitive by default. "Beverages" and "beverages" are distinct. |
+| **No file sent** | multer's `single('file')` with no field present → passes to controller which throws `400 VALIDATION_ERROR` |
+| **Empty file** | multer rejects via `limits.fileSize` (0 bytes < 5 MB? depends on multer behavior) — controller should also check if `!req.file` |
+| **Non-image binary with image extension** (e.g., `.jpg` containing a renamed `.exe`) | Accepted in v1 (magic-byte sniffing deferred). multer's MIME check based on `file.mimetype` from the extension + OS type association. Not server-side verifiable beyond that. |
+| **Upload succeeds but caller never embeds the returned `publicId`** (orphan) | Accepted v1 gap — Cloudinary retains the file. Manual cleanup or a future scheduled job can remove orphans. |
+| **Simultaneous duplicate uploads of the same file** | Each returns its own Cloudinary asset (Cloudinary may deduplicate on its side, but we don't rely on it). |
+| **Logo URL cleared in Settings** | LogoSettingsSection already handles clearing via `handleClear` → `onChange(null)` → `PUT /settings` with empty `logo` object. No change needed for this path. |
+
+---
 
 ## Risks
 
 | Risk | Likelihood | Impact | Mitigation |
 |---|---|---|---|
-| Category model drift from DATABASE.md | Low | Low | Model file is simple (2 fields); code review catches field mismatch |
-| Forgetting to wire `categoriesRoutes` in `app.ts` | Low | Medium | Standard checklist item; tests catch 404 on `/categories` |
-| Navigation to `/categories` before Sidebar has it | None | — | Already present in `Sidebar.tsx:46` — no risk |
-| Permission key mismatch (backend vs frontend) | Low | Medium | Both constants files already define `categories: ['view', 'create', 'edit', 'delete']` identically — verified |
-| Inactive category still appears in POS dropdown later | Low | Medium | POS product-fetch route (`GET /pos/products`) will need to filter by category `isActive: true` when implemented — noted in POS backlog item |
+| **Cloudinary credentials not configured** | High (dev env) | Upload endpoint returns 500 | Env schema requires them; app fails to start if missing. Will be clear on first use. |
+| **Multer buffer exhaustion** (large file held in memory before validation) | Low (5 MB limit) | OOM on constrained server | multer already streams to temp file in Node 14+; 5 MB is within safe limits. |
+| **MIME spoofing passes multer** | Medium | Non-image stored in Cloudinary | Accepted v1 gap; magic-byte sniffing deferred. Low business impact (uploader is authenticated staff only). |
+| **Frontend api-client.ts doesn't support multipart** | Certain (confirmed) | Build would fail at component integration | Mitigation built into this plan — `uploadFile` helper added. |
+
+---
+
+## Open Questions
+
+None. The three open items from `current_task.md` were either answered by the docs or resolved as decisions above:
+
+1. **Cloudinary account** — assumed available; credentials go in `.env`. No other option exists.
+2. **MIME spoofing** — deferred to v2 per Design Decisions above.
+3. **Orphaned cleanup** — accepted v1 gap per Design Decisions above.
+
+---
 
 ## Doc Updates Required
 
-**None.** This feature does not resolve any open item in `AI_rules.md` §13, `database.md` §8, or `API.md` §25. The `categories` module key is already defined in all relevant docs.
+**None.** This feature does not resolve any open item in `API.md` §25, `database.md` §8, or `AI_rules.md` §13. No upstream doc edits needed.
+
+---
 
 ## Implementation Order
 
-The build sequence minimizes context-switching between frontend and backend:
+The build must be done in order because each step depends on the previous:
 
-1. **Backend model** — `models/Category.ts`
-2. **Backend validation** — `categories.validation.ts`
-3. **Backend service** — `categories.service.ts`
-4. **Backend controller** — `categories.controller.ts`
-5. **Backend routes** — `categories.routes.ts`
-6. **Wire in app.ts** — add import and `app.use(...)` in `app.ts`
-7. **Test backend** — manual test via curl/Postman
-8. **Frontend api hooks** — `features/categories/api.ts`
-9. **Frontend schemas** — `features/categories/schema.ts`
-10. **Frontend components** — `CategoryList.tsx`, `CategoryForm.tsx`, `DeleteCategoryDialog.tsx`
-11. **Frontend page** — `app/(dashboard)/categories/page.tsx`
-12. **Verify end-to-end** — run both apps, navigate to Categories page, CRUD a category
+```
+1. Backend: env.ts + .env.example — add Cloudinary vars
+2. Backend: package.json — install cloudinary, multer
+3. Backend: lib/upload.ts — Cloudinary client wrapper
+4. Backend: uploads module — routes, controller, service, validation
+5. Backend: app.ts — wire uploads routes
+6. Backend: Verify with curl/ThunderClient
+7. Frontend: api-client.ts — add uploadFile helper
+8. Frontend: ImageUpload.tsx — reusable component
+9. Frontend: LogoSettingsSection.tsx — integrate ImageUpload
+10. Frontend: Verify end-to-end upload flow
+11. Cleanup: remove "Note: upload not available" banner
+```
+
+---
 
 ## Task Breakdown
 
-### Task 5.1: Backend Model — Category
+### Task 1: Add Cloudinary env vars to backend config
 
-**Description:** Create the Mongoose model for Category.
+**Description:** Extend the Zod-validated env schema and `.env.example` with Cloudinary credentials and upload limits.
 
-**Files to create:**
-- `backend/src/models/Category.ts`
-
-**Acceptance Criteria:**
-- Model has fields: `name` (String, required, unique, trim), `isActive` (Boolean, default true)
-- `{ timestamps: true }` enabled
-- Unique index on `name`
-- Text index on `name`
-- Model file matches `DATABASE.md` §3.3 exactly
-
-### Task 5.2: Backend Validation — Zod Schemas
-
-**Description:** Create Zod validation schemas for all Category endpoints.
-
-**Files to create:**
-- `backend/src/modules/categories/categories.validation.ts`
+**Files:**
+- `backend/src/config/env.ts` — add `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`, `UPLOAD_MAX_FILE_SIZE`, `UPLOAD_ALLOWED_MIME_TYPES`
+- `backend/.env.example` — add example values
 
 **Acceptance Criteria:**
-- `createCategorySchema`: `{ name: z.string().min(1).max(100).trim() }`, `.strict()`
-- `updateCategorySchema`: `{ name: z.string().min(1).max(100).trim(), isActive: z.boolean().optional() }`, `.strict()`
-- `listCategoriesSchema`: `{ page, limit, isActive: z.enum(['true','false']).optional(), search: z.string().max(100).optional() }`
-- Exported TypeScript types: `CreateCategoryDto`, `UpdateCategoryDto`, `ListCategoriesDto`
-- Patterns match `users.validation.ts` conventions
+- Schema validates all new vars on boot
+- `UPLOAD_MAX_FILE_SIZE` defaults to `5242880`
+- `UPLOAD_ALLOWED_MIME_TYPES` defaults to `image/jpeg,image/png,image/webp`
+- `CLOUDINARY_*` vars are required (fail-fast if missing)
+- `tsc --noEmit` passes
 
-### Task 5.3: Backend Service — Business Logic
+### Task 2: Install cloudinary + multer dependencies
 
-**Description:** Create the service layer with all CRUD business logic.
+**Description:** Add production dependencies `cloudinary` and `multer`, dev dependency `@types/multer`.
 
-**Files to create:**
-- `backend/src/modules/categories/categories.service.ts`
-
-**Acceptance Criteria:**
-- `list(query: ListCategoriesDto)`:
-  - Default filter `{ isActive: true }` when no `isActive` param
-  - Supports `search` via text index on `name` (or regex, matching existing pattern)
-  - Pagination: page/limit defaults 1/20, max 100
-  - Returns `{ data: Category[], meta: { total, page, limit } }`
-- `getById(id: string)`:
-  - `findById(id)` — returns doc or throws `NOT_FOUND`
-- `create(dto: CreateCategoryDto)`:
-  - `create(dto)` — returns new doc
-  - Catches Mongo `E11000` duplicate key error → throws `400 VALIDATION_ERROR`
-- `update(id: string, dto: UpdateCategoryDto)`:
-  - `findByIdAndUpdate(id, dto, { new: true, runValidators: true })` — returns updated doc or throws `NOT_FOUND`
-  - Catches `E11000` for rename-to-duplicate
-- `delete(id: string)`:
-  - `findByIdAndUpdate(id, { isActive: false }, { new: true })` — returns updated doc or throws `NOT_FOUND`
-- All errors use `createError(code, message)` from `errorHandler.ts`
-
-### Task 5.4: Backend Controller — Request Handlers
-
-**Description:** Create the controller layer.
-
-**Files to create:**
-- `backend/src/modules/categories/categories.controller.ts`
+**Command:** `npm install cloudinary multer && npm install -D @types/multer`
 
 **Acceptance Criteria:**
-- `handleListCategories`, `handleGetCategory`, `handleCreateCategory`, `handleUpdateCategory`, `handleDeleteCategory`
-- Each extracts validated data from `req` (body, query, params)
-- Calls the corresponding service method
-- Sends response in standard envelope (`{ data: ... }`)
-- Wraps in try/catch, passes errors to `next(error)`
-- Pattern matches `.controller.ts` files in existing modules (e.g., `users.controller.ts`)
+- `package.json` lists `cloudinary`, `multer` in dependencies
+- `package.json` lists `@types/multer` in devDependencies
+- `npm run typecheck` passes
 
-### Task 5.5: Backend Routes — Wire Everything
+### Task 3: Implement lib/upload.ts — Cloudinary client wrapper
 
-**Description:** Create the routes file and wire into the Express app.
+**Description:** Rewrite the existing empty stub at `backend/src/lib/upload.ts` to export a configured Cloudinary v2 client with `uploadToCloudinary` and `deleteFromCloudinary`.
 
-**Files to create:**
-- `backend/src/modules/categories/categories.routes.ts`
-
-**Files to modify:**
-- `backend/src/app.ts` — add import and middleware wiring
+**Pattern reference:** Matches existing `jwt.ts`, `pdf.ts` as utility libs — no route/controller/service separation needed here.
 
 **Acceptance Criteria:**
-- Routes file defines all 5 endpoints with correct middleware stack:
-  - `authenticate` (all)
-  - `authorize('categories', '<action>')` (all)
-  - `validate(schema, 'body'|'query'|'params')` (all)
-  - Controller handler
-- `app.ts` imports `categoriesRoutes` and registers `app.use('/api/v1', categoriesRoutes)`
-- Routes file pattern matches `users.routes.ts` exactly
+- Exports `uploadToCloudinary(filePath: string, folder: string): Promise<{ url: string, publicId: string }>`
+- Exports `deleteFromCloudinary(publicId: string): Promise<void>`
+- Client configured from env vars at import time
+- Errors thrown as `AppError` with appropriate status codes (500 on Cloudinary failure)
 
-### Task 5.6: Frontend API — React Query Hooks
+### Task 4: Build POST /uploads/image endpoint
 
-**Description:** Create the frontend API layer for Categories.
+**Description:** Create a new `uploads` module following the same pattern as `categories` (routes → controller → service → validation). The endpoint:
+- Accepts `multipart/form-data` with a single `file` field via multer
+- Validates MIME type and file size before reaching Cloudinary
+- Calls `uploadToCloudinary` and returns the result
+- Does NOT enforce a permission check (caller's route enforces its own)
 
-**Files to create:**
-- `frontend/src/features/categories/api.ts`
+**Files (new):**
+- `backend/src/modules/uploads/uploads.routes.ts`
+- `backend/src/modules/uploads/uploads.controller.ts`
+- `backend/src/modules/uploads/uploads.service.ts`
+- `backend/src/modules/uploads/uploads.validation.ts`
 
-**Acceptance Criteria:**
-- `CategoryResponse` type: `{ id: string; name: string; isActive: boolean; createdAt: string; updatedAt: string }`
-- `useCategoriesList(params)` — calls `GET /categories?isActive=&search=&page=&limit=`, returns `{ data, meta }`
-- `useCategory(id)` — `GET /categories/:id`
-- `useCreateCategory()` — `POST /categories`, invalidates `['categories']` on success
-- `useUpdateCategory()` — `PUT /categories/:id`, invalidates `['categories']` on success
-- `useDeleteCategory()` — `DELETE /categories/:id`, invalidates `['categories']` on success
-- Pattern matches `features/users/api.ts` exactly
-
-### Task 5.7: Frontend Schemas — Zod Form Validation
-
-**Description:** Create frontend Zod schemas for Category forms.
-
-**Files to create:**
-- `frontend/src/features/categories/schema.ts`
+**Validation rules:**
+- MIME type checked against `UPLOAD_ALLOWED_MIME_TYPES` env var
+- File size checked against `UPLOAD_MAX_FILE_SIZE` env var via multer `limits.fileSize`
+- If no file sent: `400 VALIDATION_ERROR`
+- If file present but mimetype rejected: `400 UNSUPPORTED_FILE_TYPE`
+- If file too large: `400 FILE_TOO_LARGE`
 
 **Acceptance Criteria:**
-- `createCategorySchema`: `{ name: z.string().min(1, 'Name is required').max(100) }`
-- `updateCategorySchema`: `{ name: z.string().min(1, 'Name is required').max(100) }`
-- Exported types: `CreateCategoryFormData`, `UpdateCategoryFormData`
-- Pattern matches `features/users/schema.ts` — same field shape, same validation rules
-- Must stay in sync with backend `categories.validation.ts`
+- `POST /api/v1/uploads/image` with valid JPEG → `201 { data: { url, publicId } }`
+- `POST /api/v1/uploads/image` with `.exe` → `400 UNSUPPORTED_FILE_TYPE`
+- `POST /api/v1/uploads/image` with oversized file → `400 FILE_TOO_LARGE`
+- `POST /api/v1/uploads/image` without auth → `401`
+- `tsc --noEmit` passes
 
-### Task 5.8: Frontend Components — List, Form, Delete Dialog
+### Task 5: Wire uploads routes into app.ts
 
-**Description:** Build the three UI components for Categories management.
+**Description:** Import and mount the uploads routes in `backend/src/app.ts` under `/api/v1`.
 
-**Files to create:**
-- `frontend/src/features/categories/components/CategoryList.tsx`
-- `frontend/src/features/categories/components/CategoryForm.tsx`
-- `frontend/src/features/categories/components/DeleteCategoryDialog.tsx`
+**Pattern reference:** Same as existing `app.use('/api/v1', categoriesRoutes)`.
 
 **Acceptance Criteria:**
+- Route registered and accessible at `/api/v1/uploads/image`
+- Helmet CSP already allows Cloudinary URLs — no CSP change needed
+- All existing routes still work
 
-`CategoryList.tsx`:
-- Search input with 300ms debounce (matching UserList)
-- Active/inactive filter dropdown (All / Active / Deactivated)
-- DataTable with columns: Name, Status (green dot / slate badge), Actions (Edit, Deactivate/Reactivate)
-- Pagination with page nav (prev/next, "Showing X-Y of Z")
-- Loading state: text "Loading categories..."
-- Empty state: "No categories yet — create one to get started"
-- Error state: inline banner (matching UserList) with dismiss
-- Color/type/spacing per theme.md tokens
+### Task 6: Add uploadFile helper to frontend api-client
 
-`CategoryForm.tsx`:
-- shadcn `Dialog` (modal)
-- Create mode: title "Create Category", save button "Create"
-- Edit mode: title "Edit Category", save button "Save Changes"
-- Single field: `name` (text input with label)
-- React Hook Form with Zod resolver
-- Loading state on submit button
-- Error state for duplicate name
-- Calls `useCreateCategory()` or `useUpdateCategory()` mutation
+**Description:** Add an `uploadFile` function to `frontend/src/lib/api-client.ts` that sends `multipart/form-data`. The existing `apiClient` function always sets `Content-Type: application/json`, which won't work for file uploads.
 
-`DeleteCategoryDialog.tsx`:
-- shadcn `Dialog` (modal)
-- Title: "Delete Category"
-- Body: explains "This will soft-delete this category. Products assigned to it will retain their reference but the category will be hidden from active lists."
-- Confirm button: "Delete" (destructive variant)
-- Cancel button: "Cancel"
-- Calls `useDeleteCategory()` mutation
-- Success → toast "Category deleted" (react-hot-toast)
-
-### Task 5.9: Frontend Page — Dashboard Route
-
-**Description:** Create the dashboard route page for Categories.
-
-**Files to create:**
-- `frontend/src/app/(dashboard)/categories/page.tsx`
+**Design:**
+- Accept `(path: string, file: File, token?: string)` 
+- Build `FormData` with the file under the `file` key
+- Do NOT set `Content-Type` manually (browser sets it with boundary)
+- Reuse the same auth token logic (read from auth store, auto-refresh on 401)
+- Return `Promise<{ data: { url: string, publicId: string } }>`
 
 **Acceptance Criteria:**
-- Wrapped in `<PermissionGate module="categories" action="view">`
-- Page header: title "Categories" with description "Manage product categories"
-- "Create Category" button visible only when user has `categories:create` permission (gated by `<PermissionGate module="categories" action="create">`)
-- Renders `CategoryList`, `CategoryForm` (create/edit), `DeleteCategoryDialog` with open/close state
-- Pattern matches `page.tsx` implementations in Users and Settings exactly
+- Can be called independently and returns correct type
+- Sets `Authorization` header from token
+- Does NOT set `Content-Type: application/json`
+- Handles 401 → refresh → retry same as `apiClient`
 
-### Task 5.10: Verification
+### Task 7: Build ImageUpload reusable component
 
-**Description:** Verify the full CRUD flow works end-to-end.
+**Description:** Create a new self-contained upload component at `frontend/src/components/shared/ImageUpload.tsx`.
+
+**Visual states (all mapped to `theme.md` tokens, no new tokens):**
+
+| State | Visual |
+|---|---|
+| **Empty** | Dashed border drop zone (`border-2 border-dashed border-slate-300 rounded-xl bg-slate-50 p-6`), upload icon, "Click to browse or drag & drop" |
+| **Drag-hover** | Border highlight (`border-blue-500`), background tint (`bg-blue-50/50`), "Drop here" overlay |
+| **Uploading** | Spinner (`Loader2 animate-spin`), indeterminate progress bar, disable interaction |
+| **Uploaded** | Thumbnail preview (`rounded-xl border border-slate-200`), replace button (ghost), remove button (icon, red X) |
+| **Error** | Red error text (`text-red-500 text-sm`), retry button (secondary/small) |
+
+**Props:**
+```ts
+interface ImageUploadProps {
+  value?: { url: string; publicId: string } | null;
+  onChange: (value: { url: string; publicId: string } | null) => void;
+  folder?: string;
+  accept?: string;
+  maxSize?: number;
+  aspectRatio?: string;
+  disabled?: boolean;
+}
+```
+
+**Behavior:**
+- Hidden `<input type="file">` triggered by click on drop zone
+- Preview image uses `object-cover` to fill the container
+- Client-side MIME/size check runs before network call (instant feedback)
+- On success: `onChange({ url, publicId })`
+- On error: inline error message + retry button (re-selects file)
+- Remove button: `onChange(null)`
+- Clean up object URLs on unmount (`URL.revokeObjectURL`)
+- Icons from `lucide-react`: `Upload`, `Image`, `X`, `Loader2`, `Check`
 
 **Acceptance Criteria:**
-- Backend `npm run dev` compiles and starts without errors
-- Frontend `npm run dev` compiles and starts without errors
-- Backend tests pass: `npm test` (if any Category tests exist)
-- Backend lint passes: `npm run lint` / `npm run typecheck`
-- Frontend lint passes: `npm run lint` / `npm run typecheck` (if those scripts exist)
-- Manual verification via browser:
-  1. Login as admin → navigate to Categories via sidebar
-  2. See empty list with correct empty-state message
-  3. Create "Beverages" — appears in list with green active dot
-  4. Create "Snacks" — appears in list
-  5. Edit "Beverages" → "Hot Beverages" — name updates
-  6. Delete "Snacks" — disappears from list (shows only in "Deactivated" filter)
-  7. Reactivate "Snacks" — reappears in active list
-  8. Try creating empty name — validation error shown
-  9. Try duplicate name — error shown
-  10. Filter by "Deactivated" — only Snacks shown (was deactivated in step 6)
-  11. Navigate away and back — list persists
+- Renders all 5 visual states correctly
+- Click opens file picker filtered to images
+- Client-side MIME rejection shows before network call
+- Successful upload shows thumbnail and calls `onChange`
+- Replace clears current, re-opens file picker
+- Remove calls `onChange(null)`
+- `npm run lint && npm run typecheck` passes
+
+### Task 8: Integrate ImageUpload into LogoSettingsSection
+
+**Description:** Replace the current URL input + "Note: upload not available" banner with the new `<ImageUpload>` component.
+
+**Changes to `frontend/src/features/settings/components/LogoSettingsSection.tsx`:**
+- Remove the `Input` field for logo URL (lines 120-136 in current file)
+- Remove the "Note: File upload is not yet available" banner (lines 138-140)
+- Replace the manual preview div (lines 94-118) with `<ImageUpload>`
+- Pass `folder="logos"` and `aspectRatio="2:1"`
+- Wire `onChange` to `setValue('logo.url', ...)` and `setValue('logo.publicId', ...)`
+- The existing `handleClear` can be simplified or removed (the component has its own remove)
+
+**Acceptance Criteria:**
+- Logo upload works end-to-end: upload image → thumbnail preview → click Save → logo persists on reload
+- Remove button on ImageUpload clears the logo
+- Form validation still works (logo still uses the same schema)
+- "Note: upload not available" banner is gone
+- `npm run lint && npm run typecheck` passes
+
+---
 
 ## Final Approved Decisions
 
-| ID | Decision | Source | Rationale |
-|---|---|---|---|
-| D-5.1 | Soft-delete via `isActive` | DATABASE.md §1 | Category is referenced by Product; must preserve historical integrity |
-| D-5.2 | Soft-delete allowed even when Products reference the category | API.md §17 / DATABASE.md §3.3 | Products keep their (now-inactive) reference; hidden from active dropdowns only |
-| D-5.3 | Modal-driven CRUD (not full-page editor) | backlog.md (Task 5 Design checklist) | Categories is low-complexity (single `name` field); matches UserForm pattern |
-| D-5.4 | Default list filter: active only (`isActive: true`) | Users module precedent (matching `includeInactive` pattern) | Admin list page — showing active by default is standard admin UX |
-| D-5.5 | `updateCategorySchema` includes optional `isActive` field | No separate activate/deactivate endpoint needed | Allows re-activation via PUT without a dedicated PATCH route; matches API.md §17 "PUT — Edit" |
-| D-5.6 | Case-sensitive category names | Mongoose unique index default behavior | "Beverages" and "beverages" are distinct — no requirement for case-insensitive names |
-| D-5.7 | No separate rate limiter for categories | Category endpoints are not public/auth-sensitive | Standard middleware handles rate limiting if needed |
-| D-5.8 | No real-time Socket.io events for categories | PRD has no live-update requirement for categories | Categories are reference data, not operational data |
-| D-5.9 | Sidebar already has Categories nav item at line 46 | Verified in Sidebar.tsx | No frontend navigation changes needed for this task |
-| D-5.10 | Permission module key `categories` with 4 actions | Verified in both constants.ts files | No new permission configuration needed for this task |
+| ID | Decision | Source |
+|---|---|---|
+| D1 | MIME spoofing via magic bytes deferred to v2 | Design Decisions section |
+| D2 | Orphaned asset cleanup accepted as v1 gap | Design Decisions section |
+| D3 | Cloudinary root folder `whatta-cup`, sub-folders `logos/`/`products/` | Design Decisions section |
+| D4 | Allowed formats: JPEG, PNG, WebP (no SVG) | Design Decisions section |
+| D5 | Max file size: 5 MB, configurable via env | Design Decisions section |
+| D6 | Frontend needs dedicated `uploadFile` helper (api-client.ts can't do multipart) | Risk finding |
+| D7 | Uploads endpoint has no `authorize` middleware — permission checked by caller | `API.md` §4 |
+| D8 | CSP already allows Cloudinary — no change needed | Code review finding |
+| D9 | No new error codes needed in `API.md` §23 (UNSUPPORTED_FILE_TYPE and FILE_TOO_LARGE already exist) | Code review finding |
+| D10 | No upstream doc updates needed (no open items resolved by this feature) | Doc review finding |

@@ -4,7 +4,7 @@ export interface IActivityLog extends Document {
   actor: mongoose.Types.ObjectId;
   module: string;
   action: string;
-  targetId?: mongoose.Types.ObjectId;
+  targetId?: mongoose.Types.ObjectId | string;
   targetType?: string;
   description: string;
   metadata?: Record<string, unknown>;
@@ -20,7 +20,7 @@ const activityLogSchema = new Schema<IActivityLog>(
     },
     module: { type: String, required: true },
     action: { type: String, required: true },
-    targetId: { type: Schema.Types.ObjectId },
+    targetId: { type: Schema.Types.Mixed },
     targetType: { type: String },
     description: { type: String, required: true },
     metadata: { type: Schema.Types.Mixed },

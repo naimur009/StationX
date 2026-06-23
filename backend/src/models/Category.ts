@@ -15,7 +15,6 @@ const categorySchema = new Schema<ICategory>(
   { timestamps: true, toJSON: { versionKey: false } }
 );
 
-categorySchema.index({ name: 1 }, { unique: true });
 categorySchema.index({ name: 'text' });
 categorySchema.index({ isActive: 1 });
 

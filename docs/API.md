@@ -55,7 +55,7 @@ New sub-features added later (per-module feature specs) attach using whichever o
 Not tied to one PRD module — used by Products (image) and Settings (logo) per `ARCHITECTURE.md` §4 (`lib/upload.ts`).
 
 #### `POST /uploads/image`
-**Auth:** required. **Permission:** the calling module's own `create`/`edit` permission (checked by the caller route, not by this endpoint itself — this endpoint is a thin Cloudinary proxy, not a permission boundary on its own).
+**Auth:** required. **Permission:** `uploads:create`. The calling module's own permission (e.g. `settings:edit`, `products:create`) is still enforced at the caller route — this endpoint adds its own `uploads:create` gate as a defense-in-depth layer.
 Request: `multipart/form-data`, field `file`. Validated server-side by MIME type and size limit (`ARCHITECTURE.md` §12) before reaching Cloudinary.
 Response `201`:
 ```json
@@ -513,7 +513,7 @@ Single namespace, all authenticated dashboard clients join one shared room — n
 
 ## 24. Permission Module Keys
 
-The authoritative list referenced loosely by `DATABASE.md` §3.1 ("≤18 modules"). Fifteen keys in practice — Home needs no permission (public), and Income folds into `dashboard` (§8) rather than getting its own key.
+The authoritative list referenced loosely by `DATABASE.md` §3.1 ("≤18 modules"). Sixteen keys in practice — Home needs no permission (public), and Income folds into `dashboard` (§8) rather than getting its own key.
 
 | Key | Actions that apply | Notes |
 |---|---|---|
@@ -531,6 +531,7 @@ The authoritative list referenced loosely by `DATABASE.md` §3.1 ("≤18 modules
 | `users` | `view`, `create`, `edit`, `delete` | Realistically admin-only, but permission-gated like everything else, not hardcoded to role |
 | `settings` | `view`, `edit` | |
 | `reports` | `view`, `create` | `create` gates PDF export, see §19 |
+| `uploads` | `create` | Utility — gates `POST /uploads/image` endpoint |
 | `activity-log` | `view` | Read-only by design |
 
 `Admin` bypasses all of the above (`ARCHITECTURE.md` §6); this table only matters for `manager`/`employee` accounts.

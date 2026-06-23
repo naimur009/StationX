@@ -21,6 +21,13 @@ const envSchema = z.object({
   RATE_LIMIT_MAX: z.coerce.number().default(10),
   RATE_LIMIT_REFRESH_MAX: z.coerce.number().default(30),
   RATE_LIMIT_STRICT_MAX: z.coerce.number().default(5),
+  CLOUDINARY_CLOUD_NAME: z.string().min(1, 'CLOUDINARY_CLOUD_NAME is required'),
+  CLOUDINARY_API_KEY: z.string().min(1, 'CLOUDINARY_API_KEY is required'),
+  CLOUDINARY_API_SECRET: z.string().min(1, 'CLOUDINARY_API_SECRET is required'),
+  CLOUDINARY_ROOT_FOLDER: z.string().default('whatta-cup'),
+  UPLOAD_MAX_FILE_SIZE: z.coerce.number().default(5242880),
+  UPLOAD_ALLOWED_MIME_TYPES: z.string().default('image/jpeg,image/png,image/webp'),
+  UPLOAD_RATE_LIMIT_MAX: z.coerce.number().default(20),
 });
 
 const parsed = envSchema.safeParse(process.env);

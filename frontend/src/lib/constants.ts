@@ -1,7 +1,7 @@
 // ============================================================
 // MUST be kept in sync with:
-//   backend/src/shared/constants.ts
-// (canonical source). See API.md §24 for the full list.
+//   backend/src/shared/constants.ts (canonical source).
+// See API.md §24 for the full list.
 // ============================================================
 
 export const MODULE_ACTIONS: Record<string, readonly string[]> = {
@@ -20,6 +20,7 @@ export const MODULE_ACTIONS: Record<string, readonly string[]> = {
   settings: ['view', 'edit'],
   reports: ['view', 'create'],
   ['activity-log']: ['view'],
+  uploads: ['create'],
 } as const;
 
 export const ALL_ACTIONS = ['view', 'create', 'edit', 'delete'] as const;
@@ -41,6 +42,7 @@ export function getModuleLabel(module: string): string {
     settings: 'Settings',
     reports: 'Reports',
     'activity-log': 'Activity Log',
+    uploads: 'Uploads',
   };
   return labels[module] ?? module;
 }

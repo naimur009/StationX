@@ -1,7 +1,7 @@
 // ============================================================
 // CANONICAL SOURCE — MUST be kept in sync with:
 //   frontend/src/lib/constants.ts
-// These define the 15 permission module keys (API.md §24) and
+// These define the 16 permission module keys (API.md §24) and
 // their valid actions. Adding/changing a module or action here
 // must be mirrored in the frontend copy immediately.
 // ============================================================
@@ -22,4 +22,5 @@ export const MODULE_ACTIONS: Record<string, readonly string[]> = {
   settings: ['view', 'edit'],
   reports: ['view', 'create'],
   ['activity-log']: ['view'],
+  uploads: ['create'],
 } as const;

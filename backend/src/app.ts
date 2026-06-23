@@ -11,6 +11,7 @@ import authRoutes from './modules/auth/auth.routes';
 import userRoutes from './modules/users/users.routes';
 import settingsRoutes from './modules/settings/settings.routes';
 import categoriesRoutes from './modules/categories/categories.routes';
+import uploadsRoutes from './modules/uploads/uploads.routes';
 
 const app = express();
 
@@ -94,6 +95,9 @@ app.use('/api/v1/settings', (req, res, next) => {
 });
 app.use('/api/v1', settingsRoutes);
 app.use('/api/v1', categoriesRoutes);
+const uploadsMutationLimiter = makeRateLimiter(env.UPLOAD_RATE_LIMIT_MAX);
+app.use('/api/v1/uploads/image', uploadsMutationLimiter);
+app.use('/api/v1', uploadsRoutes);
 
 app.use(errorHandler);
 

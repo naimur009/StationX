@@ -15,7 +15,7 @@
 - [ok] 2. Dashboard Shell & Layout Design
 - [ok] 3. Users & Permissions
 - [ok] 4. Settings
-- [ ] 5. Categories
+- [ok] 5. Categories
 - [ ] 6. Shared Uploads
 - [ ] 7. Products
 - [ ] 8. Coupons
