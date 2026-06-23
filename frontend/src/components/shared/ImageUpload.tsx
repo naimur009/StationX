@@ -134,13 +134,15 @@ export default function ImageUpload({
   if (value?.url && !uploading) {
     return (
       <div className="space-y-2">
-        <div className={cn('relative inline-block overflow-hidden rounded-xl border border-slate-200 shadow-sm', previewSize)}>
-          <img
-            src={value.url}
-            alt="Uploaded image preview"
-            className="h-full w-full object-cover"
-            style={aspectStyle}
-          />
+        <div className={cn('relative inline-block rounded-xl border border-slate-200 shadow-sm', previewSize)}>
+          <div className="h-full w-full overflow-hidden rounded-xl">
+            <img
+              src={value.url}
+              alt="Uploaded image preview"
+              className="h-full w-full object-cover"
+              style={aspectStyle}
+            />
+          </div>
           <button
             type="button"
             onClick={handleRemove}
