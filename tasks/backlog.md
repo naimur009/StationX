@@ -16,7 +16,7 @@
 - [ok] 3. Users & Permissions
 - [ok] 4. Settings
 - [ok] 5. Categories
-- [ ] 6. Shared Uploads
+- [ok] 6. Shared Uploads
 - [ ] 7. Products
 - [ ] 8. Coupons
 - [ ] 9. Customers

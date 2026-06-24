@@ -43,6 +43,12 @@ const RESOURCE_DESCRIPTION_MAP: Record<string, (req: AuthenticatedRequest) => st
     const keys = Object.keys(req.body as Record<string, unknown>);
     return `Updated settings: ${keys.join(', ')}`;
   },
+  'products.created': (req) => {
+    const name = (req.body as Record<string, string>).name ?? '';
+    return `Created product "${name}"`;
+  },
+  'products.updated': () => 'Updated product',
+  'products.deleted': () => 'Deleted product',
 };
 
 const TARGET_TYPE_MAP: Record<string, string> = {

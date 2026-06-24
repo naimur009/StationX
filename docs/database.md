@@ -314,7 +314,7 @@ Singleton — exactly one document for the whole restaurant (single-tenant per `
 | `logo` | `{ url: String, publicId: String }` | — | |
 | `contactNumber` | String | — | |
 | `taxId` | String | — | GST/VAT registration number — exact format depends on country (open item, carried from `ARCHITECTURE.md` §14) |
-| `currency` | String | ✓ (default `'INR'` or per deployment) | ISO 4217 code |
+| ~~`currency`~~ | ~~String~~ | ~~✓ (default `'BDT'`)~~ | ~~ISO 4217 code — removed, hardcoded to BDT~~ |
 | `businessHours` | `[{ day: String, open: String, close: String }]` | — | |
 | `taxConfig` | `{ mode: enum(none\|flat\|itemized), rate: Number }` | ✓ | drives `Order.taxAmount` calculation in POS; `itemized` (per-category tax rates) deferred unless confirmed (see §9) |
 

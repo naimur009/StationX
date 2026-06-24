@@ -18,7 +18,6 @@ export interface SettingsResponse {
   logo: { url: string; publicId: string };
   contactNumber: string;
   taxId: string;
-  currency: string;
   businessHours: BusinessHourEntry[];
   taxConfig: { mode: string; rate: number };
   createdAt: string;
@@ -31,7 +30,6 @@ interface SettingsUpdateData {
   logo?: { url?: string; publicId?: string };
   contactNumber?: string;
   taxId?: string;
-  currency?: string;
   businessHours?: BusinessHourEntry[];
   taxConfig?: { mode: string; rate: number };
 }

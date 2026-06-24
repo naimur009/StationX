@@ -22,7 +22,6 @@ export async function updateSettings(dto: UpdateSettingsDto) {
     'logo',
     'contactNumber',
     'taxId',
-    'currency',
     'businessHours',
     'taxConfig',
   ];

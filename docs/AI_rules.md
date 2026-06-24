@@ -92,7 +92,7 @@ modules/<module>/
 
 ## 6. Database Rules
 
-- Soft-delete collections (`User`, `Customer`, `Vendor`, `Category`, `Product`) use `isActive: false`. Never write a hard `deleteOne`/`findOneAndDelete` against these five collections from application code.
+- Soft-delete collections (`User`, `Customer`, `Vendor`, `Category`, `Product`) use `isActive: false`. Never write a hard `deleteOne`/`findOneAndDelete` against these five collections from application code — **exception:** `DELETE /products/:id/permanent` (documented in `API.md` §16) is an intentional exception for Products, guarded at the service layer by `isActive: false` and a future OrderItem reference check.
 - Hard-delete collections (`Coupon`, `Task`) may be physically removed, but `Coupon` hard-delete is blocked at the service layer if `usageCount > 0` (`DATABASE.md` §3.5) — check this before every coupon delete path, including any future bulk-delete admin tool.
 - `Order` and `Expense` are **never** hard-deleted by generated code. `Order` deletion follows the narrow restriction in `API.md` §10 (same-day, `pending`, no coupon usage) until the open item there is resolved — do not "simplify" this into a generic delete.
 - Any new write to `Order` financial fields (`subtotal`, `discountAmount`, `taxAmount`, `grandTotal`, `items[].priceSnapshot`) outside of order creation is a bug. These fields are write-once.

@@ -35,7 +35,6 @@ export const updateSettingsSchema = z
     logo: logoSchema.optional(),
     contactNumber: z.string().optional(),
     taxId: z.string().optional(),
-    currency: z.string().length(3, 'Currency must be a 3-letter ISO code').optional(),
     businessHours: z.array(businessHoursSchema).optional(),
     taxConfig: taxConfigSchema.optional(),
   })

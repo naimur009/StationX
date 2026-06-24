@@ -390,6 +390,7 @@ Base path: `/products`. **Permission module key:** `products`. Standard soft-del
 | POST | `/products` | `create` | Create |
 | PUT | `/products/:id` | `edit` | Edit, including `isActive` (so re-enabling a soft-deleted product is just a normal `PUT`, no separate restore route needed) |
 | DELETE | `/products/:id` | `delete` | Soft delete |
+| DELETE | `/products/:id/permanent` | `delete` | Hard delete — blocked if referenced by any Order (guard not yet enforced; TODO added in service layer for when Orders module exists) |
 
 ```json
 // POST /products request
@@ -495,6 +496,8 @@ Single namespace, all authenticated dashboard clients join one shared room — n
 | 400 | `ALREADY_INACTIVE` | Attempt to deactivate an already-deactivated user |
 | 400 | `ALREADY_ACTIVE` | Attempt to reactivate an already-active user |
 | 400 | `INVALID_ACTION` | Permission action is not valid for the given module |
+| 400 | `INVALID_CATEGORY` | Referenced category does not exist |
+| 400 | `PRODUCT_IS_ACTIVE` | Attempt to permanently delete an active product without deactivating first |
 | 401 | `UNAUTHORIZED` | Missing/invalid/expired access token |
 | 401 | `INVALID_CREDENTIALS` | Login failed |
 | 403 | `FORBIDDEN` | Valid token, but `authorize(module, action)` denied it |
@@ -505,6 +508,7 @@ Single namespace, all authenticated dashboard clients join one shared room — n
 | 409 | `LAST_ADMIN_PROTECTED` / `CANNOT_DEACTIVATE_SELF` | User-deactivation guard rails |
 | 409 | `ORDER_NOT_DELETABLE` | See §10 open item |
 | 409 | `PRODUCT_UNAVAILABLE` | A submitted product went inactive mid-checkout |
+| 409 | `PRODUCT_IN_USE` | Hard-delete of product blocked because it is referenced by one or more orders |
 | 423 | `ACCOUNT_DEACTIVATED` | Login attempt on a deactivated user (`isActive: false`) |
 | 429 | `RATE_LIMITED` | Hit on `/auth/login`, `/auth/refresh`, `/auth/forgot-password`, `/auth/reset-password` per `ARCHITECTURE.md` §12 |
 | 500 | `INTERNAL_ERROR` | Unhandled — never exposes stack traces or raw DB errors to the client |

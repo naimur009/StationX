@@ -22,7 +22,6 @@ export type BusinessInfoFormData = z.input<typeof businessInfoSchema>;
 
 export const taxSchema = z.object({
   taxId: z.string().optional().default(''),
-  currency: z.string().length(3, 'Currency must be a 3-letter code'),
 });
 
 export type TaxFormData = z.input<typeof taxSchema>;

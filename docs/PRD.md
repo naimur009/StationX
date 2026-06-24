@@ -109,7 +109,7 @@ A web-based **Restaurant Management Dashboard** that allows a restaurant to run 
 
 ## 14. Settings
 - Restaurant name, address, logo
-- Other business info: contact number, tax/GST info, currency, business hours, etc. (*to be confirmed*)
+- Other business info: contact number, tax/GST info, business hours, etc. (*to be confirmed*; currency hardcoded to BDT)
 - General application settings
 
 ## 15. User Activity Log

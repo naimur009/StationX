@@ -12,14 +12,6 @@ import { taxSchema, type TaxFormData } from '../schema';
 import { useSettings, useUpdateSettings } from '../api';
 import PermissionGate from '@/components/shared/PermissionGate';
 
-const CURRENCIES = [
-  { code: 'BDT', label: 'BDT (Taka)' },
-  { code: 'USD', label: 'USD (Dollar)' },
-  { code: 'INR', label: 'INR (Rupee)' },
-  { code: 'EUR', label: 'EUR (Euro)' },
-  { code: 'GBP', label: 'GBP (Pound)' },
-] as const;
-
 export default function TaxSection() {
   const { data: settingsData, isLoading } = useSettings();
   const updateMutation = useUpdateSettings();
@@ -35,7 +27,6 @@ export default function TaxSection() {
     resolver: zodResolver(taxSchema),
     defaultValues: {
       taxId: '',
-      currency: 'BDT',
     },
   });
 
@@ -43,7 +34,6 @@ export default function TaxSection() {
     if (settingsData?.data) {
       reset({
         taxId: settingsData.data.taxId || '',
-        currency: settingsData.data.currency || 'BDT',
       });
     }
   }, [settingsData, reset]);
@@ -53,7 +43,6 @@ export default function TaxSection() {
     try {
       await updateMutation.mutateAsync({
         taxId: data.taxId,
-        currency: data.currency,
         taxConfig: { mode: 'none', rate: 0 },
       });
       setStatus('saved');
@@ -73,8 +62,8 @@ export default function TaxSection() {
     return (
       <Card>
         <CardHeader>
-          <CardTitle>Tax & Currency</CardTitle>
-          <CardDescription>Tax configuration and currency settings</CardDescription>
+          <CardTitle>Tax Configuration</CardTitle>
+          <CardDescription>Tax configuration settings</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="h-4 w-48 animate-pulse rounded-xl bg-slate-200" />
@@ -86,8 +75,8 @@ export default function TaxSection() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Tax & Currency</CardTitle>
-        <CardDescription>Tax configuration and currency settings</CardDescription>
+        <CardTitle>Tax Configuration</CardTitle>
+        <CardDescription>Tax configuration settings</CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
@@ -96,26 +85,6 @@ export default function TaxSection() {
               Tax / GST ID
             </label>
             <Input id="taxId" {...register('taxId')} placeholder="Optional" />
-          </div>
-
-          <div className="space-y-1.5">
-            <label htmlFor="currency" className="text-sm font-medium text-slate-700">
-              Currency
-            </label>
-            <select
-              id="currency"
-              {...register('currency')}
-              className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-ring focus:border-blue-500"
-            >
-              {CURRENCIES.map((c) => (
-                <option key={c.code} value={c.code}>
-                  {c.label}
-                </option>
-              ))}
-            </select>
-            {errors.currency && (
-              <p className="text-xs text-red-500">{errors.currency.message}</p>
-            )}
           </div>
 
           <div className="space-y-1.5">

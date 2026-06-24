@@ -1,4 +1,5 @@
 import Category, { ICategory } from '../../models/Category';
+import Product from '../../models/Product';
 import { createError } from '../../middleware/errorHandler';
 import type {
   CreateCategoryDto,
@@ -15,13 +16,13 @@ interface CategoryResponse {
   updatedAt: Date;
 }
 
-function toCategoryResponse(category: ICategory): CategoryResponse {
+async function toCategoryResponse(category: ICategory): Promise<CategoryResponse> {
+  const productCount = await Product.countDocuments({ categoryId: category._id });
   return {
     id: category._id.toString(),
     name: category.name,
     isActive: category.isActive,
-    // TODO: replace with real Product.countDocuments({ categoryId: category._id }) when Product model exists
-    productCount: 0,
+    productCount,
     createdAt: category.createdAt,
     updatedAt: category.updatedAt,
   };
@@ -48,7 +49,7 @@ export async function listCategories(query: ListCategoriesDto) {
   ]);
 
   return {
-    data: categories.map(toCategoryResponse),
+    data: await Promise.all(categories.map(toCategoryResponse)),
     meta: { total, page: query.page, limit: query.limit },
   };
 }
@@ -60,7 +61,7 @@ export async function getCategoryById(id: string) {
     throw createError(404, 'NOT_FOUND', 'Category not found');
   }
 
-  return toCategoryResponse(category);
+  return await toCategoryResponse(category);
 }
 
 export async function createCategory(dto: CreateCategoryDto) {
@@ -74,7 +75,7 @@ export async function createCategory(dto: CreateCategoryDto) {
     isActive: true,
   });
 
-  return toCategoryResponse(category);
+  return await toCategoryResponse(category);
 }
 
 export async function updateCategory(id: string, dto: UpdateCategoryDto) {
@@ -105,7 +106,7 @@ export async function updateCategory(id: string, dto: UpdateCategoryDto) {
     throw createError(404, 'NOT_FOUND', 'Category not found');
   }
 
-  return toCategoryResponse(updated);
+  return await toCategoryResponse(updated);
 }
 
 export async function deleteCategory(id: string) {
@@ -129,12 +130,10 @@ export async function permanentDeleteCategory(id: string) {
     throw createError(404, 'NOT_FOUND', 'Category not found');
   }
 
-  // TODO: Block hard-delete if any Product references this category.
-  // Add check once Product model exists:
-  //   const productCount = await Product.countDocuments({ categoryId: id, isActive: true });
-  //   if (productCount > 0) {
-  //     throw createError(409, 'CATEGORY_IN_USE', 'Cannot delete category referenced by active products');
-  //   }
+  const productCount = await Product.countDocuments({ categoryId: id, isActive: true });
+  if (productCount > 0) {
+    throw createError(409, 'CATEGORY_IN_USE', 'Cannot delete category referenced by active products');
+  }
 
   await Category.findByIdAndDelete(id);
 

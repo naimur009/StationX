@@ -23,7 +23,6 @@ export interface ISettings {
   logo: ILogo;
   contactNumber: string;
   taxId: string;
-  currency: string;
   businessHours: IBusinessHours[];
   taxConfig: ITaxConfig;
   createdAt?: Date;
@@ -72,7 +71,6 @@ const settingsSchema = new Schema(
     logo: { type: logoSchema, default: () => ({ url: '', publicId: '' }) },
     contactNumber: { type: String, default: '' },
     taxId: { type: String, default: '' },
-    currency: { type: String, default: 'BDT' },
     businessHours: {
       type: [businessHoursSchema],
       default: () => [
@@ -112,7 +110,6 @@ export const DEFAULT_SETTINGS: ISettings = {
   logo: { url: '', publicId: '' },
   contactNumber: '',
   taxId: '',
-  currency: 'BDT',
   businessHours: DEFAULT_BUSINESS_HOURS,
   taxConfig: { mode: 'none', rate: 0 },
 };

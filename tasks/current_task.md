@@ -1,178 +1,195 @@
-# Current Task: 6. Shared Uploads
+# Current Task — Products
 
-**Utility, not its own PRD feature** | `API.md` §4 | `ARCHITECTURE.md` §4 (`lib/upload.ts`) | `TEST_CASES.md` §19
-**Depends on:** Users & Permissions (permission check happens at the calling route, not here)
-**Used by:** Products (image), Settings (logo)
-
----
-
-## Summary
-
-Build a reusable file-upload utility and endpoint that accepts images, validates them server-side, uploads to Cloudinary, and returns `{ url, publicId }`. This endpoint is a thin proxy — it never writes to Mongo itself. Then build a reusable frontend `<ImageUpload>` component that wraps drag/drop + preview + upload, used by both Settings (logo) and Products (image).
+**PRD Feature 11** | `API.md` §16 | `DATABASE.md` §3.4
+**Depends on:** Categories (Task 5), Shared Uploads (Task 6)
+**Permission module key:** `products` — already registered in `backend/src/shared/constants.ts` and `frontend/src/lib/constants.ts`
+**Sidebar link:** Already exists at `/products` with `Package` icon
+**Activity logger:** Already registered as `products: 'Product'`
 
 ---
 
-## Setup / Dependencies
+## Backend (`backend/src/modules/products/` — 4 new files)
 
-- [ ] `npm install cloudinary multer` — Cloudinary SDK for upload API, multer for `multipart/form-data` parsing in Express
-- [ ] `npm install -D @types/multer` — multer types
-- [ ] Add Cloudinary env vars to `backend/.env.example` and `backend/src/config/env.ts`:
-  - `CLOUDINARY_CLOUD_NAME`
-  - `CLOUDINARY_API_KEY`
-  - `CLOUDINARY_API_SECRET`
-- [ ] Add to `backend/.env.example`:
-  - `UPLOAD_MAX_FILE_SIZE` (default: `5242880` → 5 MB)
-  - `UPLOAD_ALLOWED_MIME_TYPES` (default: `image/jpeg,image/png,image/webp`)
+### Product Model — `backend/src/models/Product.ts`
 
----
+Follow `Category.ts` pattern. Fields per `DATABASE.md` §3.4:
 
-## Backend
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| `name` | String | yes | |
+| `price` | Number | yes | Current sell price; historical orders use a snapshot, not this live value |
+| `categoryId` | ObjectId → Category | yes | ref: 'Category' |
+| `image` | `{ url: String, publicId: String }` | no | Cloudinary; `publicId` needed to delete/replace later |
+| `description` | String | no | |
+| `isActive` | Boolean | yes (default `true`) | Doubles as the PRD's "availability" toggle |
 
-### `lib/upload.ts` — Cloudinary client wrapper
+**Indexes:** `categoryId`, `isActive`, text index on `name`.
 
-- [ ] Create a Cloudinary v2 client configured from env vars
-- [ ] Export `uploadToCloudinary(filePath: string, folder: string): Promise<{ url: string, publicId: string }>` — uses `cloudinary.uploader.upload`
-- [ ] Export `deleteFromCloudinary(publicId: string): Promise<void>` — for cleanup (used when replacing a logo or product image)
-- [ ] Export `ALLOWED_MIME_TYPES` and `MAX_FILE_SIZE` from env config
+- Default export `Product` model.
+- Export `IProduct` interface extending `Document`.
+- Schema options: `{ timestamps: true, toJSON: { versionKey: false } }`.
+- Follow mongoose pattern from `Category.ts`.
 
-### `POST /uploads/image` — Upload endpoint
+### Validation — `products.validation.ts`
 
-- [ ] Create `src/modules/uploads/uploads.routes.ts`, `.controller.ts`, `.service.ts`, `.validation.ts`
-- [ ] Route: `POST /uploads/image` — `multer` middleware processes single file field named `file`
-- [ ] Validation before Cloudinary:
-  - MIME type check → `400 UNSUPPORTED_FILE_TYPE`
-  - File size check (use multer's `limits.fileSize`) → `400 FILE_TOO_LARGE`
-  - Optional: MIME spoofing protection via `file-type` package or magic bytes sniffing (per `TEST_CASES.md` UPL-S-01)
-- [ ] Upload accepted file to Cloudinary under a folder based on caller context (default: `uploads/`)
-- [ ] Return `201 { data: { url, publicId } }` per `API.md` §4
-- [ ] Wire route into `src/app.ts` under `/api/v1/uploads`
-- [ ] Auth: `authenticate` middleware required. Permission check is deliberately absent here — the calling route (`POST /products`, `PUT /settings`) enforces its own permission.
+- `createProductSchema`: `name` (string, min 1, required), `price` (number, positive, required), `categoryId` (string, min 1), `image` (optional object with `url` string and `publicId` string), `description` (optional string). Use `.strict()`.
+- `updateProductSchema`: Same shape but all fields optional.
+- `listProductsSchema`: `categoryId` (optional string), `isActive` (optional boolean, coerce), `search` (optional string), `page` (optional number, coerce, default 1), `limit` (optional number, coerce, default 20, max 100).
+- `productIdParam`: `{ id: string }`.
+- Export inferred DTO types: `CreateProductDto`, `UpdateProductDto`, `ListProductsQuery`.
 
-### Verification
+### Service — `products.service.ts`
 
-- [ ] `POST /uploads/image` with valid JPEG → `201 { data: { url, publicId } }`
-- [ ] `POST /uploads/image` with `.exe` → `400 UNSUPPORTED_FILE_TYPE`
-- [ ] `POST /uploads/image` with oversized file → `400 FILE_TOO_LARGE`
-- [ ] `POST /uploads/image` without auth → `401`
-- [ ] `tsc --noEmit` passes clean
-- [ ] Existing tests still pass (`npm test`)
+- Import `Product`, `ICategory`/`Category` (for checking categoryId validity).
+- Local `ProductResponse` interface + private `toProductResponse()` mapper (`_id.toString()`, dates to ISO strings).
+- **List:** `Product.find(filter).populate('categoryId', 'name').sort({ createdAt: -1 }).skip().limit()` with parallel `Product.countDocuments()`. `filter` built from `categoryId`, `isActive`, `search` (text search or regex on `name`). Return `{ data, meta: { total, page, limit } }`.
+- **Get by ID:** `Product.findById(id).populate('categoryId', 'name')`, throw `404 PRODUCT_NOT_FOUND` if null.
+- **Create:** Check categoryId exists (if provided) — throw `400 INVALID_CATEGORY` if not. `Product.create(data)`.
+- **Update:** Find doc first (404 if not found). Validate categoryId if changed. `Product.findByIdAndUpdate(id, { $set: updates }, { new: true, runValidators: true })`.
+- **Soft-delete:** `Product.findByIdAndUpdate(id, { $set: { isActive: false } })`.
+- Use `createError(httpStatus, code, message)` from the error handler for all structured errors.
 
----
+### Controller — `products.controller.ts`
 
-## Frontend
+- Named exports: `listProducts`, `getProduct`, `createProduct`, `updateProduct`, `deleteProduct`.
+- Pattern: extract from `req.query` / `req.params` / `req.body`, call service, `res.status(200|201).json({ data: result })`, `try/catch/next`.
+- Use `import * as productService from './products.service'`.
 
-### `components/shared/ImageUpload.tsx` — Reusable upload component
+### Routes — `products.routes.ts`
 
-A self-contained upload component with these visual states (`API.md` §4 + Design decisions):
-- **Empty:** dashed-border drop zone with upload icon + "Click to browse or drag & drop" label, accepts `image/jpeg,image/png,image/webp`
-- **Drag-hover:** highlight border, show "Drop here" overlay
-- **Uploading:** spinner + progress indicator (determinate if possible, indeterminate otherwise)
-- **Uploaded:** thumbnail preview + replace button + remove button
-- **Error:** red error message (from `400` response), retry button
-
-Props:
-```ts
-interface ImageUploadProps {
-  value?: { url: string; publicId: string } | null; // current value
-  onChange: (value: { url: string; publicId: string } | null) => void; // called after upload completes
-  folder?: string; // Cloudinary folder, e.g. 'products' | 'logos'
-  accept?: string; // MIME types, default: 'image/jpeg,image/png,image/webp'
-  maxSize?: number; // bytes, default: 5242880 (5 MB)
-  aspectRatio?: string; // visual hint, e.g. '1:1' for products, '2:1' for logo
-  disabled?: boolean;
-}
+```
+GET    /products              -> authenticate, authorize('products', 'view'), validate(listProductsSchema, 'query'), listProducts
+GET    /products/:id          -> authenticate, authorize('products', 'view'), validate(productIdParam, 'params'), getProduct
+POST   /products              -> authenticate, authorize('products', 'create'), validate(createProductSchema, 'body'), createProduct
+PUT    /products/:id          -> authenticate, authorize('products', 'edit'), validate(updateProductSchema, 'body'), validate(productIdParam, 'params'), updateProduct
+DELETE /products/:id          -> authenticate, authorize('products', 'delete'), validate(productIdParam, 'params'), deleteProduct
 ```
 
-Implementation details:
-- [ ] Uses a hidden `<input type="file">` triggered by click on the drop zone
-- [ ] On file select: validate MIME + size client-side first (quick feedback), then `POST /uploads/image` via `lib/api-client.ts`
-- [ ] On success: call `onChange({ url, publicId })` with the response
-- [ ] On error: show the error message inline, allow retry
-- [ ] Remove button: calls `onChange(null)`
-- [ ] Must clean up object URLs on unmount (URL.revokeObjectURL)
-- [ ] Use `lucide-react` icons: `Upload`, `Image`, `X`, `Loader2`, `Check`
+- Export default router.
+- Import route-level rate limiter if needed (check other modules — likely not needed for generic CRUD).
 
-### Integrate into Settings (`LogoSettingsSection.tsx`)
+### Module Registration — `backend/src/app.ts`
 
-- [ ] Replace the current URL-input + preview pattern with the new `<ImageUpload>` component
-- [ ] Pass `folder="logos"` and `aspectRatio="2:1"`
-- [ ] Remove the "Note: File upload is not yet available" banner
-- [ ] Keep the existing form integration (logo data flows through `PUT /settings`)
+- Add `import productsRoutes from './modules/products/products.routes';`
+- Mount: `app.use('/api/v1', productsRoutes);` (after categories routes, before the catch-all).
 
-### Integration into Products (future — just note it, don't build now)
+---
 
-- [ ] Products will use `<ImageUpload folder="products" aspectRatio="1:1" />` — the component is built here, wiring happens in Task 7.
+## Frontend (`frontend/src/features/products/` — api.ts, schema.ts, components/ProductList.tsx, components/ProductForm.tsx, components/DeleteProductDialog.tsx + page)
+
+### Schema — `schema.ts`
+
+- `createProductSchema`: `name` (min 1), `price` (positive number), `categoryId` (string, min 1), `image` (optional `{ url: string, publicId: string }`), `description` (optional string).
+- `updateProductSchema`: Same but all optional.
+- Export `CreateProductFormData`, `UpdateProductFormData` types.
+- Backend-fields not shown in form (like `isActive`) are handled separately.
+
+### API — `api.ts`
+
+- `'use client'` at top.
+- `useProductList(params)`: `useQuery` with key `['products', 'list', params]`.
+- `useProduct(id)`: `useQuery` with key `['products', 'detail', id]`, `enabled: !!id`.
+- `useCreateProduct()`: `useMutation`, invalidates `['products']` on success.
+- `useUpdateProduct()`: `useMutation`, invalidates `['products']` on success.
+- `useDeleteProduct()`: `useMutation`, invalidates `['products']` on success.
+- Use `apiClient<ProductResponse | ProductListResponse>` from `@/lib/api-client`.
+- Define `ProductResponse` interface matching backend shape (id, name, price, categoryId, categoryName, image, description, isActive, createdAt, updatedAt).
+
+### Components
+
+#### `ProductList.tsx`
+- Props: `onEdit: (product) => void`, `onDelete: (product) => void`.
+- Local state: search (debounced), category filter, active/inactive filter, pagination.
+- Use `useProductList` with current filters.
+- Table columns: Image (thumbnail), Name, Price, Category, Status (Active/Inactive badge), Actions (Edit, Delete).
+- Loading state: skeleton rows.
+- Empty state: "No products found" with create CTA if has create permission.
+- Error state: error message with retry button.
+- Follow layout patterns from `CategoryList.tsx`.
+
+#### `ProductForm.tsx`
+- Props: `open: boolean`, `product: ProductResponse | null`, `onClose: () => void`.
+- Uses `react-hook-form` with `zodResolver(productSchema)`.
+- Create mode if `product` is null, edit mode otherwise.
+- Fields: Name (text), Price (number input), Category (select/dropdown — fetches categories via `useCategoryList`), Image (ImageUpload component from shared uploads), Description (textarea).
+- `useEffect` to `reset()` form when `open` or `product` changes.
+- Renders inside `<Dialog>` with title "Create Product" / "Edit Product".
+- Submit calls `useCreateProduct` or `useUpdateProduct`.
+- Error handling for `AppError`.
+
+#### `DeleteProductDialog.tsx`
+- Props: `product: ProductResponse`, `onClose: () => void`.
+- Confirmation dialog: "Are you sure you want to delete {product.name}?" with description "This product will be soft-deleted and hidden from active lists. You can reactivate it later."
+- Confirm calls `useDeleteProduct`, shows loading state on button.
+- Follow pattern from `DeleteCategoryDialog.tsx`.
+
+### Page — `frontend/src/app/(dashboard)/products/page.tsx`
+
+- `'use client'`.
+- `<PermissionGate module="products" action="view">`.
+- Local state: `isCreateOpen`, `editingProduct`, `deletingProduct`.
+- "Create Product" button gated by `<PermissionGate module="products" action="create">`.
+- Renders `<ProductList>` and conditionally `<ProductForm>` / `<DeleteProductDialog>`.
+- Follow the exact pattern of `categories/page.tsx`.
+
+---
+
+## Design
+
+- **Product list layout:** Table with columns for thumbnail, name, price, category, status, actions. Thumbnail is a small 48x48 rounded image; products without an image show a placeholder icon (e.g. `ImageOff` from lucide-react in a muted background).
+- **Image upload pattern:** Reuse `ImageUpload` shared component from Task 6 (Settings logo already uses it). Accept `jpeg/png/webp`, max 5MB. Show preview. Allow replace and remove.
+- **Category selector:** Dropdown fetched from `GET /categories?isActive=true`. Show category name. If no categories exist, show "No categories — create one first" with a link to the categories page.
+- **Price field:** Number input with two decimal places. Currency is hardcoded to BDT (tk).
+- **Status badge:** "Active" in green/success badge, "Inactive" in gray/neutral badge (matches `theme.md` status-badge conventions already used in Categories, Users).
+- **Form:** Dialog/modal (same pattern as CategoryForm — not a full page). Image field near the top since it's visually prominent. Category and Price side by side if space permits.
+
+---
+
+## Implementation Notes
+
+### Files to Create
+
+**Backend (5 files):**
+1. `backend/src/models/Product.ts`
+2. `backend/src/modules/products/products.validation.ts`
+3. `backend/src/modules/products/products.service.ts`
+4. `backend/src/modules/products/products.controller.ts`
+5. `backend/src/modules/products/products.routes.ts`
+
+**Modify:**
+- `backend/src/app.ts` — register products routes
+
+**Frontend (5 files):**
+1. `frontend/src/features/products/api.ts`
+2. `frontend/src/features/products/schema.ts`
+3. `frontend/src/features/products/components/ProductList.tsx`
+4. `frontend/src/features/products/components/ProductForm.tsx`
+5. `frontend/src/features/products/components/DeleteProductDialog.tsx`
+
+**Modify:**
+- `frontend/src/app/(dashboard)/products/page.tsx` — replace placeholder with real page
+
+### Patterns to Follow
+
+- **Backend:** Match `categories/` module exactly — 4-file pattern, named exports, `createError`, `try/catch/next` in controllers, `import * as service` pattern.
+- **Frontend:** Match `categories/` feature exactly — `api.ts` with TanStack Query hooks, `schema.ts` with Zod + inferred types, components in `components/` folder, dialog-based CRUD.
+- **Model:** Match `Category.ts` — Mongoose schema with `timestamps: true`, `toJSON: { versionKey: false }`, default export model + named export interface.
+- **Page:** Match `categories/page.tsx` — `PermissionGate` wrapper, local state for dialog open/close, conditional rendering of form/dialog.
+
+### Already Done (No Changes Needed)
+- Permission module key `products` registered in backend constants
+- Permission module key `products` registered in frontend constants
+- Sidebar nav link `/products` with `Package` icon already exists
+- Activity logger mapping `products: 'Product'` already exists
+- Category service already has stub references to `Product.countDocuments` for delete-protection checks
 
 ### Verification
 
-- [ ] `<ImageUpload>` renders all states (empty / uploading / uploaded / error)
-- [ ] Click opens file picker restricted to images
-- [ ] Client-side MIME rejection shows instant feedback (no network call)
-- [ ] Successful upload shows thumbnail and calls `onChange`
-- [ ] Replace button clears current and re-opens picker
-- [ ] Remove button calls `onChange(null)`
-- [ ] Settings logo section works end-to-end: upload image → save settings → logo persists on reload
-- [ ] Build passes: `npm run lint && npm run typecheck` (in `frontend/`)
-
----
-
-## Design decisions to make
-
-- [ ] Decide upload component visual states (listed above) — confirm colors/spacing from `theme.md`, no new tokens
-- [ ] Decide aspect ratio / crop hints: **1:1** for product photos, **2:1** for logo — communicate to user via a subtle dashed overlay or label below the drop zone
-- [ ] Decide max file size: **5 MB** (default), adjustable via env var
-- [ ] Decide allowed formats: **JPEG, PNG, WebP** — no SVG for v1 (security risk from SVG XSS, per `TEST_CASES.md` UPL-S-01)
-- [ ] Decide Cloudinary folder naming: `whatta-cup/logos/`, `whatta-cup/products/` — prefix via env var `CLOUDINARY_ROOT_FOLDER` (default: `whatta-cup`)
-
----
-
-## Open items / Questions (ask if anything needed)
-
-- **Cloudinary account:** Do you have a Cloudinary account already? If so, please share the `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` values (or add them to `.env`). If not, we'll set one up — there's a free tier that works for development.
-- **MIME spoofing protection:** The current plan uses multer + server-side MIME extension check. `TEST_CASES.md` UPL-S-01 recommends actual MIME sniffing (magic bytes). Should we add `file-type` (or similar) to read the actual file signature, or is the extension + multer check sufficient for v1? File-type adds a dependency but is more secure.
-- **Orphaned asset cleanup:** `TEST_CASES.md` UPL-E-01 flags that an uploaded image may never be attached to a product (orphan). Is this an acceptable v1 gap, or should we build a cleanup job now?
-- **Existing products image field:** Does the current `Product` model already have an `image` field (type `{ url: string, publicId: string }` per `DATABASE.md`)? We'll confirm when we start Task 7.
-- **Any other modules that need uploads beyond Settings (logo) and Products (image)?** E.g. expense receipts, vendor documents — if so, we should design the component to handle arbitrary file types too (not just images).
-
----
-
-## Test cases to verify (from `TEST_CASES.md` §19)
-
-| ID | Case | Expected |
-|---|---|---|
-| UPL-H-01 | Valid JPEG/PNG under size limit | `201`, `{ url, publicId }` |
-| UPL-V-01 | Unsupported file type (`.exe`, `.pdf`, `.svg`) | `400 UNSUPPORTED_FILE_TYPE` |
-| UPL-V-02 | File exceeds size limit | `400 FILE_TOO_LARGE` |
-| UPL-S-01 | File with image extension but non-image content | Rejected (MIME sniffing) |
-| UPL-S-02 | Extremely large file (1GB) | Rejected before full buffering |
-
----
-
-## Files to create / modify
-
-### Backend
-- `backend/src/lib/upload.ts` — rewrite stub to real Cloudinary client
-- `backend/src/modules/uploads/uploads.routes.ts` — new
-- `backend/src/modules/uploads/uploads.controller.ts` — new
-- `backend/src/modules/uploads/uploads.service.ts` — new
-- `backend/src/modules/uploads/uploads.validation.ts` — new (Zod schemas for file validation)
-- `backend/src/app.ts` — wire `/api/v1/uploads` routes
-- `backend/src/config/env.ts` — add Cloudinary env vars
-- `backend/.env.example` — add Cloudinary vars + upload limits
-
-### Frontend
-- `frontend/src/components/shared/ImageUpload.tsx` — new reusable component
-- `frontend/src/features/settings/components/LogoSettingsSection.tsx` — replace URL input with ImageUpload
-- `frontend/src/lib/api-client.ts` — may need a `uploadFile` helper for `multipart/form-data`
-
----
-
-## Definition of done
-
-1. `POST /uploads/image` accepts an image, validates it, uploads to Cloudinary, returns `{ url, publicId }` per `API.md` §4
-2. Rejected uploads return correct error codes (`400 UNSUPPORTED_FILE_TYPE`, `400 FILE_TOO_LARGE`)
-3. Auth-required check works (no token → `401`)
-4. `<ImageUpload>` component renders all visual states and integrates into Settings logo section
-5. Settings logo section end-to-end: upload image → save → persist
-6. `npm test` passes on backend
-7. `npm run typecheck && npm run lint` passes on both backend and frontend
+- `tsc --noEmit` passes clean on both apps
+- `npm run dev` — backend starts, frontend loads, products CRUD works end to end
+- All endpoints return correct status codes and shapes per `API.md` §16
+- Soft-deleted products are hidden from active list, visible when `?isActive=false`
+- Image upload → create product with image → edit product image → works
+- Category filter works in product list
+- Search by name works via text index
+- Form validation rejects empty name, negative price, invalid categoryId
