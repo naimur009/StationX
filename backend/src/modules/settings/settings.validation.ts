@@ -19,7 +19,7 @@ const businessHoursSchema = z.object({
 });
 
 const logoSchema = z.object({
-  url: z.string().url().optional(),
+  url: z.string().url().optional().or(z.literal('')),
   publicId: z.string().optional(),
 });
 
