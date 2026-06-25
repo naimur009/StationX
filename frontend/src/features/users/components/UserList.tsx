@@ -80,7 +80,7 @@ export default function UserList({ onEdit, onDeactivate, onPermanentDelete }: Us
       )}
 
       {/* Filters */}
-      <div className="flex flex-wrap items-center gap-3">
+      <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-3">
         <div className="relative flex-1 min-w-[200px]">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
           <input
@@ -114,106 +114,162 @@ export default function UserList({ onEdit, onDeactivate, onPermanentDelete }: Us
         </select>
       </div>
 
-      {/* Table */}
-      <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
-        <table className="w-full text-left text-sm">
-          <thead>
-            <tr className="border-b border-slate-200 bg-slate-50 text-xs font-semibold uppercase text-slate-500">
-              <th className="px-4 py-3">Name</th>
-              <th className="px-4 py-3">Email</th>
-              <th className="px-4 py-3">Role</th>
-              <th className="px-4 py-3">Status</th>
-              <th className="px-4 py-3 text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100">
-            {isLoading ? (
-              <tr>
-                <td colSpan={5} className="px-4 py-12 text-center text-slate-400">
-                  Loading users...
-                </td>
-              </tr>
-            ) : isError ? (
-              <tr>
-                <td colSpan={5} className="px-4 py-12 text-center text-red-500">
-                  Failed to load users
-                </td>
-              </tr>
-            ) : data && data.data.length === 0 ? (
-              <tr>
-                <td colSpan={5} className="px-4 py-12 text-center text-slate-400">
-                  No users yet — create one to get started
-                </td>
-              </tr>
-            ) : (
-              data?.data.map((user) => (
-                <tr
-                  key={user.id}
-                  className={`transition-colors hover:bg-slate-50 ${
-                    !user.isActive ? 'opacity-60' : ''
-                  }`}
-                >
-                  <td className="max-w-[180px] truncate px-4 py-3 font-medium text-slate-800">
-                    {user.name}
-                  </td>
-                  <td className="max-w-[220px] truncate px-4 py-3 text-slate-600">
-                    {user.email}
-                  </td>
-                  <td className="px-4 py-3 capitalize text-slate-600">{user.role}</td>
-                  <td className="px-4 py-3">
+      {/* Loading / Error / Empty (shared) */}
+      {isLoading ? (
+        <div className="rounded-2xl border border-slate-200 bg-white px-4 py-12 text-center text-sm text-slate-400 shadow-sm">
+          Loading users...
+        </div>
+      ) : isError ? (
+        <div className="rounded-2xl border border-slate-200 bg-white px-4 py-12 text-center text-sm text-red-500 shadow-sm">
+          Failed to load users
+        </div>
+      ) : data && data.data.length === 0 ? (
+        <div className="rounded-2xl border border-slate-200 bg-white px-4 py-12 text-center text-sm text-slate-400 shadow-sm">
+          No users yet — create one to get started
+        </div>
+      ) : (
+        <>
+          {/* Mobile card layout */}
+          <div className="grid gap-3 md:hidden">
+            {data?.data.map((user) => (
+              <div
+                key={user.id}
+                className={`rounded-2xl border border-slate-200 bg-white p-4 shadow-sm ${
+                  !user.isActive ? 'opacity-60' : ''
+                }`}
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate font-medium text-slate-800">{user.name}</p>
+                    <p className="truncate text-sm text-slate-500">{user.email}</p>
+                  </div>
+                  <div className="shrink-0">
                     {user.isActive ? (
-                      <span
-                        className="inline-block size-1.5 rounded-full bg-green-500"
-                        title="Active"
-                      />
+                      <span className="inline-block size-1.5 rounded-full bg-green-500" title="Active" />
                     ) : (
                       <Badge variant="slate">Deactivated</Badge>
                     )}
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center justify-end gap-2">
-                      <button
-                        onClick={() => onEdit(user)}
-                        className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-blue-600"
-                        title="Edit user"
-                      >
-                        <Edit3 className="h-4 w-4" />
-                      </button>
-                      {user.isActive ? (
+                  </div>
+                </div>
+                <div className="mt-3 flex items-center justify-between gap-2">
+                  <span className="text-sm capitalize text-slate-600">{user.role}</span>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      onClick={() => onEdit(user)}
+                      className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-blue-600"
+                      title="Edit user"
+                    >
+                      <Edit3 className="h-4 w-4" />
+                    </button>
+                    {user.isActive ? (
+                      <Button variant="warning" size="xs" onClick={() => onDeactivate(user)}>
+                        Deactivate
+                      </Button>
+                    ) : (
+                      <>
                         <Button
-                          variant="warning"
+                          variant="primary"
                           size="xs"
-                          onClick={() => onDeactivate(user)}
+                          onClick={() => handleReactivate(user)}
+                          disabled={reactivateUser.isPending}
                         >
-                          Deactivate
+                          Reactivate
                         </Button>
-                      ) : (
-                        <>
-                          <Button
-                            variant="primary"
-                            size="xs"
-                            onClick={() => handleReactivate(user)}
-                            disabled={reactivateUser.isPending}
-                          >
-                            Reactivate
-                          </Button>
-                          <Button
-                            variant="destructive"
-                            size="xs"
-                            onClick={() => onPermanentDelete(user)}
-                          >
-                            Delete
-                          </Button>
-                        </>
-                      )}
-                    </div>
-                  </td>
+                        <Button
+                          variant="destructive"
+                          size="xs"
+                          onClick={() => onPermanentDelete(user)}
+                        >
+                          Delete
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Table layout */}
+          <div className="hidden md:block overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
+            <table className="w-full text-left text-sm">
+              <thead>
+                <tr className="border-b border-slate-200 bg-slate-50 text-xs font-semibold uppercase text-slate-500">
+                  <th className="px-4 py-3">Name</th>
+                  <th className="hidden lg:table-cell px-4 py-3">Email</th>
+                  <th className="hidden sm:table-cell px-4 py-3">Role</th>
+                  <th className="px-4 py-3">Status</th>
+                  <th className="px-4 py-3 text-right">Actions</th>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {data?.data.map((user) => (
+                  <tr
+                    key={user.id}
+                    className={`transition-colors hover:bg-slate-50 ${
+                      !user.isActive ? 'opacity-60' : ''
+                    }`}
+                  >
+                    <td className="max-w-[180px] truncate px-4 py-3 font-medium text-slate-800">
+                      {user.name}
+                    </td>
+                    <td className="hidden lg:table-cell max-w-[220px] truncate px-4 py-3 text-slate-600">
+                      {user.email}
+                    </td>
+                    <td className="hidden sm:table-cell px-4 py-3 capitalize text-slate-600">
+                      {user.role}
+                    </td>
+                    <td className="px-4 py-3">
+                      {user.isActive ? (
+                        <span
+                          className="inline-block size-1.5 rounded-full bg-green-500"
+                          title="Active"
+                        />
+                      ) : (
+                        <Badge variant="slate">Deactivated</Badge>
+                      )}
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center justify-end gap-2">
+                        <button
+                          onClick={() => onEdit(user)}
+                          className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-blue-600"
+                          title="Edit user"
+                        >
+                          <Edit3 className="h-4 w-4" />
+                        </button>
+                        {user.isActive ? (
+                          <Button variant="warning" size="xs" onClick={() => onDeactivate(user)}>
+                            Deactivate
+                          </Button>
+                        ) : (
+                          <>
+                            <Button
+                              variant="primary"
+                              size="xs"
+                              onClick={() => handleReactivate(user)}
+                              disabled={reactivateUser.isPending}
+                            >
+                              Reactivate
+                            </Button>
+                            <Button
+                              variant="destructive"
+                              size="xs"
+                              onClick={() => onPermanentDelete(user)}
+                            >
+                              Delete
+                            </Button>
+                          </>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
 
       {/* Pagination */}
       {data && data.meta.total > 0 && (

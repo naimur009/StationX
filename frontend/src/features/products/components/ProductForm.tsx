@@ -22,7 +22,7 @@ export default function ProductForm({ open, product, onClose }: ProductFormProps
   const [imageValue, setImageValue] = useState<{ url: string; publicId: string } | null>(null);
   const createProduct = useCreateProduct();
   const updateProduct = useUpdateProduct();
-  const { data: categoriesData } = useCategoriesList({ isActive: 'true', limit: 9999 });
+  const { data: categoriesData } = useCategoriesList({ isActive: 'true', limit: 100 });
 
   const isEdit = !!product;
 

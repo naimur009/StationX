@@ -19,14 +19,14 @@ export default function TopBar({ onLogout }: TopBarProps) {
     <header
       className={cn(
         'fixed top-0 right-0 left-0 z-30 flex h-16 items-center justify-between border-b border-border bg-white/80 px-4 backdrop-blur-md',
-        sidebarCollapsed ? 'lg:left-16' : 'lg:left-64'
+        sidebarCollapsed ? 'md:left-16' : 'md:left-64'
       )}
     >
       <div className="flex items-center gap-3">
         <button
           type="button"
           onClick={openMobileDrawer}
-          className="flex h-9 w-9 items-center justify-center rounded-xl text-slate-600 hover:bg-slate-100 lg:hidden"
+          className="flex h-9 w-9 items-center justify-center rounded-xl text-slate-600 hover:bg-slate-100 md:hidden"
           aria-label="Open navigation menu"
         >
           <Menu className="h-5 w-5" />
@@ -35,7 +35,7 @@ export default function TopBar({ onLogout }: TopBarProps) {
         <button
           type="button"
           onClick={toggleSidebar}
-          className="hidden h-9 w-9 items-center justify-center rounded-xl text-slate-600 hover:bg-slate-100 lg:flex"
+          className="hidden h-9 w-9 items-center justify-center rounded-xl text-slate-600 hover:bg-slate-100 md:flex"
           aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
         >
           {sidebarCollapsed ? (

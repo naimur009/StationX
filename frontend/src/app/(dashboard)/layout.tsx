@@ -23,6 +23,7 @@ export default function DashboardLayout({
   const { data: meData, isLoading, isError } = useMe();
   const logoutMutation = useLogout();
   const sidebarCollapsed = useUIStore((state) => state.sidebarCollapsed);
+  const setSidebarCollapsed = useUIStore((state) => state.setSidebarCollapsed);
   const mobileDrawerOpen = useUIStore((state) => state.mobileDrawerOpen);
   const closeMobileDrawer = useUIStore((state) => state.closeMobileDrawer);
 
@@ -61,6 +62,20 @@ export default function DashboardLayout({
       clearAuth();
     }
   }, [isAuthenticated, user, clearAuth]);
+
+  useEffect(() => {
+    function handleResize() {
+      const width = window.innerWidth;
+      if (width >= 768 && width < 1024) {
+        setSidebarCollapsed(true);
+      } else if (width >= 1024) {
+        setSidebarCollapsed(false);
+      }
+    }
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [setSidebarCollapsed]);
 
   async function handleLogout() {
     try {
