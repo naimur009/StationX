@@ -52,27 +52,21 @@ export function Dialog({
   if (!open) return null;
 
   return (
-    <>
-      <style
-        dangerouslySetInnerHTML={{
-          __html: `@keyframes modalEnter{from{opacity:0;transform:scale(0.95) translateY(-8px)}to{opacity:1;transform:scale(1) translateY(0)}}`,
-        }}
-      />
+    <div
+      ref={overlayRef}
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm"
+      onClick={(e) => {
+        if (e.target === overlayRef.current) onClose();
+      }}
+    >
       <div
-        ref={overlayRef}
-        className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm"
-        onClick={(e) => {
-          if (e.target === overlayRef.current) onClose();
-        }}
+        className={cn(
+          'flex max-h-[90vh] w-full flex-col rounded-2xl border border-border bg-white shadow-2xl',
+          'animate-[modal-enter_200ms_ease-out]',
+          sizeClasses[size],
+          className
+        )}
       >
-        <div
-          className={cn(
-            'flex max-h-[90vh] w-full flex-col rounded-2xl border border-border bg-white shadow-2xl',
-            '[animation:modalEnter_200ms_ease-out]',
-            sizeClasses[size],
-            className
-          )}
-        >
           <div className="flex items-center justify-between border-b border-border px-6 py-4">
             <h2 className="text-base font-bold text-slate-800 sm:text-lg">{title}</h2>
             <button
@@ -92,6 +86,5 @@ export function Dialog({
           )}
         </div>
       </div>
-    </>
   );
 }

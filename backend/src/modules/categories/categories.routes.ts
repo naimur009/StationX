@@ -14,7 +14,6 @@ import {
   handleCreateCategory,
   handleUpdateCategory,
   handleDeleteCategory,
-  handlePermanentDeleteCategory,
 } from './categories.controller';
 
 const router = Router();
@@ -24,6 +23,5 @@ router.get('/categories/:id', authenticate, authorize('categories', 'view'), val
 router.post('/categories', authenticate, authorize('categories', 'create'), validate(createCategorySchema), handleCreateCategory);
 router.put('/categories/:id', authenticate, authorize('categories', 'edit'), validate(updateCategorySchema), handleUpdateCategory);
 router.delete('/categories/:id', authenticate, authorize('categories', 'delete'), validate(objectIdParam, 'params'), handleDeleteCategory);
-router.delete('/categories/:id/permanent', authenticate, authorize('categories', 'delete'), validate(objectIdParam, 'params'), handlePermanentDeleteCategory);
 
 export default router;

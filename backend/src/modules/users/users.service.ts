@@ -9,6 +9,9 @@ import type {
   UpdatePermissionsDto,
 } from './users.validation';
 
+const escapeRegex = (str: string): string =>
+  str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
 const SALT_ROUNDS = 12;
 
 interface UserResponse {
@@ -43,7 +46,7 @@ export async function listUsers(query: ListUsersDto) {
   if (query.includeInactive === 'true') {
     // no isActive filter — show all
   } else if (query.includeInactive === 'false') {
-    filter.isActive = false;
+    filter.isActive = true;
   } else {
     filter.isActive = true;
   }
@@ -52,9 +55,10 @@ export async function listUsers(query: ListUsersDto) {
     filter.role = query.role;
   }
   if (query.search) {
+    const safe = escapeRegex(query.search);
     filter.$or = [
-      { name: { $regex: query.search, $options: 'i' } },
-      { email: { $regex: query.search, $options: 'i' } },
+      { name: { $regex: safe, $options: 'i' } },
+      { email: { $regex: safe, $options: 'i' } },
     ];
   }
 

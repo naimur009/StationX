@@ -74,16 +74,3 @@ export async function handleDeleteCategory(
     next(error);
   }
 }
-
-export async function handlePermanentDeleteCategory(
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction
-): Promise<void> {
-  try {
-    const result = await categoryService.permanentDeleteCategory(req.params.id);
-    res.status(200).json({ data: result });
-  } catch (error) {
-    next(error);
-  }
-}

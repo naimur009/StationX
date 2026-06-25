@@ -44,7 +44,7 @@ export function DataTable<T>({
                   key={col.key}
                   className={cn(
                     'px-4 py-3',
-                    col.hideOnMobile && 'hidden md:table-cell',
+                    col.hideOnMobile && 'hidden xs:table-cell',
                     col.className
                   )}
                 >
@@ -61,7 +61,7 @@ export function DataTable<T>({
                     key={col.key}
                     className={cn(
                       'px-4 py-3',
-                      col.hideOnMobile && 'hidden md:table-cell'
+                      col.hideOnMobile && 'hidden xs:table-cell'
                     )}
                   >
                     <div className="h-4 w-3/4 animate-pulse rounded bg-slate-200" />
@@ -93,7 +93,7 @@ export function DataTable<T>({
 
   return (
     <>
-      <div className="hidden md:block rounded-xl border border-border overflow-x-auto">
+      <div className="hidden xs:block rounded-xl border border-border overflow-x-auto">
         <table className="w-full text-left text-sm">
           <thead>
             <tr className="border-b border-border bg-slate-50 text-xs font-semibold uppercase tracking-wider text-slate-500">
@@ -102,7 +102,7 @@ export function DataTable<T>({
                   key={col.key}
                   className={cn(
                     'px-4 py-3',
-                    col.hideOnMobile && 'hidden md:table-cell',
+                    col.hideOnMobile && 'hidden xs:table-cell',
                     col.className
                   )}
                 >
@@ -126,7 +126,7 @@ export function DataTable<T>({
                     key={col.key}
                     className={cn(
                       'px-4 py-3 text-slate-700 whitespace-nowrap',
-                      col.hideOnMobile && 'hidden md:table-cell',
+                      col.hideOnMobile && 'hidden xs:table-cell',
                       col.className
                     )}
                   >
@@ -141,7 +141,7 @@ export function DataTable<T>({
         </table>
       </div>
 
-      <div className="md:hidden space-y-3">
+      <div className="xs:hidden space-y-3">
         {data.map((item) =>
           mobileRender ? (
             mobileRender(item)

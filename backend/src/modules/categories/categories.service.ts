@@ -16,15 +16,15 @@ interface CategoryResponse {
   updatedAt: Date;
 }
 
-async function toCategoryResponse(category: ICategory): Promise<CategoryResponse> {
-  const productCount = await Product.countDocuments({ categoryId: category._id });
+async function categoryResponse(cat: ICategory): Promise<CategoryResponse> {
+  const productCount = await Product.countDocuments({ categoryId: cat._id });
   return {
-    id: category._id.toString(),
-    name: category.name,
-    isActive: category.isActive,
+    id: cat._id.toString(),
+    name: cat.name,
+    isActive: cat.isActive,
     productCount,
-    createdAt: category.createdAt,
-    updatedAt: category.updatedAt,
+    createdAt: cat.createdAt,
+    updatedAt: cat.updatedAt,
   };
 }
 
@@ -58,13 +58,29 @@ export async function listCategories(query: ListCategoriesDto) {
 
   const skip = (query.page - 1) * query.limit;
 
-  const [categories, total] = await Promise.all([
+  const [categories, total, counts] = await Promise.all([
     Category.find(filter).sort({ createdAt: -1 }).skip(skip).limit(query.limit),
     Category.countDocuments(filter),
+    Product.aggregate([
+      { $group: { _id: '$categoryId', count: { $sum: 1 } } },
+    ]),
   ]);
 
+  const countMap = new Map(
+    counts.map((c: { _id: string; count: number }) => [c._id.toString(), c.count])
+  );
+
+  const data: CategoryResponse[] = categories.map((cat) => ({
+    id: cat._id.toString(),
+    name: cat.name,
+    isActive: cat.isActive,
+    productCount: countMap.get(cat._id.toString()) ?? 0,
+    createdAt: cat.createdAt,
+    updatedAt: cat.updatedAt,
+  }));
+
   return {
-    data: await Promise.all(categories.map(toCategoryResponse)),
+    data,
     meta: { total, page: query.page, limit: query.limit },
   };
 }
@@ -76,7 +92,7 @@ export async function getCategoryById(id: string) {
     throw createError(404, 'NOT_FOUND', 'Category not found');
   }
 
-  return await toCategoryResponse(category);
+  return await categoryResponse(category);
 }
 
 export async function createCategory(dto: CreateCategoryDto) {
@@ -90,7 +106,7 @@ export async function createCategory(dto: CreateCategoryDto) {
     isActive: true,
   });
 
-  return await toCategoryResponse(category);
+  return await categoryResponse(category);
 }
 
 export async function updateCategory(id: string, dto: UpdateCategoryDto) {
@@ -121,7 +137,7 @@ export async function updateCategory(id: string, dto: UpdateCategoryDto) {
     throw createError(404, 'NOT_FOUND', 'Category not found');
   }
 
-  return await toCategoryResponse(updated);
+  return await categoryResponse(updated);
 }
 
 export async function deleteCategory(id: string) {
@@ -134,23 +150,6 @@ export async function deleteCategory(id: string) {
   if (!category) {
     throw createError(404, 'NOT_FOUND', 'Category not found');
   }
-
-  return { success: true };
-}
-
-export async function permanentDeleteCategory(id: string) {
-  const category = await Category.findById(id);
-
-  if (!category) {
-    throw createError(404, 'NOT_FOUND', 'Category not found');
-  }
-
-  const productCount = await Product.countDocuments({ categoryId: id, isActive: true });
-  if (productCount > 0) {
-    throw createError(409, 'CATEGORY_IN_USE', 'Cannot delete category referenced by active products');
-  }
-
-  await Category.findByIdAndDelete(id);
 
   return { success: true };
 }

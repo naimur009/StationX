@@ -18,10 +18,14 @@ const businessHoursSchema = z.object({
   close: z.string().regex(timeRegex, 'Must be HH:mm format').nullable(),
 });
 
-const logoSchema = z.object({
-  url: z.string().url().optional().or(z.literal('')),
-  publicId: z.string().optional(),
-});
+const logoSchema = z
+  .object({
+    url: z.string().url().optional().or(z.literal('')),
+    publicId: z.string().optional(),
+  })
+  .refine((data) => data.url || data.publicId, {
+    message: 'Logo must include at least url or publicId',
+  });
 
 const taxConfigSchema = z.object({
   mode: z.enum(['none', 'flat', 'itemized']),

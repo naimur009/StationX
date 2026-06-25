@@ -22,7 +22,6 @@ export default function TaxSection() {
     register,
     handleSubmit,
     reset,
-    formState: { errors },
   } = useForm<TaxFormData>({
     resolver: zodResolver(taxSchema),
     defaultValues: {
