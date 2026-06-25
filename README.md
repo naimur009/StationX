@@ -1,4 +1,4 @@
-# Whatta Cup — Restaurant Management Dashboard
+# StationX — Restaurant Management Dashboard
 
 A web-based restaurant management system for day-to-day operations.
 

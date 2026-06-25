@@ -11,7 +11,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: 'Whatta Cup',
+  title: 'StationX',
   description: 'Restaurant Management Dashboard',
 };
 

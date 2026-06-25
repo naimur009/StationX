@@ -77,7 +77,7 @@ export default function Sidebar({ onLogout }: SidebarProps) {
         </div>
         {!sidebarCollapsed && (
           <div className="overflow-hidden">
-            <div className="truncate text-sm font-bold text-white">Whatta Cup</div>
+            <div className="truncate text-sm font-bold text-white">StationX</div>
             <div className="truncate text-xs text-slate-400">Management</div>
           </div>
         )}

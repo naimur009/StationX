@@ -77,7 +77,7 @@ export default function HomePage() {
     <div className="flex min-h-screen flex-col bg-slate-50">
       <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/80 backdrop-blur-md">
         <nav className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
-          <span className="text-lg font-bold text-slate-800">Whatta Cup</span>
+          <span className="text-lg font-bold text-slate-800">StationX</span>
           <Link
             href="/login"
             className="inline-flex h-11 items-center justify-center rounded-xl bg-blue-600 px-5 text-sm font-medium text-white shadow-blue-500/25 transition-all hover:bg-blue-700 active:translate-y-px"
@@ -139,7 +139,7 @@ export default function HomePage() {
       <footer className="border-t border-slate-200">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
           <p className="text-xs font-medium text-slate-400">
-            &copy; {new Date().getFullYear()} Whatta Cup. All rights reserved.
+            &copy; {new Date().getFullYear()} StationX. All rights reserved.
           </p>
           <HealthIndicator />
         </div>

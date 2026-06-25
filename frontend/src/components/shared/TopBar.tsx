@@ -46,7 +46,7 @@ export default function TopBar({ onLogout }: TopBarProps) {
         </button>
 
         <span className="hidden text-sm font-bold text-slate-800 sm:inline">
-          Whatta Cup
+          StationX
         </span>
       </div>
 

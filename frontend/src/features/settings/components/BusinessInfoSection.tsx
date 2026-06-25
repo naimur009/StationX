@@ -93,7 +93,7 @@ export default function BusinessInfoSection() {
               id="restaurantName"
               {...register('restaurantName')}
               error={!!errors.restaurantName}
-              placeholder="Whatta Cup"
+              placeholder="StationX"
             />
             {errors.restaurantName && (
               <p className="text-xs text-red-500">{errors.restaurantName.message}</p>

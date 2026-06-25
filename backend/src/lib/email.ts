@@ -51,7 +51,7 @@ export async function sendPasswordResetEmail(
 ): Promise<void> {
   await sendEmail({
     to: email,
-    subject: 'Reset your Whatta Cup password',
+    subject: 'Reset your StationX password',
     text: `You requested a password reset. Click the link to reset your password: ${resetLink}\n\nThis link expires in 15 minutes.\n\nIf you didn't request this, please ignore this email.`,
     html: `<p>You requested a password reset. Click the link below to reset your password:</p><p><a href="${resetLink}">${resetLink}</a></p><p>This link expires in 15 minutes.</p><p>If you didn't request this, please ignore this email.</p>`,
   });

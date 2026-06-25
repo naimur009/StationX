@@ -45,7 +45,7 @@ export default function MobileNav({ open, onClose, onLogout }: MobileNavProps) {
               <span className="text-sm font-bold text-white">W</span>
             </div>
             <div>
-              <div className="text-sm font-bold text-white">Whatta Cup</div>
+              <div className="text-sm font-bold text-white">StationX</div>
               <div className="text-xs text-slate-400">Management</div>
             </div>
           </div>

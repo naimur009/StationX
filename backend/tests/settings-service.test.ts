@@ -67,7 +67,7 @@ describe('settingsService', () => {
 
     it('handles multiple fields in one update', async () => {
       const updateData = {
-        restaurantName: 'Whatta Cup',
+        restaurantName: 'StationX',
         currency: 'USD',
         taxId: 'TAX123',
       };
@@ -86,7 +86,7 @@ describe('settingsService', () => {
 
 describe('updateSettingsSchema validation', () => {
   it('accepts valid partial update', () => {
-    const result = updateSettingsSchema.safeParse({ restaurantName: 'Whatta Cup' });
+    const result = updateSettingsSchema.safeParse({ restaurantName: 'StationX' });
     expect(result.success).toBe(true);
   });
 
