@@ -31,7 +31,6 @@ const couponSchema = new Schema<ICoupon>(
   { timestamps: true, toJSON: { versionKey: false } }
 );
 
-couponSchema.index({ code: 1 }, { unique: true });
 couponSchema.index({ isEnabled: 1, validUntil: 1 });
 
 const Coupon = mongoose.model<ICoupon>('Coupon', couponSchema);

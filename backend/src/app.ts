@@ -14,6 +14,7 @@ import categoriesRoutes from './modules/categories/categories.routes';
 import productsRoutes from './modules/products/products.routes';
 import uploadsRoutes from './modules/uploads/uploads.routes';
 import couponsRoutes from './modules/coupons/coupons.routes';
+import customersRoutes from './modules/customers/customers.routes';
 
 const app = express();
 
@@ -109,6 +110,14 @@ app.use('/api/v1/coupons', (req, res, next) => {
   next();
 });
 app.use('/api/v1', couponsRoutes);
+const customersMutationLimiter = makeRateLimiter(env.RATE_LIMIT_MAX);
+app.use('/api/v1/customers', (req, res, next) => {
+  if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method)) {
+    return customersMutationLimiter(req, res, next);
+  }
+  next();
+});
+app.use('/api/v1', customersRoutes);
 
 app.use(errorHandler);
 

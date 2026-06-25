@@ -18,8 +18,8 @@
 - [ok] 5. Categories
 - [ok] 6. Shared Uploads
 - [ok] 7. Products
-- [wip] 8. Coupons
-- [ ] 9. Customers
+- [ok] 8. Coupons
+- [wip] 9. Customers
 - [ ] 10. POS
 - [ ] 11. Orders
 - [ ] 12. Dashboard (Overview)
