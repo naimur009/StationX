@@ -1,6 +1,7 @@
 import Category, { ICategory } from '../../models/Category';
 import Product from '../../models/Product';
 import { createError } from '../../middleware/errorHandler';
+import { escapeRegex } from '../../lib/escapeRegex';
 import type {
   CreateCategoryDto,
   UpdateCategoryDto,
@@ -26,10 +27,6 @@ async function categoryResponse(cat: ICategory): Promise<CategoryResponse> {
     createdAt: cat.createdAt,
     updatedAt: cat.updatedAt,
   };
-}
-
-function escapeRegex(str: string): string {
-  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 export async function listCategories(query: ListCategoriesDto) {

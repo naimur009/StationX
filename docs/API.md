@@ -497,6 +497,7 @@ Single namespace, all authenticated dashboard clients join one shared room — n
 | 400 | `ALREADY_ACTIVE` | Attempt to reactivate an already-active user |
 | 400 | `INVALID_ACTION` | Permission action is not valid for the given module |
 | 400 | `INVALID_CATEGORY` | Referenced category does not exist |
+| 400 | `COUPON_CODE_EXISTS` | A coupon with this code already exists |
 | 400 | `PRODUCT_IS_ACTIVE` | Attempt to permanently delete an active product without deactivating first |
 | 401 | `UNAUTHORIZED` | Missing/invalid/expired access token |
 | 401 | `INVALID_CREDENTIALS` | Login failed |

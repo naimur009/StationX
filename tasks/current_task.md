@@ -1,147 +1,168 @@
-# Current Task — Products
+# Current Task — Coupons
 
-**PRD Feature 11** | `API.md` §16 | `DATABASE.md` §3.4
-**Depends on:** Categories (Task 5), Shared Uploads (Task 6)
-**Permission module key:** `products` — already registered in `backend/src/shared/constants.ts` and `frontend/src/lib/constants.ts`
-**Sidebar link:** Already exists at `/products` with `Package` icon
-**Activity logger:** Already registered as `products: 'Product'`
+**PRD Feature 6** | `API.md` §11 | `DATABASE.md` §3.5
+**Depends on:** Users & Permissions (Task 3)
+**Why before POS:** POS validate/apply flow depends on Coupons existing first.
+**Permission module key:** `coupons` — already registered in `backend/src/shared/constants.ts` and `frontend/src/lib/constants.ts`
+**Sidebar link:** Already exists at `/coupons` with `TicketPercent` icon
+**Activity logger:** Already registered as `coupons: 'Coupon'`, with toggle route pattern `coupon.toggled`
 
 ---
 
-## Backend (`backend/src/modules/products/` — 4 new files)
+## Backend (`backend/src/modules/coupons/` — 4 new files)
 
-### Product Model — `backend/src/models/Product.ts`
+### Coupon Model — `backend/src/models/Coupon.ts`
 
-Follow `Category.ts` pattern. Fields per `DATABASE.md` §3.4:
+Follow `Product.ts` pattern. Fields per `DATABASE.md` §3.5:
 
 | Field | Type | Required | Notes |
 |---|---|---|---|
-| `name` | String | yes | |
-| `price` | Number | yes | Current sell price; historical orders use a snapshot, not this live value |
-| `categoryId` | ObjectId → Category | yes | ref: 'Category' |
-| `image` | `{ url: String, publicId: String }` | no | Cloudinary; `publicId` needed to delete/replace later |
-| `description` | String | no | |
-| `isActive` | Boolean | yes (default `true`) | Doubles as the PRD's "availability" toggle |
+| `code` | String | yes | unique, uppercase, trimmed |
+| `discountType` | String enum `flat \| percentage` | yes | per `ARCHITECTURE.md` §1 |
+| `value` | Number | yes | flat amount or percentage (0–100), validated by Zod per discountType |
+| `maxDiscountAmount` | Number | no | caps the discount when `discountType: 'percentage'` |
+| `minOrderAmount` | Number | no | coupon only applicable above this subtotal |
+| `validFrom` | Date | yes | |
+| `validUntil` | Date | yes | |
+| `isEnabled` | Boolean | yes (default `true`) | manual on/off switch, independent of validity window |
+| `usageLimit` | Number | no | total redemptions allowed; omit = unlimited |
+| `usageCount` | Number | yes (default `0`) | incremented atomically on each successful order |
 
-**Indexes:** `categoryId`, `isActive`, text index on `name`.
+**Indexes:** `code` (unique), compound `{ isEnabled: 1, validUntil: 1 }`.
 
-- Default export `Product` model.
-- Export `IProduct` interface extending `Document`.
+- Default export `Coupon` model.
+- Export `ICoupon` interface extending `Document`.
 - Schema options: `{ timestamps: true, toJSON: { versionKey: false } }`.
-- Follow mongoose pattern from `Category.ts`.
+- Follow mongoose pattern from `Product.ts`.
 
-### Validation — `products.validation.ts`
+### Validation — `coupons.validation.ts`
 
-- `createProductSchema`: `name` (string, min 1, required), `price` (number, positive, required), `categoryId` (string, min 1), `image` (optional object with `url` string and `publicId` string), `description` (optional string). Use `.strict()`.
-- `updateProductSchema`: Same shape but all fields optional.
-- `listProductsSchema`: `categoryId` (optional string), `isActive` (optional boolean, coerce), `search` (optional string), `page` (optional number, coerce, default 1), `limit` (optional number, coerce, default 20, max 100).
-- `productIdParam`: `{ id: string }`.
-- Export inferred DTO types: `CreateProductDto`, `UpdateProductDto`, `ListProductsQuery`.
+- `createCouponSchema`: `code` (string, min 1, max 50, trim, transform uppercase), `discountType` (enum `flat | percentage`), `value` (number, positive, max: discountType === 'flat' ? undefined : 100), `maxDiscountAmount` (optional positive number), `minOrderAmount` (optional non-negative number), `validFrom` (string datetime), `validUntil` (string datetime, must be after validFrom), `usageLimit` (optional positive integer). Use `.strict()`.
+- `updateCouponSchema`: Same shape but all fields optional.
+- `listCouponsSchema`: `isEnabled` (optional boolean, coerce), `search` (optional string, max 100), `page` (optional number, coerce, default 1), `limit` (optional number, coerce, default 20, max 100).
+- `couponIdParam`: `{ id: string }`.
+- Export inferred DTO types: `CreateCouponDto`, `UpdateCouponDto`, `ListCouponsDto`.
 
-### Service — `products.service.ts`
+### Service — `coupons.service.ts`
 
-- Import `Product`, `ICategory`/`Category` (for checking categoryId validity).
-- Local `ProductResponse` interface + private `toProductResponse()` mapper (`_id.toString()`, dates to ISO strings).
-- **List:** `Product.find(filter).populate('categoryId', 'name').sort({ createdAt: -1 }).skip().limit()` with parallel `Product.countDocuments()`. `filter` built from `categoryId`, `isActive`, `search` (text search or regex on `name`). Return `{ data, meta: { total, page, limit } }`.
-- **Get by ID:** `Product.findById(id).populate('categoryId', 'name')`, throw `404 PRODUCT_NOT_FOUND` if null.
-- **Create:** Check categoryId exists (if provided) — throw `400 INVALID_CATEGORY` if not. `Product.create(data)`.
-- **Update:** Find doc first (404 if not found). Validate categoryId if changed. `Product.findByIdAndUpdate(id, { $set: updates }, { new: true, runValidators: true })`.
-- **Soft-delete:** `Product.findByIdAndUpdate(id, { $set: { isActive: false } })`.
-- Use `createError(httpStatus, code, message)` from the error handler for all structured errors.
+- Import `Coupon`, `ICoupon`.
+- Local `CouponResponse` interface + private `toCouponResponse()` mapper. Response includes a computed `status` field:
+  ```
+  status: isEnabled && now >= validFrom && now <= validUntil → 'active'
+         isEnabled && now < validFrom                     → 'scheduled'
+         isEnabled && now > validUntil                    → 'expired'
+         !isEnabled                                       → 'disabled'
+  ```
+- **List:** `Coupon.find(filter).sort({ createdAt: -1 }).skip().limit()` with parallel `Coupon.countDocuments(filter)`. `filter` built from `isEnabled`, `search` (regex on `code`). Return `{ data, meta: { total, page, limit } }`.
+- **Get by ID:** `Coupon.findById(id)`, throw `404 NOT_FOUND` if null.
+- **Create:** `Coupon.create(data)`. `code` auto-uppercased by validation transform. Check duplicate code — throw `409 COUPON_CODE_EXISTS`.
+- **Update:** Find doc first (404 if not found). `Coupon.findByIdAndUpdate(id, { $set: updates }, { new: true, runValidators: true })`.
+- **Toggle:** `Coupon.findById(id)`, flip `isEnabled`, save. Return updated coupon.
+- **Delete:** Check `usageCount > 0` → throw `409 COUPON_IN_USE` with message suggesting toggle instead. Otherwise `Coupon.findByIdAndDelete(id)`.
+- Use `createError(httpStatus, code, message)` from the error handler.
 
-### Controller — `products.controller.ts`
+### Controller — `coupons.controller.ts`
 
-- Named exports: `listProducts`, `getProduct`, `createProduct`, `updateProduct`, `deleteProduct`.
+- Named exports: `listCoupons`, `getCoupon`, `createCoupon`, `updateCoupon`, `toggleCoupon`, `deleteCoupon`.
 - Pattern: extract from `req.query` / `req.params` / `req.body`, call service, `res.status(200|201).json({ data: result })`, `try/catch/next`.
-- Use `import * as productService from './products.service'`.
+- Use `import * as couponService from './coupons.service'`.
 
-### Routes — `products.routes.ts`
+### Routes — `coupons.routes.ts`
 
 ```
-GET    /products              -> authenticate, authorize('products', 'view'), validate(listProductsSchema, 'query'), listProducts
-GET    /products/:id          -> authenticate, authorize('products', 'view'), validate(productIdParam, 'params'), getProduct
-POST   /products              -> authenticate, authorize('products', 'create'), validate(createProductSchema, 'body'), createProduct
-PUT    /products/:id          -> authenticate, authorize('products', 'edit'), validate(updateProductSchema, 'body'), validate(productIdParam, 'params'), updateProduct
-DELETE /products/:id          -> authenticate, authorize('products', 'delete'), validate(productIdParam, 'params'), deleteProduct
+GET    /coupons                -> authenticate, authorize('coupons', 'view'), validate(listCouponsSchema, 'query'), listCoupons
+GET    /coupons/:id            -> authenticate, authorize('coupons', 'view'), validate(couponIdParam, 'params'), getCoupon
+POST   /coupons                -> authenticate, authorize('coupons', 'create'), validate(createCouponSchema), createCoupon
+PUT    /coupons/:id            -> authenticate, authorize('coupons', 'edit'), validate(couponIdParam, 'params'), validate(updateCouponSchema), updateCoupon
+PATCH  /coupons/:id/toggle     -> authenticate, authorize('coupons', 'edit'), validate(couponIdParam, 'params'), toggleCoupon
+DELETE /coupons/:id            -> authenticate, authorize('coupons', 'delete'), validate(couponIdParam, 'params'), deleteCoupon
 ```
 
 - Export default router.
-- Import route-level rate limiter if needed (check other modules — likely not needed for generic CRUD).
 
 ### Module Registration — `backend/src/app.ts`
 
-- Add `import productsRoutes from './modules/products/products.routes';`
-- Mount: `app.use('/api/v1', productsRoutes);` (after categories routes, before the catch-all).
+- Add `import couponsRoutes from './modules/coupons/coupons.routes';`
+- Mount: `app.use('/api/v1', couponsRoutes);` (after categories routes, before the catch-all).
 
 ---
 
-## Frontend (`frontend/src/features/products/` — api.ts, schema.ts, components/ProductList.tsx, components/ProductForm.tsx, components/DeleteProductDialog.tsx + page)
+## Frontend (`frontend/src/features/coupons/` — api.ts, schema.ts, components/CouponList.tsx, components/CouponForm.tsx, components/DeleteCouponDialog.tsx + page)
 
 ### Schema — `schema.ts`
 
-- `createProductSchema`: `name` (min 1), `price` (positive number), `categoryId` (string, min 1), `image` (optional `{ url: string, publicId: string }`), `description` (optional string).
-- `updateProductSchema`: Same but all optional.
-- Export `CreateProductFormData`, `UpdateProductFormData` types.
-- Backend-fields not shown in form (like `isActive`) are handled separately.
+- `createCouponSchema`: `code` (min 1, max 50, trim, transform uppercase), `discountType` (enum `flat | percentage`), `value` (positive number, max conditional on discountType), `maxDiscountAmount` (optional positive number), `minOrderAmount` (optional non-negative number), `validFrom` (string, date), `validUntil` (string, date), `usageLimit` (optional positive integer). Use `.refine()` to validate `validUntil > validFrom`.
+- `updateCouponSchema`: Same but all optional.
+- Export `CreateCouponFormData`, `UpdateCouponFormData` types.
 
 ### API — `api.ts`
 
 - `'use client'` at top.
-- `useProductList(params)`: `useQuery` with key `['products', 'list', params]`.
-- `useProduct(id)`: `useQuery` with key `['products', 'detail', id]`, `enabled: !!id`.
-- `useCreateProduct()`: `useMutation`, invalidates `['products']` on success.
-- `useUpdateProduct()`: `useMutation`, invalidates `['products']` on success.
-- `useDeleteProduct()`: `useMutation`, invalidates `['products']` on success.
-- Use `apiClient<ProductResponse | ProductListResponse>` from `@/lib/api-client`.
-- Define `ProductResponse` interface matching backend shape (id, name, price, categoryId, categoryName, image, description, isActive, createdAt, updatedAt).
+- `useCouponList(params)`: `useQuery` with key `['coupons', 'list', params]`.
+- `useCoupon(id)`: `useQuery` with key `['coupons', 'detail', id]`, `enabled: !!id`.
+- `useCreateCoupon()`: `useMutation`, invalidates `['coupons']` on success.
+- `useUpdateCoupon()`: `useMutation`, invalidates `['coupons']` on success.
+- `useToggleCoupon()`: `useMutation`, invalidates `['coupons']` on success.
+- `useDeleteCoupon()`: `useMutation`, invalidates `['coupons']` on success.
+- Use `apiClient<CouponResponse | CouponListResponse>` from `@/lib/api-client`.
+- Define `CouponResponse` interface matching backend shape (id, code, discountType, value, maxDiscountAmount, minOrderAmount, validFrom, validUntil, isEnabled, usageLimit, usageCount, status, createdAt, updatedAt).
 
 ### Components
 
-#### `ProductList.tsx`
-- Props: `onEdit: (product) => void`, `onDelete: (product) => void`.
-- Local state: search (debounced), category filter, active/inactive filter, pagination.
-- Use `useProductList` with current filters.
-- Table columns: Image (thumbnail), Name, Price, Category, Status (Active/Inactive badge), Actions (Edit, Delete).
+#### `CouponList.tsx`
+- Props: `onEdit: (coupon) => void`, `onDelete: (coupon) => void`, `onToggle: (coupon) => void`.
+- Local state: search (debounced), enabled filter, pagination.
+- Use `useCouponList` with current filters.
+- Table columns: Code, Value, Type (Flat/%), Min Order, Valid Period, Usage (count/limit), Status (active/scheduled/expired/disabled badge), Actions (Toggle, Edit, Delete).
+- Status badge colors per `theme.md` §12: `active` (green/success), `scheduled` (blue/info), `expired` (red/destructive), `disabled` (slate/neutral).
 - Loading state: skeleton rows.
-- Empty state: "No products found" with create CTA if has create permission.
+- Empty state: "No coupons found" with create CTA if has create permission.
 - Error state: error message with retry button.
-- Follow layout patterns from `CategoryList.tsx`.
+- Follow layout patterns from `ProductList.tsx`.
 
-#### `ProductForm.tsx`
-- Props: `open: boolean`, `product: ProductResponse | null`, `onClose: () => void`.
-- Uses `react-hook-form` with `zodResolver(productSchema)`.
-- Create mode if `product` is null, edit mode otherwise.
-- Fields: Name (text), Price (number input), Category (select/dropdown — fetches categories via `useCategoryList`), Image (ImageUpload component from shared uploads), Description (textarea).
-- `useEffect` to `reset()` form when `open` or `product` changes.
-- Renders inside `<Dialog>` with title "Create Product" / "Edit Product".
-- Submit calls `useCreateProduct` or `useUpdateProduct`.
-- Error handling for `AppError`.
+#### `CouponForm.tsx`
+- Props: `open: boolean`, `coupon: CouponResponse | null`, `onClose: () => void`.
+- Uses `react-hook-form` with `zodResolver(couponSchema)`.
+- Create mode if `coupon` is null, edit mode otherwise.
+- Fields: Code (text, uppercased), Discount Type (select: Flat/Percentage), Value (number, label changes to "Amount" or "Percentage"), Max Discount Amount (number, shown only when type=percentage), Min Order Amount (number), Valid From (date input), Valid Until (date input), Usage Limit (number, optional).
+- Conditional field display: `maxDiscountAmount` and `value` max change based on `discountType`.
+- `useEffect` to `reset()` form when `open` or `coupon` changes.
+- Renders inside `<Dialog>` with title "Create Coupon" / "Edit Coupon".
+- Submit calls `useCreateCoupon` or `useUpdateCoupon`.
+- Error handling for `AppError` including `COUPON_CODE_EXISTS`.
 
-#### `DeleteProductDialog.tsx`
-- Props: `product: ProductResponse`, `onClose: () => void`.
-- Confirmation dialog: "Are you sure you want to delete {product.name}?" with description "This product will be soft-deleted and hidden from active lists. You can reactivate it later."
-- Confirm calls `useDeleteProduct`, shows loading state on button.
-- Follow pattern from `DeleteCategoryDialog.tsx`.
+#### `DeleteCouponDialog.tsx`
+- Props: `coupon: CouponResponse`, `onClose: () => void`.
+- Check `coupon.usageCount > 0` → show "This coupon has been used {usageCount} times and cannot be deleted. Disable it instead." with a "Disable" action button and no delete option.
+- If `usageCount === 0`: confirmation dialog "Are you sure you want to delete coupon {coupon.code}?" with description "This action cannot be undone."
+- Confirm calls `useDeleteCoupon`, shows loading state on button.
+- Error handling for `409 COUPON_IN_USE`.
+- Follow pattern from `DeleteProductDialog.tsx`.
 
-### Page — `frontend/src/app/(dashboard)/products/page.tsx`
+### Page — `frontend/src/app/(dashboard)/coupons/page.tsx`
 
 - `'use client'`.
-- `<PermissionGate module="products" action="view">`.
-- Local state: `isCreateOpen`, `editingProduct`, `deletingProduct`.
-- "Create Product" button gated by `<PermissionGate module="products" action="create">`.
-- Renders `<ProductList>` and conditionally `<ProductForm>` / `<DeleteProductDialog>`.
-- Follow the exact pattern of `categories/page.tsx`.
+- `<PermissionGate module="coupons" action="view">`.
+- Local state: `isCreateOpen`, `editingCoupon`, `deletingCoupon`, `togglingCoupon`.
+- "Create Coupon" button gated by `<PermissionGate module="coupons" action="create">`.
+- Renders `<CouponList>` and conditionally `<CouponForm>` / `<DeleteCouponDialog>`.
+- Follow the exact pattern of `products/page.tsx`.
 
 ---
 
 ## Design
 
-- **Product list layout:** Table with columns for thumbnail, name, price, category, status, actions. Thumbnail is a small 48x48 rounded image; products without an image show a placeholder icon (e.g. `ImageOff` from lucide-react in a muted background).
-- **Image upload pattern:** Reuse `ImageUpload` shared component from Task 6 (Settings logo already uses it). Accept `jpeg/png/webp`, max 5MB. Show preview. Allow replace and remove.
-- **Category selector:** Dropdown fetched from `GET /categories?isActive=true`. Show category name. If no categories exist, show "No categories — create one first" with a link to the categories page.
-- **Price field:** Number input with two decimal places. Currency is hardcoded to BDT (tk).
-- **Status badge:** "Active" in green/success badge, "Inactive" in gray/neutral badge (matches `theme.md` status-badge conventions already used in Categories, Users).
-- **Form:** Dialog/modal (same pattern as CategoryForm — not a full page). Image field near the top since it's visually prominent. Category and Price side by side if space permits.
+- **Coupon list layout:** Table with columns for code, value, type, min order, valid period, usage, status badge, actions. Compact row — coupons are information-dense but each field is small.
+- **Status badge colors:** `active` (green/success — `bg-success`), `scheduled` (blue/info — `bg-info`), `expired` (red/destructive — `bg-destructive`), `disabled` (slate/neutral — `bg-slate-600`). Matches `theme.md` §12 coupon status badges.
+- **Code field:** Auto-uppercased display. Input transforms to uppercase on blur.
+- **Discount Type selector:** `Radio` or `Select` — switching between Flat/Percentage changes the `value` field label and max validation:
+  - Flat: "Amount (€)" — no max
+  - Percentage: "Percentage (%)" — max 100
+- **Conditional field:** `maxDiscountAmount` only visible when `discountType === 'percentage'`. Label: "Max Discount Amount (optional)".
+- **Date fields:** Two date inputs side by side (Valid From / Valid Until) with inline validation that `validUntil > validFrom`.
+- **Usage display:** "3 / 100" format — usageCount / usageLimit (or "3 / ∞" if no limit). Red text if `usageCount >= usageLimit`.
+- **Toggle action:** Inline switch/button in the Actions column. Calls `useToggleCoupon`. Loading state on the toggle button only (not the whole row). Optimistic update via `queryClient.setQueryData` if desired.
+- **Delete button:** Always present but behavior differs per `usageCount`. Used coupons show a "Disable" suggestion; unused coupons show normal delete confirmation.
 
 ---
 
@@ -150,46 +171,47 @@ DELETE /products/:id          -> authenticate, authorize('products', 'delete'), 
 ### Files to Create
 
 **Backend (5 files):**
-1. `backend/src/models/Product.ts`
-2. `backend/src/modules/products/products.validation.ts`
-3. `backend/src/modules/products/products.service.ts`
-4. `backend/src/modules/products/products.controller.ts`
-5. `backend/src/modules/products/products.routes.ts`
+1. `backend/src/models/Coupon.ts`
+2. `backend/src/modules/coupons/coupons.validation.ts`
+3. `backend/src/modules/coupons/coupons.service.ts`
+4. `backend/src/modules/coupons/coupons.controller.ts`
+5. `backend/src/modules/coupons/coupons.routes.ts`
 
 **Modify:**
-- `backend/src/app.ts` — register products routes
+- `backend/src/app.ts` — register coupons routes
 
 **Frontend (5 files):**
-1. `frontend/src/features/products/api.ts`
-2. `frontend/src/features/products/schema.ts`
-3. `frontend/src/features/products/components/ProductList.tsx`
-4. `frontend/src/features/products/components/ProductForm.tsx`
-5. `frontend/src/features/products/components/DeleteProductDialog.tsx`
+1. `frontend/src/features/coupons/api.ts`
+2. `frontend/src/features/coupons/schema.ts`
+3. `frontend/src/features/coupons/components/CouponList.tsx`
+4. `frontend/src/features/coupons/components/CouponForm.tsx`
+5. `frontend/src/features/coupons/components/DeleteCouponDialog.tsx`
 
 **Modify:**
-- `frontend/src/app/(dashboard)/products/page.tsx` — replace placeholder with real page
+- `frontend/src/app/(dashboard)/coupons/page.tsx` — replace placeholder with real page
 
 ### Patterns to Follow
 
-- **Backend:** Match `categories/` module exactly — 4-file pattern, named exports, `createError`, `try/catch/next` in controllers, `import * as service` pattern.
-- **Frontend:** Match `categories/` feature exactly — `api.ts` with TanStack Query hooks, `schema.ts` with Zod + inferred types, components in `components/` folder, dialog-based CRUD.
-- **Model:** Match `Category.ts` — Mongoose schema with `timestamps: true`, `toJSON: { versionKey: false }`, default export model + named export interface.
-- **Page:** Match `categories/page.tsx` — `PermissionGate` wrapper, local state for dialog open/close, conditional rendering of form/dialog.
+- **Backend:** Match `products/` module exactly — 4-file pattern, named exports, `createError`, `try/catch/next` in controllers, `import * as service` pattern.
+- **Frontend:** Match `products/` feature exactly — `api.ts` with TanStack Query hooks, `schema.ts` with Zod + inferred types, components in `components/` folder, dialog-based CRUD.
+- **Model:** Match `Product.ts` — Mongoose schema with `timestamps: true`, `toJSON: { versionKey: false }`, default export model + named export interface.
+- **Page:** Match `products/page.tsx` — `PermissionGate` wrapper, local state for dialog open/close, conditional rendering of form/dialog.
 
 ### Already Done (No Changes Needed)
-- Permission module key `products` registered in backend constants
-- Permission module key `products` registered in frontend constants
-- Sidebar nav link `/products` with `Package` icon already exists
-- Activity logger mapping `products: 'Product'` already exists
-- Category service already has stub references to `Product.countDocuments` for delete-protection checks
+- Permission module key `coupons` registered in backend constants
+- Permission module key `coupons` registered in frontend constants
+- Sidebar nav link `/coupons` with `TicketPercent` icon already exists
+- Activity logger mapping `coupons: 'Coupon'` already exists
+- Activity logger toggle route pattern `/coupons/:id/toggle` → `coupon.toggled` already registered
 
 ### Verification
 
 - `tsc --noEmit` passes clean on both apps
-- `npm run dev` — backend starts, frontend loads, products CRUD works end to end
-- All endpoints return correct status codes and shapes per `API.md` §16
-- Soft-deleted products are hidden from active list, visible when `?isActive=false`
-- Image upload → create product with image → edit product image → works
-- Category filter works in product list
-- Search by name works via text index
-- Form validation rejects empty name, negative price, invalid categoryId
+- `npm run dev` — backend starts, frontend loads, coupons CRUD works end to end
+- All endpoints return correct status codes and shapes per `API.md` §11
+- Computed `status` field correct for all four states (active, scheduled, expired, disabled)
+- Toggle endpoint flips `isEnabled` correctly
+- Delete blocked with `409 COUPON_IN_USE` when `usageCount > 0`
+- Form validation rejects invalid values (percentage > 100, validUntil before validFrom, code too long)
+- Search by code works
+- Status badges render correct colors per `theme.md` §12

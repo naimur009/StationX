@@ -13,6 +13,7 @@ import settingsRoutes from './modules/settings/settings.routes';
 import categoriesRoutes from './modules/categories/categories.routes';
 import productsRoutes from './modules/products/products.routes';
 import uploadsRoutes from './modules/uploads/uploads.routes';
+import couponsRoutes from './modules/coupons/coupons.routes';
 
 const app = express();
 
@@ -100,6 +101,14 @@ app.use('/api/v1', productsRoutes);
 const uploadsMutationLimiter = makeRateLimiter(env.UPLOAD_RATE_LIMIT_MAX);
 app.use('/api/v1/uploads/image', uploadsMutationLimiter);
 app.use('/api/v1', uploadsRoutes);
+const couponsMutationLimiter = makeRateLimiter(env.RATE_LIMIT_MAX);
+app.use('/api/v1/coupons', (req, res, next) => {
+  if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method)) {
+    return couponsMutationLimiter(req, res, next);
+  }
+  next();
+});
+app.use('/api/v1', couponsRoutes);
 
 app.use(errorHandler);
 
