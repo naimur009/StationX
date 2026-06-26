@@ -1,5 +1,12 @@
 import { Response, NextFunction } from 'express';
 import { AuthenticatedRequest } from './authenticate';
+
+declare module 'express' {
+  interface Request {
+    skipActivityLog?: boolean;
+  }
+}
+
 import ActivityLog from '../models/ActivityLog';
 
 interface PathActionRule {
@@ -91,6 +98,7 @@ export function activityLogger(
   };
 
   res.on('finish', () => {
+    if (req.skipActivityLog) return;
     if (
       res.statusCode >= 200 &&
       res.statusCode < 300 &&

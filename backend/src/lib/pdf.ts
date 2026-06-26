@@ -1,2 +1,16 @@
-// Stub — Puppeteer PDF generation lands in Task 9 (POS) / Task 17 (Reports)
-export {};
+import puppeteer from 'puppeteer';
+
+export async function renderPdf(html: string): Promise<Buffer> {
+  const browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox'] });
+  try {
+    const page = await browser.newPage();
+    await page.setContent(html, { waitUntil: 'load' });
+    const pdf = await page.pdf({
+      format: 'A4',
+      margin: { top: '10mm', bottom: '10mm', left: '10mm', right: '10mm' },
+    });
+    return Buffer.from(pdf);
+  } finally {
+    await browser.close();
+  }
+}

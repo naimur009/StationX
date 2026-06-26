@@ -15,6 +15,8 @@ import productsRoutes from './modules/products/products.routes';
 import uploadsRoutes from './modules/uploads/uploads.routes';
 import couponsRoutes from './modules/coupons/coupons.routes';
 import customersRoutes from './modules/customers/customers.routes';
+import posRoutes from './modules/pos/pos.routes';
+import ordersRoutes from './modules/orders/orders.routes';
 
 const app = express();
 
@@ -118,6 +120,15 @@ app.use('/api/v1/customers', (req, res, next) => {
   next();
 });
 app.use('/api/v1', customersRoutes);
+app.use('/api/v1', posRoutes);
+const ordersMutationLimiter = makeRateLimiter(env.RATE_LIMIT_MAX);
+app.use('/api/v1/orders', (req, res, next) => {
+  if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method)) {
+    return ordersMutationLimiter(req, res, next);
+  }
+  next();
+});
+app.use('/api/v1', ordersRoutes);
 
 app.use(errorHandler);
 

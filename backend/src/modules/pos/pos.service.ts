@@ -1,0 +1,187 @@
+import Product from '../../models/Product';
+import Coupon from '../../models/Coupon';
+import Customer from '../../models/Customer';
+import Order from '../../models/Order';
+import ActivityLog from '../../models/ActivityLog';
+import { withTransaction } from '../../lib/transaction';
+import { getNextSequence } from '../../lib/counter';
+import { createError } from '../../middleware/errorHandler';
+import { getIO } from '../../config/socket';
+import type { CreateOrderDto, CreateCustomerDto } from './pos.validation';
+import type { ICoupon } from '../../models/Coupon';
+
+function round2(n: number): number {
+  return Math.round(n * 100) / 100;
+}
+
+function getDiscountInfo(coupon: ICoupon, subtotal: number): { discountAmount: number; couponId: string } {
+  const rawDiscount = coupon.discountType === 'percentage'
+    ? round2(subtotal * (coupon.value / 100))
+    : round2(coupon.value);
+
+  const discountAmount = coupon.maxDiscountAmount != null
+    ? Math.min(rawDiscount, coupon.maxDiscountAmount)
+    : rawDiscount;
+
+  return { discountAmount, couponId: coupon._id.toString() };
+}
+
+export async function getCatalog() {
+  const products = await Product.find({ isActive: true })
+    .populate('categoryId', 'name')
+    .sort({ name: 1 });
+
+  return products.map((p) => ({
+    id: p._id.toString(),
+    name: p.name,
+    price: p.price,
+    image: p.image,
+    category: p.categoryId ? (p.categoryId as unknown as { _id: string; name: string }).name : null,
+    categoryId: p.categoryId ? (p.categoryId as unknown as { _id: string })._id.toString() : null,
+  }));
+}
+
+export async function getCouponDiscount(code: string) {
+  const coupon = await Coupon.findOne({ code, isEnabled: true, validUntil: { $gt: new Date() } });
+  if (!coupon) {
+    throw createError(404, 'COUPON_NOT_FOUND', 'Invalid or expired coupon code');
+  }
+  return { type: coupon.discountType, value: coupon.value, couponId: coupon._id.toString() };
+}
+
+export async function saveOrFindCustomer(dto: CreateCustomerDto) {
+  let customer = await Customer.findOne({ phone: dto.phone });
+  if (customer) {
+    return { id: customer._id.toString(), name: customer.name, phone: customer.phone, created: false };
+  }
+  customer = await Customer.create({ ...dto, isActive: true });
+  return { id: customer._id.toString(), name: customer.name, phone: customer.phone, created: true };
+}
+
+export async function createOrder(dto: CreateOrderDto, userId: string) {
+  const { items: itemDtos, payment, couponCode, ...rest } = dto;
+  const paymentMethod = payment.method;
+  const paymentSplits = payment.splits;
+
+  if (paymentMethod === 'split') {
+    if (!paymentSplits || paymentSplits.length < 2) {
+      throw createError(400, 'VALIDATION_ERROR', 'Split payments require at least two payment methods');
+    }
+  }
+
+  if (paymentMethod !== 'split' && paymentSplits && paymentSplits.length > 0) {
+    throw createError(400, 'VALIDATION_ERROR', 'Splits are only allowed when payment method is "split"');
+  }
+
+  const productIds = [...new Set(itemDtos.map((i) => i.productId))];
+  const products = await Product.find({ _id: { $in: productIds }, isActive: true });
+  if (products.length !== productIds.length) {
+    throw createError(400, 'VALIDATION_ERROR', 'One or more products not found or inactive');
+  }
+
+  const productMap = new Map(products.map((p) => [p._id.toString(), p]));
+
+  for (const item of itemDtos) {
+    if (!productMap.has(item.productId)) {
+      throw createError(400, 'VALIDATION_ERROR', `Product ${item.productId} not found`);
+    }
+  }
+
+  const items = itemDtos.map((item) => {
+    const product = productMap.get(item.productId)!;
+    const lineTotal = round2(product.price * item.quantity);
+    return {
+      productId: product._id as unknown as string,
+      nameSnapshot: product.name,
+      priceSnapshot: product.price,
+      quantity: item.quantity,
+      lineTotal,
+    };
+  });
+
+  const computedSubtotal = round2(items.reduce((sum, i) => sum + i.lineTotal, 0));
+
+  let discountAmount = 0;
+  let couponId: string | null = null;
+
+  if (couponCode) {
+    const coupon = await Coupon.findOne({ code: couponCode, isEnabled: true, validUntil: { $gt: new Date() } });
+    if (!coupon) {
+      throw createError(400, 'VALIDATION_ERROR', 'Invalid or expired coupon code');
+    }
+    couponId = coupon._id.toString();
+
+    if (coupon.usageLimit != null) {
+      const usageCount = await Order.countDocuments({ couponId: coupon._id });
+      if (usageCount >= coupon.usageLimit) {
+        throw createError(400, 'VALIDATION_ERROR', 'Coupon usage limit reached');
+      }
+    }
+
+    const info = getDiscountInfo(coupon, computedSubtotal);
+    discountAmount = info.discountAmount;
+    couponId = info.couponId;
+  }
+
+  const taxAmount = 0;
+  const grandTotal = round2(computedSubtotal - discountAmount + taxAmount);
+
+  if (paymentMethod === 'split' && paymentSplits) {
+    const splitsTotal = round2(paymentSplits.reduce((sum, s) => sum + s.amount, 0));
+    if (Math.abs(splitsTotal - grandTotal) > 0.01) {
+      throw createError(400, 'VALIDATION_ERROR', 'Split payment amounts must equal the grand total');
+    }
+  }
+
+  const orderNumber = await withTransaction(async (session) => {
+    const seq = await getNextSequence('orderNumber', session);
+
+    const padded = seq.toString().padStart(6, '0');
+    const on = `ORD-${new Date().getFullYear()}-${padded}`;
+
+    const order = await Order.create(
+      [{
+        orderNumber: on,
+        orderType: rest.orderType || 'dine-in',
+        tableNumber: rest.tableNumber,
+        customerId: rest.customerId || null,
+        items,
+        couponId: couponId ?? undefined,
+        discountAmount,
+        taxAmount,
+        subtotal: computedSubtotal,
+        grandTotal,
+        payment: {
+          method: paymentMethod,
+          splits: paymentMethod === 'split' ? paymentSplits : undefined,
+        },
+        status: rest.status || 'completed',
+        createdBy: userId,
+        ...(rest.status === 'completed' || !rest.status ? { completedAt: new Date() } : {}),
+      }],
+      { session }
+    );
+
+    await ActivityLog.create(
+      [{
+        actor: userId,
+        module: 'pos',
+        action: 'pos.order_created',
+        targetId: order[0]._id.toString(),
+        targetType: 'POS',
+        description: `Created order ${on} for BDT ${grandTotal.toFixed(2)}`,
+      }],
+      { session }
+    );
+
+    return on;
+  });
+
+  try {
+    getIO().emit('pos:order_created', { orderNumber });
+  } catch {
+    // socket not available
+  }
+
+  return { orderNumber };
+}

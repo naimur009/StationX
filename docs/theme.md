@@ -548,6 +548,6 @@ Layout-only decisions (login page split-screen vs centered, permission-editor ma
 
 ## 22. Open Items
 
-1. **PRD.md NFR edit needed:** update the "Dark mode" line in `PRD.md`'s Non-Functional Requirements to reflect the settled decision in this document's header (deferred, not v1).
+1. ~~**PRD.md NFR edit needed:** update the "Dark mode" line in `PRD.md`'s Non-Functional Requirements to reflect the settled decision in this document's header (deferred, not v1).~~ **RESOLVED:** dark mode deferred to v2. PRD.md NFR updated to remove the "Dark mode" line.
 2. **Indigo as `--info`:** confirmed equal to `indigo-600` (`#4f46e5`) — used for Coupon `scheduled` and Task `in_progress` only, matching the reference's "informational, neither success nor warning nor danger" use case.
 3. **Verify after implementing §13:** once `button.tsx`/`input.tsx`/`badge.tsx`/`dialog.tsx` are edited per §13's notes, do a quick visual diff against this document's stated look (radius, hover shades, badge dots) — those notes describe the *intended* edits, not yet a confirmed render.

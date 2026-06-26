@@ -142,32 +142,31 @@ export function DataTable<T>({
       </div>
 
       <div className="xs:hidden space-y-3">
-        {data.map((item) =>
-          mobileRender ? (
-            mobileRender(item)
-          ) : (
-            <div
-              key={keyExtractor(item)}
-              className="rounded-xl border border-border bg-white p-4 shadow-sm"
-            >
-              {columns.map((col) => (
-                <div
-                  key={col.key}
-                  className="flex items-center justify-between py-1"
-                >
-                  <span className="text-xs font-medium text-slate-500">
-                    {col.label}
-                  </span>
-                  <span className="text-sm text-slate-700">
-                    {col.render
-                      ? col.render(item)
-                      : (item as Record<string, unknown>)[col.key] as React.ReactNode}
-                  </span>
-                </div>
-              ))}
-            </div>
-          )
-        )}
+        {data.map((item) => (
+          <div key={keyExtractor(item)}>
+            {mobileRender ? (
+              mobileRender(item)
+            ) : (
+              <div className="rounded-xl border border-border bg-white p-4 shadow-sm">
+                {columns.map((col) => (
+                  <div
+                    key={col.key}
+                    className="flex items-center justify-between py-1"
+                  >
+                    <span className="text-xs font-medium text-slate-500">
+                      {col.label}
+                    </span>
+                    <span className="text-sm text-slate-700">
+                      {col.render
+                        ? col.render(item)
+                        : (item as Record<string, unknown>)[col.key] as React.ReactNode}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        ))}
       </div>
     </>
   );

@@ -19,8 +19,8 @@
 - [ok] 6. Shared Uploads
 - [ok] 7. Products
 - [ok] 8. Coupons
-- [wip] 9. Customers
-- [ ] 10. POS
+- [ok] 9. Customers
+- [ok] 10. POS
 - [ ] 11. Orders
 - [ ] 12. Dashboard (Overview)
 - [ ] 13. Income

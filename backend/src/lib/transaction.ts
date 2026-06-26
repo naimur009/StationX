@@ -1,12 +1,11 @@
-import mongoose from 'mongoose';
+import mongoose, { ClientSession } from 'mongoose';
 
-type TransactionCallback<T> = (session: mongoose.ClientSession) => Promise<T>;
-
-export async function withTransaction<T>(fn: TransactionCallback<T>): Promise<T> {
+export async function withTransaction<T>(
+  fn: (session: ClientSession) => Promise<T>
+): Promise<T> {
   const session = await mongoose.startSession();
-  session.startTransaction();
-
   try {
+    session.startTransaction();
     const result = await fn(session);
     await session.commitTransaction();
     return result;
@@ -14,6 +13,6 @@ export async function withTransaction<T>(fn: TransactionCallback<T>): Promise<T>
     await session.abortTransaction();
     throw error;
   } finally {
-    session.endSession();
+    await session.endSession();
   }
 }

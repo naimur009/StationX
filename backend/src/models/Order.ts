@@ -1,0 +1,110 @@
+import mongoose, { Schema, Document } from 'mongoose';
+
+export interface IOrderItem {
+  productId: mongoose.Types.ObjectId;
+  nameSnapshot: string;
+  priceSnapshot: number;
+  quantity: number;
+  lineTotal: number;
+}
+
+export interface IPaymentSplit {
+  method: 'cash' | 'card' | 'bkash' | 'nagad';
+  amount: number;
+}
+
+export interface IPayment {
+  method: 'cash' | 'card' | 'bkash' | 'nagad' | 'split';
+  splits?: IPaymentSplit[];
+}
+
+export interface IOrder extends Document {
+  orderNumber: string;
+  orderType: 'dine-in' | 'takeaway' | 'delivery';
+  tableNumber?: string;
+  customerId?: mongoose.Types.ObjectId | null;
+  items: IOrderItem[];
+  couponId?: mongoose.Types.ObjectId | null;
+  discountAmount: number;
+  taxAmount: number;
+  subtotal: number;
+  grandTotal: number;
+  payment: IPayment;
+  status: 'pending' | 'completed' | 'cancelled';
+  createdBy: mongoose.Types.ObjectId;
+  completedAt?: Date;
+  cancelledAt?: Date;
+  cancelReason?: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+const paymentSplitSchema = new Schema<IPaymentSplit>(
+  {
+    method: { type: String, required: true, enum: ['cash', 'card', 'bkash', 'nagad'] },
+    amount: { type: Number, required: true },
+  },
+  { _id: false }
+);
+
+const paymentSchema = new Schema<IPayment>(
+  {
+    method: {
+      type: String,
+      required: true,
+      enum: ['cash', 'card', 'bkash', 'nagad', 'split'],
+    },
+    splits: { type: [paymentSplitSchema], required: false },
+  },
+  { _id: false }
+);
+
+const orderItemSchema = new Schema<IOrderItem>(
+  {
+    productId: { type: Schema.Types.ObjectId, ref: 'Product', required: true },
+    nameSnapshot: { type: String, required: true },
+    priceSnapshot: { type: Number, required: true },
+    quantity: { type: Number, required: true, min: 1 },
+    lineTotal: { type: Number, required: true },
+  }
+);
+
+const orderSchema = new Schema<IOrder>(
+  {
+    orderNumber: { type: String, required: true, unique: true },
+    orderType: {
+      type: String,
+      required: true,
+      enum: ['dine-in', 'takeaway', 'delivery'],
+    },
+    tableNumber: { type: String, required: false },
+    customerId: { type: Schema.Types.ObjectId, ref: 'Customer', required: false, default: null },
+    items: { type: [orderItemSchema], required: true, validate: [(v: IOrderItem[]) => v.length > 0, 'Order must have at least one item'] },
+    couponId: { type: Schema.Types.ObjectId, ref: 'Coupon', required: false, default: null },
+    discountAmount: { type: Number, required: true, default: 0 },
+    taxAmount: { type: Number, required: true, default: 0 },
+    subtotal: { type: Number, required: true },
+    grandTotal: { type: Number, required: true },
+    payment: { type: paymentSchema, required: true },
+    status: {
+      type: String,
+      default: 'pending',
+      enum: ['pending', 'completed', 'cancelled'],
+    },
+    createdBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+    completedAt: { type: Date, required: false },
+    cancelledAt: { type: Date, required: false },
+    cancelReason: { type: String, required: false },
+  },
+  { timestamps: true, toJSON: { versionKey: false } }
+);
+
+orderSchema.index({ orderNumber: 1 }, { unique: true });
+orderSchema.index({ status: 1, createdAt: -1 });
+orderSchema.index({ customerId: 1 });
+orderSchema.index({ createdBy: 1 });
+orderSchema.index({ 'items.productId': 1 });
+
+const Order = mongoose.model<IOrder>('Order', orderSchema);
+
+export default Order;
