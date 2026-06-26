@@ -3,14 +3,8 @@ import { z } from 'zod';
 const PAYMENT_METHODS = ['cash', 'card', 'bkash', 'nagad'] as const;
 const ORDER_TYPES = ['dine-in', 'takeaway', 'delivery'] as const;
 
-const paymentSplitSchema = z.object({
-  method: z.enum(PAYMENT_METHODS),
-  amount: z.number().positive('Split amount must be positive'),
-});
-
 const paymentSchema = z.object({
-  method: z.enum([...PAYMENT_METHODS, 'split']),
-  splits: z.array(paymentSplitSchema).optional(),
+  method: z.enum(PAYMENT_METHODS),
 });
 
 const orderItemSchema = z.object({

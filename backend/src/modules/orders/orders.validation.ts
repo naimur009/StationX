@@ -24,11 +24,7 @@ const updateOrderItemSchema = z.object({
 });
 
 const updatePaymentSchema = z.object({
-  method: z.enum(['cash', 'card', 'bkash', 'nagad', 'split']).optional(),
-  splits: z.array(z.object({
-    method: z.enum(['cash', 'card', 'bkash', 'nagad']),
-    amount: z.number().min(0),
-  })).optional(),
+  method: z.enum(['cash', 'card', 'bkash', 'nagad']).optional(),
 }).optional();
 
 export const updateOrderSchema = z.object({

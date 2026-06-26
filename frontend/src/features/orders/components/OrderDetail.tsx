@@ -143,17 +143,6 @@ export default function OrderDetailView({ order }: OrderDetailViewProps) {
               <span className="text-slate-500">Method</span>
               <span className="font-medium capitalize text-slate-800">{order.payment.method}</span>
             </div>
-            {order.payment.splits && order.payment.splits.length > 0 && (
-              <div className="space-y-1">
-                <span className="text-xs text-slate-500">Splits</span>
-                {order.payment.splits.map((split, i) => (
-                  <div key={i} className="flex justify-between pl-2">
-                    <span className="capitalize text-slate-600">{split.method}</span>
-                    <span className="font-medium text-slate-800">{formatBdt(split.amount)}</span>
-                  </div>
-                ))}
-              </div>
-            )}
             {order.completedAt && (
               <div className="flex justify-between">
                 <span className="text-slate-500">Completed</span>

@@ -167,16 +167,9 @@ describe('updateOrderSchema', () => {
     expect(result.success).toBe(true);
   });
 
-  it('accepts payment with splits', () => {
+  it('rejects payment with invalid method', () => {
     const result = updateOrderSchema.safeParse({
-      payment: { method: 'split', splits: [{ method: 'cash', amount: 50 }, { method: 'card', amount: 50 }] },
-    });
-    expect(result.success).toBe(true);
-  });
-
-  it('rejects payment with invalid split method', () => {
-    const result = updateOrderSchema.safeParse({
-      payment: { method: 'split', splits: [{ method: 'invalid', amount: 50 }] },
+      payment: { method: 'split' },
     });
     expect(result.success).toBe(false);
   });
@@ -374,22 +367,6 @@ describe('renderBillHtml', () => {
     };
     const html = renderBillHtml(withCustomer as never);
     expect(html).toContain('John Doe');
-  });
-
-  it('renders split payments', () => {
-    const splitOrder = {
-      ...sampleOrder,
-      payment: {
-        method: 'split',
-        splits: [
-          { method: 'cash', amount: 15 },
-          { method: 'card', amount: 13.5 },
-        ],
-      },
-    };
-    const html = renderBillHtml(splitOrder as never);
-    expect(html).toContain('CASH \u09F315.00');
-    expect(html).toContain('CARD \u09F313.50');
   });
 
   it('handles missing payment info gracefully', () => {

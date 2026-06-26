@@ -61,17 +61,6 @@ export async function saveOrFindCustomer(dto: CreateCustomerDto) {
 export async function createOrder(dto: CreateOrderDto, userId: string) {
   const { items: itemDtos, payment, couponCode, ...rest } = dto;
   const paymentMethod = payment.method;
-  const paymentSplits = payment.splits;
-
-  if (paymentMethod === 'split') {
-    if (!paymentSplits || paymentSplits.length < 2) {
-      throw createError(400, 'VALIDATION_ERROR', 'Split payments require at least two payment methods');
-    }
-  }
-
-  if (paymentMethod !== 'split' && paymentSplits && paymentSplits.length > 0) {
-    throw createError(400, 'VALIDATION_ERROR', 'Splits are only allowed when payment method is "split"');
-  }
 
   const productIds = [...new Set(itemDtos.map((i) => i.productId))];
   const products = await Product.find({ _id: { $in: productIds }, isActive: true });
@@ -126,13 +115,6 @@ export async function createOrder(dto: CreateOrderDto, userId: string) {
   const taxAmount = 0;
   const grandTotal = round2(computedSubtotal - discountAmount + taxAmount);
 
-  if (paymentMethod === 'split' && paymentSplits) {
-    const splitsTotal = round2(paymentSplits.reduce((sum, s) => sum + s.amount, 0));
-    if (Math.abs(splitsTotal - grandTotal) > 0.01) {
-      throw createError(400, 'VALIDATION_ERROR', 'Split payment amounts must equal the grand total');
-    }
-  }
-
   const orderNumber = await withTransaction(async (session) => {
     const seq = await getNextSequence('orderNumber', session);
 
@@ -153,7 +135,6 @@ export async function createOrder(dto: CreateOrderDto, userId: string) {
         grandTotal,
         payment: {
           method: paymentMethod,
-          splits: paymentMethod === 'split' ? paymentSplits : undefined,
         },
         status: rest.status || 'completed',
         createdBy: userId,

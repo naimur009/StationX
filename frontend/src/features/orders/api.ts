@@ -36,7 +36,6 @@ export interface OrderDetail {
   grandTotal: number;
   payment: {
     method: string;
-    splits?: Array<{ method: string; amount: number }>;
   };
   status: 'pending' | 'completed' | 'cancelled';
   createdBy: { _id: string; name: string } | string;
@@ -101,7 +100,7 @@ export function useUpdateOrder() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (data: { id: string; tableNumber?: string; customerId?: string | null; items?: OrderItemUpdate[]; payment?: { method?: string; splits?: Array<{ method: string; amount: number }> } }) => {
+    mutationFn: (data: { id: string; tableNumber?: string; customerId?: string | null; items?: OrderItemUpdate[]; payment?: { method?: string } }) => {
       const { id, ...body } = data;
       return apiClient<{ data: OrderDetail }>(`/orders/${id}`, {
         method: 'PUT',
@@ -160,4 +159,4 @@ export const ORDER_STATUS_CONFIG: Record<string, { variant: 'green' | 'red' | 'y
   cancelled: { variant: 'red', label: 'Cancelled' },
 };
 
-export const PAYMENT_METHODS = ['cash', 'card', 'bkash', 'nagad', 'split'] as const;
+export const PAYMENT_METHODS = ['cash', 'card', 'bkash', 'nagad'] as const;

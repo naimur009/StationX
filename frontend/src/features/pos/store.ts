@@ -13,7 +13,6 @@ interface PosActions {
   clearCoupon: () => void;
   setCustomer: (customer: CustomerInfo | null) => void;
   setPaymentMethod: (method: PaymentMethod) => void;
-  setPaymentSplits: (splits: { method: PaymentMethod; amount: number }[]) => void;
   setSubmitting: (submitting: boolean) => void;
   reset: () => void;
 }
@@ -25,7 +24,6 @@ const initialState: PosState = {
   couponDiscount: 0,
   couponType: null,
   paymentMethod: 'cash',
-  paymentSplits: [],
   submitting: false,
 };
 
@@ -59,11 +57,7 @@ export const usePosStore = create<PosState & PosActions>((set) => ({
   setCoupon: (couponCode, couponDiscount, couponType) => set({ couponCode, couponDiscount, couponType }),
   clearCoupon: () => set({ couponCode: '', couponDiscount: 0, couponType: null }),
   setCustomer: (customer) => set({ customer }),
-  setPaymentMethod: (paymentMethod) => set((state) => ({
-    paymentMethod,
-    paymentSplits: paymentMethod !== 'split' ? [] : state.paymentSplits,
-  })),
-  setPaymentSplits: (paymentSplits) => set({ paymentSplits }),
+  setPaymentMethod: (paymentMethod) => set({ paymentMethod }),
   setSubmitting: (submitting) => set({ submitting }),
   reset: () => set(initialState),
 }));

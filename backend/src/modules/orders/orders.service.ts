@@ -50,7 +50,6 @@ interface OrderDetailItem {
   grandTotal: number;
   payment: {
     method: string;
-    splits?: Array<{ method: string; amount: number }>;
   };
   status: string;
   createdBy: unknown;
@@ -98,7 +97,7 @@ function toDetail(order: Record<string, unknown>): OrderDetailItem {
     taxAmount: order.taxAmount as number,
     subtotal: order.subtotal as number,
     grandTotal: order.grandTotal as number,
-    payment: order.payment as { method: string; splits?: Array<{ method: string; amount: number }> },
+    payment: order.payment as { method: string },
     status: order.status as string,
     createdBy: order.createdBy ?? null,
     completedAt: order.completedAt as Date | undefined,
@@ -136,9 +135,9 @@ export function renderBillHtml(order: Record<string, unknown>): string {
     )
     .join('');
 
-  const payment = order.payment as { method: string; splits?: Array<{ method: string; amount: number }> } | undefined;
+  const payment = order.payment as { method: string } | undefined;
   const paymentLine = payment
-    ? `Paid: ${payment.method.toUpperCase()}${payment.splits && payment.splits.length > 0 ? ' · ' + payment.splits.map((s) => `${s.method.toUpperCase()} ${formatBdt(s.amount)}`).join(' + ') : ''}`
+    ? `Paid: ${payment.method.toUpperCase()}`
     : '';
 
   const customer = order.customerId as { name?: string } | null | undefined;
@@ -312,28 +311,10 @@ export async function updateOrder(id: string, dto: UpdateOrderDto) {
     updates.taxAmount = 0;
     const newGrandTotal = round2(subtotal - discountAmount);
     updates.grandTotal = newGrandTotal;
-
-    if (order.payment?.method === 'split' && (order.payment.splits?.length ?? 0) > 0) {
-      const existingSplits = order.payment.splits!;
-      const oldTotal = order.grandTotal || 0;
-      if (oldTotal > 0 && Math.abs(newGrandTotal - oldTotal) > 0.01) {
-        const ratio = newGrandTotal / oldTotal;
-        const newSplits = existingSplits.map((s) => ({
-          method: s.method,
-          amount: round2(s.amount * ratio),
-        }));
-        const diff = round2(newGrandTotal - newSplits.reduce((sum, s) => sum + s.amount, 0));
-        if (Math.abs(diff) > 0.01 && newSplits.length > 0) {
-          newSplits[newSplits.length - 1].amount = round2(newSplits[newSplits.length - 1].amount + diff);
-        }
-        updates['payment.splits'] = newSplits;
-      }
-    }
   }
 
   if (dto.payment) {
     if (dto.payment.method) updates['payment.method'] = dto.payment.method;
-    if (dto.payment.splits) updates['payment.splits'] = dto.payment.splits;
   }
 
   const updated = await Order.findByIdAndUpdate(

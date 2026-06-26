@@ -1,4 +1,4 @@
-export type PaymentMethod = 'cash' | 'card' | 'bkash' | 'nagad' | 'split';
+export type PaymentMethod = 'cash' | 'card' | 'bkash' | 'nagad';
 
 export interface CartItem {
   productId: string;
@@ -21,6 +21,5 @@ export interface PosState {
   couponDiscount: number;
   couponType: 'flat' | 'percentage' | null;
   paymentMethod: PaymentMethod;
-  paymentSplits: { method: PaymentMethod; amount: number }[];
   submitting: boolean;
 }

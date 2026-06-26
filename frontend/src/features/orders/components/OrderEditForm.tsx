@@ -31,7 +31,6 @@ export default function OrderEditForm({ order, onCancel, onSaved }: OrderEditFor
     order.items.map((i) => ({ productId: i.productId, quantity: i.quantity }))
   );
   const [paymentMethod, setPaymentMethod] = useState(order.payment.method);
-  const [paymentSplits, setPaymentSplits] = useState(order.payment.splits || []);
   const [productCatalog, setProductCatalog] = useState<CatalogProduct[]>([]);
   const [catalogError, setCatalogError] = useState('');
   const [productSearch, setProductSearch] = useState('');
@@ -52,21 +51,6 @@ export default function OrderEditForm({ order, onCancel, onSaved }: OrderEditFor
     });
   }, []);
 
-  useEffect(() => {
-    if (paymentMethod === 'split' && paymentSplits.length > 0 && oldTotal > 0 && Math.abs(grandTotal - oldTotal) > 0.01) {
-      const ratio = grandTotal / oldTotal;
-      const newSplits = paymentSplits.map((s) => ({
-        ...s,
-        amount: round2(s.amount * ratio),
-      }));
-      const diff = round2(grandTotal - newSplits.reduce((sum, s) => sum + s.amount, 0));
-      if (Math.abs(diff) > 0.01 && newSplits.length > 0) {
-        newSplits[newSplits.length - 1].amount = round2(newSplits[newSplits.length - 1].amount + diff);
-      }
-      setPaymentSplits(newSplits);
-    }
-  }, [grandTotal]);
-
   const productMap = new Map(productCatalog.map((p) => [p.id, p]));
 
   const computedItems = items.map((item) => {
@@ -80,8 +64,6 @@ export default function OrderEditForm({ order, onCancel, onSaved }: OrderEditFor
     ? round2(subtotal * (order.discountAmount / (order.subtotal || 1)))
     : 0;
   const grandTotal = round2(subtotal - discountAmount);
-
-  const oldTotal = order.grandTotal;
 
   const filteredProducts = productCatalog.filter(
     (p) => !items.some((i) => i.productId === p.id) && p.name.toLowerCase().includes(productSearch.toLowerCase())
@@ -105,23 +87,6 @@ export default function OrderEditForm({ order, onCancel, onSaved }: OrderEditFor
     setProductSearch('');
   }
 
-  function handleSplitChange(index: number, field: 'method' | 'amount', value: string | number) {
-    const updated = paymentSplits.map((s, i) =>
-      i === index ? { ...s, [field]: value } : s
-    );
-    setPaymentSplits(updated);
-  }
-
-  function addSplit() {
-    const usedMethods = paymentSplits.map((s) => s.method);
-    const nextMethod = (['cash', 'card', 'bkash', 'nagad'] as const).find((m) => !usedMethods.includes(m)) || 'cash';
-    setPaymentSplits([...paymentSplits, { method: nextMethod, amount: 0 }]);
-  }
-
-  function removeSplit(index: number) {
-    setPaymentSplits(paymentSplits.filter((_, i) => i !== index));
-  }
-
   async function handleSave() {
     setError('');
     const payload: Record<string, unknown> = {};
@@ -130,12 +95,10 @@ export default function OrderEditForm({ order, onCancel, onSaved }: OrderEditFor
       payload.items = items;
     }
     const paymentChanged =
-      paymentMethod !== order.payment.method ||
-      JSON.stringify(paymentSplits) !== JSON.stringify(order.payment.splits || []);
+      paymentMethod !== order.payment.method;
     if (paymentChanged) {
       payload.payment = {
         method: paymentMethod,
-        ...(paymentMethod === 'split' ? { splits: paymentSplits } : {}),
       };
     }
     if (Object.keys(payload).length === 0) {
@@ -234,13 +197,10 @@ export default function OrderEditForm({ order, onCancel, onSaved }: OrderEditFor
         <h3 className="mb-3 text-sm font-bold text-slate-800">Payment</h3>
         <div className="space-y-3">
           <div className="flex flex-wrap gap-2">
-            {['cash', 'card', 'bkash', 'nagad', 'split'].map((method) => (
+            {['cash', 'card', 'bkash', 'nagad'].map((method) => (
               <button
                 key={method}
-                onClick={() => {
-                  setPaymentMethod(method);
-                  if (method !== 'split') setPaymentSplits([]);
-                }}
+                onClick={() => setPaymentMethod(method)}
                 className={`rounded-xl px-3 py-2 text-xs font-semibold transition-colors ${
                   paymentMethod === method
                     ? 'bg-primary text-primary-foreground'
@@ -251,44 +211,6 @@ export default function OrderEditForm({ order, onCancel, onSaved }: OrderEditFor
               </button>
             ))}
           </div>
-
-          {paymentMethod === 'split' && (
-            <div className="space-y-2 rounded-xl border border-border bg-slate-50 p-3">
-              <p className="text-xs font-medium text-slate-500">Split Payments</p>
-              {paymentSplits.map((split, i) => (
-                <div key={i} className="flex items-center gap-2">
-                  <select
-                    value={split.method}
-                    onChange={(e) => handleSplitChange(i, 'method', e.target.value)}
-                    className="rounded-xl border border-slate-300 bg-white px-2 py-2 text-xs"
-                  >
-                    {['cash', 'card', 'bkash', 'nagad'].map((m) => (
-                      <option key={m} value={m} disabled={paymentSplits.some((s, si) => si !== i && s.method === m)}>
-                        {m.charAt(0).toUpperCase() + m.slice(1)}
-                      </option>
-                    ))}
-                  </select>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    placeholder="Amount"
-                    value={split.amount || ''}
-                    onChange={(e) => handleSplitChange(i, 'amount', parseFloat(e.target.value) || 0)}
-                    className="flex-1"
-                  />
-                  {paymentSplits.length > 2 && (
-                    <button onClick={() => removeSplit(i)} className="text-xs text-red-500 hover:text-red-700">
-                      Remove
-                    </button>
-                  )}
-                </div>
-              ))}
-              <button onClick={addSplit} className="text-xs font-medium text-primary hover:text-primary/80">
-                + Add another method
-              </button>
-            </div>
-          )}
         </div>
       </div>
 

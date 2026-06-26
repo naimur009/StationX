@@ -8,14 +8,8 @@ export interface IOrderItem {
   lineTotal: number;
 }
 
-export interface IPaymentSplit {
-  method: 'cash' | 'card' | 'bkash' | 'nagad';
-  amount: number;
-}
-
 export interface IPayment {
-  method: 'cash' | 'card' | 'bkash' | 'nagad' | 'split';
-  splits?: IPaymentSplit[];
+  method: 'cash' | 'card' | 'bkash' | 'nagad';
 }
 
 export interface IOrder extends Document {
@@ -39,22 +33,13 @@ export interface IOrder extends Document {
   updatedAt: Date;
 }
 
-const paymentSplitSchema = new Schema<IPaymentSplit>(
-  {
-    method: { type: String, required: true, enum: ['cash', 'card', 'bkash', 'nagad'] },
-    amount: { type: Number, required: true },
-  },
-  { _id: false }
-);
-
 const paymentSchema = new Schema<IPayment>(
   {
     method: {
       type: String,
       required: true,
-      enum: ['cash', 'card', 'bkash', 'nagad', 'split'],
+      enum: ['cash', 'card', 'bkash', 'nagad'],
     },
-    splits: { type: [paymentSplitSchema], required: false },
   },
   { _id: false }
 );

@@ -19,7 +19,6 @@ export default function PosPage() {
   const couponDiscount = usePosStore((s) => s.couponDiscount);
   const couponType = usePosStore((s) => s.couponType);
   const paymentMethod = usePosStore((s) => s.paymentMethod);
-  const paymentSplits = usePosStore((s) => s.paymentSplits);
   const submitting = usePosStore((s) => s.submitting);
   const setSubmitting = usePosStore((s) => s.setSubmitting);
   const reset = usePosStore((s) => s.reset);
@@ -49,7 +48,6 @@ export default function PosPage() {
         items: items.map((i) => ({ productId: i.productId, quantity: i.quantity })),
         payment: {
           method: paymentMethod,
-          ...(paymentMethod === 'split' ? { splits: paymentSplits } : {}),
         },
       };
 
