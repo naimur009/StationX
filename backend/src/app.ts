@@ -18,7 +18,11 @@ import customersRoutes from './modules/customers/customers.routes';
 import posRoutes from './modules/pos/pos.routes';
 import vendorsRoutes from './modules/vendors/vendors.routes';
 import expensesRoutes from './modules/expenses/expenses.routes';
+import tasksRoutes from './modules/tasks/tasks.routes';
+import attendanceRoutes from './modules/attendance/attendance.routes';
 import ordersRoutes from './modules/orders/orders.routes';
+import reportsRoutes from './modules/reports/reports.routes';
+import activityLogRoutes from './modules/activity-log/activity-log.routes';
 
 const app = express();
 
@@ -138,6 +142,22 @@ app.use('/api/v1/expenses', (req, res, next) => {
   next();
 });
 app.use('/api/v1', expensesRoutes);
+const tasksMutationLimiter = makeRateLimiter(env.RATE_LIMIT_MAX);
+app.use('/api/v1/tasks', (req, res, next) => {
+  if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method)) {
+    return tasksMutationLimiter(req, res, next);
+  }
+  next();
+});
+app.use('/api/v1', tasksRoutes);
+const attendanceMutationLimiter = makeRateLimiter(env.RATE_LIMIT_MAX);
+app.use('/api/v1/attendance', (req, res, next) => {
+  if (['POST', 'PATCH', 'PUT', 'DELETE'].includes(req.method)) {
+    return attendanceMutationLimiter(req, res, next);
+  }
+  next();
+});
+app.use('/api/v1', attendanceRoutes);
 app.use('/api/v1', posRoutes);
 const ordersMutationLimiter = makeRateLimiter(env.RATE_LIMIT_MAX);
 app.use('/api/v1/orders', (req, res, next) => {
@@ -147,6 +167,8 @@ app.use('/api/v1/orders', (req, res, next) => {
   next();
 });
 app.use('/api/v1', ordersRoutes);
+app.use('/api/v1', reportsRoutes);
+app.use('/api/v1', activityLogRoutes);
 
 app.use(errorHandler);
 

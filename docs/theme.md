@@ -471,7 +471,7 @@ Container: `bg-white rounded-2xl border border-slate-200 p-5 shadow-sm`. Icon wr
 
 ## 17. Attendance-Specific Theme
 
-Directly applicable to this project's own Attendance module (`PRD.md` Feature 8, `DATABASE.md` §3.11):
+Directly applicable to this project's own Attendance module (`PRD.md` Feature 8). The old check-in/check-out pattern is replaced by status-based marking (present/absent/late/half-day). Toggle styling:
 
 | Element | Style |
 |---|---|
@@ -479,6 +479,10 @@ Directly applicable to this project's own Attendance module (`PRD.md` Feature 8,
 | Present toggle (inactive) | `bg-green-50 text-green-600 hover:bg-green-100` |
 | Absent toggle (active) | `bg-red-500 text-white shadow-red-500/40` |
 | Absent toggle (inactive) | `bg-red-50 text-red-600 hover:bg-red-100` |
+| Late toggle (active) | `bg-amber-500 text-white shadow-amber-500/40` |
+| Late toggle (inactive) | `bg-amber-50 text-amber-600 hover:bg-amber-100` |
+| Half-Day toggle (active) | `bg-blue-500 text-white shadow-blue-500/40` |
+| Half-Day toggle (inactive) | `bg-blue-50 text-blue-600 hover:bg-blue-100` |
 | Unsaved/dirty row | `bg-blue-50/50` |
 | Offline banner | `bg-amber-50 border border-amber-200 text-amber-700 rounded-xl` |
 | Syncing banner | `bg-blue-50 border border-blue-200 text-blue-700 rounded-xl` |

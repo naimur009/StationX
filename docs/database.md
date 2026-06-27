@@ -251,15 +251,17 @@ Internal helper collection (not in `ARCHITECTURE.md` §5's diagram — small, st
 
 | Field | Type | Required | Notes |
 |---|---|---|---|
-| `userId` | ObjectId → User | ✓ | |
-| `date` | Date | ✓ | normalized to midnight local time — separate from `checkInAt`'s exact timestamp, purely for grouping/querying one record per staff per day |
-| `checkInAt` | Date | ✓ | |
-| `checkOutAt` | Date | — | null until checkout |
-| `notes` | String | — | e.g. "left early — approved by manager" |
+| `userId` | ObjectId → User | ✓ | The staff member |
+| `date` | Date | ✓ | normalized to midnight — one record per staff per day |
+| `status` | String (enum) | ✓ | `'present'` \| `'absent'` \| `'late'` \| `'half-day'` |
+| `checkInAt` | Date | — | Optional — when they arrived (meaningful for present/late) |
+| `checkOutAt` | Date | — | Optional — when they left |
+| `notes` | String | — | e.g. "called in sick", "left early — approved by manager" |
+| `markedBy` | ObjectId → User | ✓ | Who marked/took this attendance |
 
-**Indexes:** unique compound `{ userId: 1, date: 1 }` — guarantees one attendance record per staff member per day, preventing duplicate check-ins.
+**Indexes:** unique compound `{ userId: 1, date: 1 }` — guarantees one attendance record per staff member per day.
 
-> `hoursWorked` is intentionally **not stored** — it's derived (`checkOutAt - checkInAt`) at query/report time. Storing it would risk drift if either timestamp is later corrected.
+> `hoursWorked` is intentionally **not stored** — derived from `checkOutAt - checkInAt` at query/report time.
 
 ---
 

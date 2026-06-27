@@ -25,10 +25,10 @@
 - [ ] 12. Dashboard (Overview)
 - [ ] 13. Income
 - [ok] 14. Vendors
-- [ ] 15. Expenses
-- [ ] 16. Task Management
-- [ ] 17. Attendance
-- [ ] 18. Reports
+- [ok] 15. Expenses
+- [ok] 16. Task Management
+- [ok] 17. Attendance
+- [ok] 18. Reports
 - [ ] 19. Activity Log (read endpoint — middleware ships with #1)
 - [ ] 20. Home Page (Public) — page built in Task 0; this is just the Settings-data wiring follow-up
 - [ ] 21. Pre-Launch hardening

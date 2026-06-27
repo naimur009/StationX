@@ -304,35 +304,73 @@ These apply to **every** module below; listed once here and referenced by ID rat
 | ID | Type | Case | Expected |
 |---|---|---|---|
 | TASK-H-01 | Happy | `POST /tasks` valid, assigned to existing user | `201` |
-| TASK-V-01 | Validation | `assignedTo` references a nonexistent/deactivated user | `400 VALIDATION_ERROR` or `404` — confirm whether assigning to a deactivated user is blocked |
+| TASK-V-01 | Validation | `assignedTo` references a nonexistent/deactivated user | `404 NOT_FOUND` — service checks `isActive: true` |
 | TASK-V-02 | Validation | `priority` outside `low|medium|high` | `400 VALIDATION_ERROR` |
-| TASK-V-03 | Validation | `deadline` in the past on creation | Confirm whether this is blocked or just a soft warning — PRD doesn't specify; flag for feature spec |
+| TASK-V-03 | Validation | `deadline` in the past on creation | `201` — allowed; frontend shows overdue styling |
 | TASK-H-02 | Happy | `PATCH /tasks/:id/status` → `completed` | `completedAt` set |
 | TASK-H-03 | Happy | `PATCH /tasks/:id/status` → `in_progress` | Status updates, `completedAt` remains null |
-| TASK-E-01 | Edge | Status set to `completed` then back to `pending` | Confirm whether `completedAt` is cleared — likely yes, since it should reflect current state, not history |
+| TASK-E-01 | Edge | Status set to `completed` then back to `pending` | `completedAt` cleared — revert via PUT with full body (PATCH only allows `in_progress`/`completed`) |
 | TASK-RT-01 | Real-time | Task created/reassigned | Emits `task:assigned` with `{ taskId, assignedTo }` |
 | TASK-H-04 | Happy | `GET /tasks?assignedTo=&status=&priority=&sort=deadline` | Correctly filtered and sorted |
 | TASK-H-05 | Happy | `DELETE /tasks/:id` | Hard delete succeeds |
-| TASK-AUTH-01 | Security | Employee viewing only their own assigned tasks vs all tasks | Confirm whether `tasks:view` shows all tasks or scopes to `assignedTo: self` for non-admins — **PRD ambiguity, flag for feature spec** since `API.md` doesn't scope this explicitly |
+| TASK-AUTH-01 | Security | Employee viewing only their own assigned tasks vs all tasks | `403 FORBIDDEN` if user lacks `tasks:view`. All users with the permission see ALL tasks (no scope restriction). |
 
 ---
 
 ## 9. Attendance
 
+### `GET /attendance/today`
+
 | ID | Type | Case | Expected |
 |---|---|---|---|
-| ATT-H-01 | Happy | `POST /attendance/check-in` self, first check-in of the day | `201`, `checkInAt` set to current time |
-| ATT-H-02 | Happy | Manager checks in another user via `{ userId }` | `201` for that user |
-| ATT-E-01 | Error | Second check-in attempt same `{userId, date}` | `409 ALREADY_CHECKED_IN` (unique index violation surfaced as API error) |
-| ATT-H-03 | Happy | `PATCH /attendance/:id/check-out` | `checkOutAt` set |
-| ATT-E-02 | Edge | Check-out attempted twice on the same record | Confirm expected behavior — likely overwrites `checkOutAt`, or rejects second attempt; flag if unspecified |
-| ATT-E-03 | Edge | Check-out attempted with no prior check-in record for today | `404 NOT_FOUND` |
-| ATT-H-04 | Happy | `PUT /attendance/:id` manual correction with `notes` | Succeeds, preserves audit trail (no delete) |
-| ATT-CALC-01 | Edge | `hoursWorked` is requested/displayed | Correctly computed at read-time from `checkOutAt - checkInAt`, never stored |
-| ATT-CALC-02 | Edge | Record has `checkInAt` but no `checkOutAt` (still clocked in) | `hoursWorked` calculation handles null gracefully (e.g. returns null or "in progress", not a crash/NaN) |
-| ATT-RT-01 | Real-time | Check-in/check-out succeeds | Emits `attendance:checkedIn`/`attendance:checkedOut` with `{ userId, date }` |
-| ATT-AUTH-01 | Security | `attendance` module has no `delete` action defined | Confirm no `DELETE /attendance/:id` route exists at all (not just permission-blocked) per `API.md` §24 |
-| ATT-CONCUR-01 | Concurrency | Duplicate/retried check-in request (e.g. network retry from a flaky tablet connection) sent twice rapidly | Second request fails with `409 ALREADY_CHECKED_IN` — unique index holds even under a race, not just service-layer logic (`DATABASE.md` §5.6) |
+| ATT-H-01 | Happy | `?date=2026-06-27`, 5 active staff, 3 have records | Returns all 5 staff. 3 with `attendance` data, 2 with `null`. Summary reflects correct counts. |
+| ATT-H-02 | Happy | No `date` param | Uses server's today, same behavior |
+| ATT-E-01 | Edge | `date` in the future | All staff return `attendance: null`, summary `unmarked` = total count |
+| ATT-E-02 | Edge | No active staff (all users deactivated or only admin accounts) | `staff: []`, summary all zeroes |
+| ATT-V-01 | Validation | `date` is not a valid ISO date | `400 VALIDATION_ERROR` |
+
+### `POST /attendance`
+
+| ID | Type | Case | Expected |
+|---|---|---|---|
+| ATT-H-03 | Happy | Mark valid staff as `present` | `201`, record created with `markedBy` set to authenticated user |
+| ATT-H-04 | Happy | Mark staff as `absent` with `notes: "Sick leave"` | `201`, notes persisted |
+| ATT-H-05 | Happy | Mark staff as `late` with `checkInAt` timestamp | `201`, checkInAt set |
+| ATT-E-03 | Error | Same staff + date already has a record | `409 ALREADY_CHECKED_IN` |
+| ATT-E-04 | Error | `userId` references a nonexistent user | `404 NOT_FOUND` |
+| ATT-E-05 | Error | `userId` references a deactivated user | `404 NOT_FOUND` |
+| ATT-V-02 | Validation | `status` has invalid value | `400 VALIDATION_ERROR` |
+| ATT-V-03 | Validation | Missing `userId` | `400 VALIDATION_ERROR` |
+| ATT-V-04 | Validation | `notes` exceeds 500 characters | `400 VALIDATION_ERROR` |
+
+### `POST /attendance/batch`
+
+| ID | Type | Case | Expected |
+|---|---|---|---|
+| ATT-H-06 | Happy | 5 valid records, all new | `201`, `created: 5, skipped: 0, errors: []` |
+| ATT-H-07 | Happy | 5 records, 3 valid + 2 already exist | `201`, `created: 3, skipped: 2, errors: [{ userId, code: "ALREADY_CHECKED_IN" }, ...]` |
+| ATT-V-05 | Validation | `records` array empty | `400 VALIDATION_ERROR` |
+| ATT-V-06 | Validation | `records` array exceeds 100 items | `400 VALIDATION_ERROR` |
+
+### `PUT /attendance/:id`
+
+| ID | Type | Case | Expected |
+|---|---|---|---|
+| ATT-H-08 | Happy | Change status from `present` to `absent` | `200`, status updated |
+| ATT-H-09 | Happy | Set `checkInAt` on a record that had none | `200`, checkInAt set |
+| ATT-H-10 | Happy | Clear `checkInAt` (set to null) | `200`, checkInAt removed |
+| ATT-E-06 | Error | Record not found | `404 NOT_FOUND` |
+
+### General
+
+| ID | Type | Case | Expected |
+|---|---|---|---|
+| ATT-CALC-01 | Edge | `hoursWorked` is computed when both timestamps exist | `(checkOutAt - checkInAt) / 3600000` |
+| ATT-CALC-02 | Edge | No `checkOutAt` → `hoursWorked` null | null returned |
+| ATT-RT-01 | Real-time | Mark attendance succeeds | Emits `attendance:marked` |
+| ATT-RT-02 | Real-time | Update attendance succeeds | Emits `attendance:updated` |
+| ATT-AUTH-01 | Security | No `DELETE /attendance/:id` route exists | Confirm at router level |
+| ATT-CONCUR-01 | Concurrency | Duplicate mark request sent twice rapidly | Second fails with `409 ALREADY_CHECKED_IN` |
 
 ---
 

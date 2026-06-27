@@ -1,472 +1,506 @@
-# Current Task — Expenses
+# Current Task — Activity Log
 
-**PRD Feature 9** | `API.md` §14 | `DATABASE.md` §3.12 | `ARCHITECTURE.md` §5, §9
-**Depends on:** Users & Permissions (Task 1), Vendors (Task 14) — `vendorId` optional ref
-**Permission module key:** `expenses` — already registered in `backend/src/shared/constants.ts` and `frontend/src/lib/constants.ts` with actions `['view', 'create', 'edit', 'delete']`
-**Sidebar link:** Already exists at `/expenses` with `module: 'expenses'` and `ArrowUpDown` icon — the route doesn't exist yet; this task creates it.
+**PRD Feature 19** | `API.md` §21 | `ARCHITECTURE.md` §2 (activityLogger middleware), §4 (middleware pipeline)
+**Depends on:** ActivityLog model (already exists at `backend/src/models/ActivityLog.ts`), `activityLogger` middleware (already exists and globally attached — already writing logs for all mutating routes), auth/permission infrastructure.
+**Permission module key:** `activity-log` — actions `['view']`. Read-only by design — no create/edit/delete route ever registered.
+**Sidebar link:** Already exists at `/activity-log` with `module: 'activity-log'` and `History` icon (confirmed in `frontend/src/components/shared/Sidebar.tsx:51`).
 
 ---
 
-## Backend (`backend/src/modules/expenses/` — 4 new files, 1 new model)
+## Concept
 
-### Model — `backend/src/models/Expense.ts`
+The Activity Log module provides a read-only, reverse-chronological feed of system actions. Every mutating API call (POST/PUT/PATCH/DELETE) is already captured by the global `activityLogger` middleware (`backend/src/middleware/activityLogger.ts`) which writes to the `ActivityLog` collection. This task builds the **read-only API endpoint and UI** to view those logs.
 
-Create the Mongoose model matching `DATABASE.md` §3.12:
+No new writes to the collection — the `activityLogger` middleware handles all writes. The API route only allows `GET`.
+
+### What gets logged
+
+Every non-GET request that:
+1. Returns a 2xx status code
+2. Has an authenticated user (`req.user`)
+3. Is not opted out via `req.skipActivityLog`
+
+generates an `ActivityLog` entry with:
+- `actor` — the authenticated user's ObjectId
+- `module` — extracted from the URL path's first segment (e.g. `/api/v1/orders` → `'orders'`)
+- `action` — either a state-transition action (via regex rules in `activityLogger.ts`) or `<module>.<method_action>` (e.g. `orders.created`, `products.updated`, `user.deactivated`)
+- `targetId` / `targetType` — the affected document
+- `description` — human-readable, generated server-side
+- `metadata` — optional structured context (e.g. `{ before, after }` for status changes)
+
+---
+
+## Data Model
+
+Already exists at `backend/src/models/ActivityLog.ts`. No changes needed.
+
+| Field | Type | Notes |
+|---|---|---|
+| `actor` | ObjectId → User | Required, indexed |
+| `module` | String | Required, indexed. Matches the 18 PRD modules. |
+| `action` | String | Required. Dot-notation taxonomy, e.g. `order.completed`, `user.created` |
+| `targetId` | Mixed (ObjectId \| string) | Optional. ID of the affected document. |
+| `targetType` | String | Optional. Collection name, e.g. `'Order'`, `'User'`. |
+| `description` | String | Required. Human-readable, always generated server-side. |
+| `metadata` | Mixed | Optional. Structured diff/context. |
+| `createdAt` | Date | Auto-generated. Immutable — no `updatedAt`. |
+
+**Indexes:** `{ actor: 1, createdAt: -1 }`, `{ module: 1, createdAt: -1 }`, `{ createdAt: -1 }`
+
+---
+
+## API Changes
+
+### Update `API.md` §21 — Activity Log
+
+Base path: `/activity-log`. **Permission module key:** `activity-log` — actions `['view']` only.
+
+| Method | Path | Action | Description |
+|---|---|---|---|
+| GET | `/activity-log?actor=&module=&action=&from=&to=&page=&limit=` | `view` | Reverse-chronological feed with pagination & filters |
+
+#### Query Parameters
+
+| Param | Type | Default | Description |
+|---|---|---|---|
+| `page` | integer | 1 | Page number (1-based) |
+| `limit` | integer | 20 | Items per page (max 100) |
+| `actor` | string (ObjectId) | — | Filter by actor User ID |
+| `module` | string | — | Filter by module name (e.g. `orders`, `users`) |
+| `action` | string | — | Filter by action (e.g. `user.created`, `order.status_changed`). Supports prefix match — `user.` matches all user actions. |
+| `search` | string | — | Full-text match against `description` (case-insensitive) |
+| `from` | string (ISO date) | — | Start date (inclusive) for `createdAt` range |
+| `to` | string (ISO date) | — | End date (inclusive) for `createdAt` range |
+
+Note: Date filtering uses `from`/`to` directly (not `range=week|month|custom`). Activity log is time-travel debugging — users almost always know the rough time window they care about. A simple date-picker pair suffices; the `DateRangeFilter` component is NOT reused here.
+
+#### Response
+
+```json
+// 200 OK
+{
+  "data": [
+    {
+      "id": "667abc...",
+      "actor": {
+        "id": "667def...",
+        "name": "Alice",
+        "role": "admin"
+      },
+      "module": "users",
+      "action": "user.created",
+      "targetId": "667ghi...",
+      "targetType": "User",
+      "description": "Created admin account \"bob@example.com\"",
+      "metadata": null,
+      "createdAt": "2026-06-27T10:30:00.000Z"
+    }
+  ],
+  "meta": {
+    "total": 142,
+    "page": 1,
+    "limit": 20,
+    "totalPages": 8
+  }
+}
+```
+
+The `actor` field is populated via a `.populate('actor', 'name role')` query — always included. Per `ARCHITECTURE.md` §4.5, the server populates foreign-key references for list endpoints.
+
+#### Error Codes
+
+| HTTP | `code` | When |
+|---|---|---|
+| 400 | `VALIDATION_ERROR` | Invalid query params |
+
+No `404` — an empty result returns `{ data: [], meta: { total: 0, page: 1, limit: 20, totalPages: 0 } }`.
+
+---
+
+## Backend Implementation
+
+### Module Structure — `backend/src/modules/activity-log/`
+
+```
+backend/src/modules/activity-log/
+├── activity-log.validation.ts
+├── activity-log.service.ts
+├── activity-log.controller.ts
+└── activity-log.routes.ts
+```
+
+### Validation — `activity-log.validation.ts`
+
+Standard list-query schema following the pattern from `users.validation.ts`:
 
 ```ts
-import mongoose, { Schema, Document, Types } from 'mongoose';
+export const listActivityLogSchema = z.object({
+  page: z.coerce.number().int().positive().default(1),
+  limit: z.coerce.number().int().positive().max(100).default(20),
+  actor: z.string().optional(),
+  module: z.string().optional(),
+  action: z.string().optional(),
+  search: z.string().optional(),
+  from: z.string().optional(),
+  to: z.string().optional(),
+}).strict();
+```
 
-export interface IExpense extends Document {
-  amount: number;
-  date: Date;
-  description: string;
-  category: string;
-  vendorId?: Types.ObjectId;
-  paidBy: Types.ObjectId;
-  paidTo: string;
-  paymentMethod: 'cash' | 'card' | 'bkash' | 'nagad';
-  createdBy: Types.ObjectId;
-  createdAt: Date;
-  updatedAt: Date;
+**No `range` enum, no `range=custom` refinement** — activity log uses bare `from`/`to` strings (independent date pickers). This is different from Reports/Dashboard.
+
+Parse `from`/`to` as ISO date strings. The service will convert them to `Date` objects for the MongoDB query. If `from` is provided without `to` (or vice versa), the filter still works — `{ $gte: from }` or `{ $lte: to }` alone is valid.
+
+### Service — `activity-log.service.ts`
+
+**`listActivityLogs(query: ListActivityLogDto)`**
+
+1. Build a MongoDB filter object dynamically:
+   - `actor`: exact match (if provided)
+   - `module`: exact match (if provided)
+   - `action`: if provided, allow prefix match using regex `/^<action>/` — so `action=user.` matches `user.created`, `user.updated`, `user.deactivated`, etc.
+   - `description`: case-insensitive regex match for `search` (if provided, `$regex` with `$options: 'i'`)
+   - `createdAt`: if `from` provided, add `$gte`; if `to` provided, add `$lte` (inclusive, set `to` to end of day)
+
+```ts
+// Pseudocode
+const filter: Record<string, unknown> = {};
+if (query.actor) filter.actor = query.actor;
+if (query.module) filter.module = query.module;
+if (query.action) filter.action = { $regex: `^${escapeRegex(query.action)}` };
+if (query.search) filter.description = { $regex: query.search, $options: 'i' };
+if (query.from || query.to) {
+  filter.createdAt = {};
+  if (query.from) filter.createdAt.$gte = new Date(query.from);
+  if (query.to) filter.createdAt.$lte = new Date(query.to + 'T23:59:59.999Z');
 }
+```
 
-const expenseSchema = new Schema<IExpense>(
-  {
-    amount: { type: Number, required: true, min: 0 },
-    date: { type: Date, required: true },
-    description: { type: String, required: true, trim: true },
-    category: { type: String, required: true, trim: true },
-    vendorId: { type: Schema.Types.ObjectId, ref: 'Vendor' },
-    paidBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },
-    paidTo: { type: String, required: true, trim: true },
-    paymentMethod: {
-      type: String,
-      enum: ['cash', 'card', 'bkash', 'nagad'],
-      required: true,
-    },
-    createdBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },
-  },
-  { timestamps: true, toJSON: { versionKey: false } }
+2. Query: `ActivityLog.find(filter).populate('actor', 'name role').sort({ createdAt: -1 }).skip(skip).limit(limit)`
+3. Count: `ActivityLog.countDocuments(filter)`
+4. Return `{ data: mappedLogs, meta: { total, page, limit, totalPages: Math.ceil(total / limit) } }`
+
+**Response mapping:** Map Mongoose documents to the response shape — convert `actor` from populated object `{ _id, name, role }` to `{ id, name, role }`, rename `_id` to `id`, include all other fields.
+
+Use the standard list pattern from `users.service.ts`:
+
+```ts
+const skip = (query.page - 1) * query.limit;
+const [logs, total] = await Promise.all([
+  ActivityLog.find(filter)
+    .populate('actor', 'name role')
+    .sort({ createdAt: -1 })
+    .skip(skip)
+    .limit(query.limit)
+    .lean(),
+  ActivityLog.countDocuments(filter),
+]);
+
+return {
+  data: logs.map((log) => ({
+    id: log._id,
+    actor: log.actor
+      ? { id: (log.actor as any)._id, name: (log.actor as any).name, role: (log.actor as any).role }
+      : null,
+    module: log.module,
+    action: log.action,
+    targetId: log.targetId ?? null,
+    targetType: log.targetType ?? null,
+    description: log.description,
+    metadata: log.metadata ?? null,
+    createdAt: log.createdAt,
+  })),
+  meta: { total, page: query.page, limit: query.limit, totalPages: Math.ceil(total / query.limit) },
+};
+```
+
+### Controller — `activity-log.controller.ts`
+
+Single handler: `handleListActivityLogs(req, res, next)`.
+
+Pattern from `users.controller.ts`:
+
+```ts
+export async function handleListActivityLogs(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const query = req.query as unknown as ListActivityLogDto;
+    const result = await activityLogService.listActivityLogs(query);
+    res.status(200).json(result);
+  } catch (error) {
+    next(error);
+  }
+}
+```
+
+### Routes — `activity-log.routes.ts`
+
+```
+GET /activity-log -> authenticate, authorize('activity-log', 'view'), validate(listActivityLogSchema, 'query'), handleListActivityLogs
+```
+
+```ts
+const router = Router();
+
+router.get(
+  '/activity-log',
+  authenticate,
+  authorize('activity-log', 'view'),
+  validate(listActivityLogSchema, 'query'),
+  handleListActivityLogs
 );
 
-expenseSchema.index({ date: -1 });
-expenseSchema.index({ category: 1 });
-expenseSchema.index({ vendorId: 1 });
-expenseSchema.index({ paidBy: 1 });
-
-const Expense = mongoose.model<IExpense>('Expense', expenseSchema);
-
-export default Expense;
+export default router;
 ```
 
-- **Hard-deletable** — no `isActive` field. Falls outside the five-collection soft-delete list per `DATABASE.md` §3.12.
-- `vendorId` is optional — ad-hoc payments use only `paidTo` (free-text).
-- `createdBy` is set server-side from `req.user.id`, **not** from the request body.
-- `paymentMethod` enum is `cash | card | bkash | nagad` — same as `Order.payment.method` minus `split` (not applicable to expenses).
-- `category` is free-text string — no separate `ExpenseCategory` collection in v1 (open item per §8 of DATABASE.md).
+### Register in `backend/src/app.ts`
 
-### Backend Setup — `backend/src/shared/constants.ts`
+1. Add import alongside the other module imports (around line 24):
+   ```ts
+   import activityLogRoutes from './modules/activity-log/activity-log.routes';
+   ```
 
-**Already done** — `expenses: ['view', 'create', 'edit', 'delete']` is registered.
+2. Add mount after the last route (after line 169 `app.use('/api/v1', reportsRoutes)`):
+   ```ts
+   app.use('/api/v1', activityLogRoutes);
+   ```
 
-### Validation — `expenses.validation.ts`
-
-**`createExpenseSchema`** (body, for `POST /expenses`):
-- `amount` — required number, positive (`> 0`), max precision 2 decimal places (currency)
-- `date` — required, coerceable to Date via `z.coerce.date()` (accepts ISO string)
-- `description` — required string, min 1, max 500, trimmed
-- `category` — required string, min 1, max 100, trimmed
-- `vendorId` — optional string, must be valid Mongo ObjectId if provided
-- `paidBy` — required string, must be valid Mongo ObjectId (User ref)
-- `paidTo` — required string, min 1, max 200, trimmed
-- `paymentMethod` — required enum: `'cash' | 'card' | 'bkash' | 'nagad'`
-- Use `.strict()` — no unexpected fields
-- Note: `createdBy` is NOT in the schema — it's set server-side
-
-**`updateExpenseSchema`** (body, for `PUT /expenses/:id`):
-- Same fields as create, all optional
-- Use `.strict()`
-
-**`listExpensesQuerySchema`** (query, for `GET /expenses`):
-- `range` — optional enum `'today' | 'week' | 'month' | 'custom'`
-- `from` — optional string (date ISO), required when `range === 'custom'`
-- `to` — optional string (date ISO), required when `range === 'custom'`
-- `category` — optional string, max 100, for category filter
-- `vendorId` — optional string, valid Mongo ObjectId, for vendor filter
-- `paymentMethod` — optional enum `'cash' | 'card' | 'bkash' | 'nagad'`
-- `paidBy` — optional string, valid Mongo ObjectId
-- `page` — optional, coerce to int, min 1, default 1
-- `limit` — optional, coerce to int, min 1, max 100, default 20
-- Use `.strict()`
-- Validation: when `range === 'custom'`, `from` and `to` must be present (refine)
-- Validation: when `range !== 'custom'`, `from`/`to` should be ignored (server-computed)
-
-**`objectIdParam`** (params, for all `/:id` routes):
-- `id` — string, must be valid Mongo ObjectId
-
-Export types for all schemas.
-
-### Service — `expenses.service.ts`
-
-Follow the same pattern as `orders.service.ts` for date-range filtering.
-
-**Date range computation (`computeDateRange` helper):**
-- `'today'` → from = start of today, to = end of today
-- `'week'` → from = start of current week (Monday), to = end of today
-- `'month'` → from = start of current month, to = end of today
-- `'custom'` → from = provided `from` at 00:00:00, to = provided `to` at 23:59:59.999
-
-**`listExpenses(query)`**
-- Build MongoDB filter:
-  - Date range: if `range` or `from`/`to` present, build `date` filter (gte/lte using computed dates)
-  - `category` → `{ category }` exact match (free-text, case-insensitive via regex or exact — follow the Orders convention of exact match for enum-like fields)
-  - `vendorId` → `{ vendorId: ObjectId }`
-  - `paymentMethod` → `{ paymentMethod }`
-  - `paidBy` → `{ paidBy: ObjectId }`
-- Sort by `{ date: -1, createdAt: -1 }` — most recent first
-- Paginate with `.skip().limit()`, `total` from `Expense.countDocuments(filter)`
-- `.lean()` for performance
-- Populate `vendorId` with `name` only (for display), `paidBy` with `name` and `email`, `createdBy` with `name`
-- Return `{ data: expenses, meta: { total, page, limit } }`
-- Response shape per expense:
-  ```ts
-  {
-    id: string;
-    amount: number;
-    date: string;
-    description: string;
-    category: string;
-    vendorId?: { _id: string; name: string } | null;
-    paidBy: { _id: string; name: string; email: string };
-    paidTo: string;
-    paymentMethod: string;
-    createdBy: { _id: string; name: string };
-    createdAt: string;
-    updatedAt: string;
-  }
-  ```
-
-**`getExpenseById(id)`**
-- `Expense.findById(id).lean()` with same population as list
-- If not found → `createError(404, 'NOT_FOUND', 'Expense not found')`
-- Return `{ data: expense }`
-
-**`createExpense(dto, userId)`**
-- `Vendor.findById(dto.vendorId)` → verify vendor exists (even if deactivated, allow — per EXP-E-01)
-- `User.findById(dto.paidBy)` → verify user exists (404 if not)
-- `Expense.create({ ...dto, createdBy: userId })`
-- Emit `dashboard:metricsInvalidate` via WebSocket (or at least trigger invalidation — see WebSocket section)
-- Return `{ data: expense }`
-
-**`updateExpense(id, dto)`**
-- Optionally verify `vendorId`/`paidBy` if provided (same as create)
-- `Expense.findByIdAndUpdate(id, { $set: dto }, { new: true, runValidators: true }).lean()`
-- If not found → `404 NOT_FOUND`
-- Emit `dashboard:metricsInvalidate` (expense update affects totals)
-- Return `{ data: expense }`
-
-**`deleteExpense(id)`**
-- Hard delete: `Expense.findByIdAndDelete(id)`
-- If not found → `404 NOT_FOUND`
-- Emit `dashboard:metricsInvalidate` (expense deletion affects totals)
-- Return `{ data: { success: true } }`
-
-### Controller — `expenses.controller.ts`
-
-- Named exports: `handleListExpenses`, `handleGetExpense`, `handleCreateExpense`, `handleUpdateExpense`, `handleDeleteExpense`
-- Same pattern as vendors controller: extract from `req.query`/`req.body`/`req.params`, call service, wrap in `try/catch/next`
-- `listExpenses` → `res.status(200).json(result)` (paginated list with meta)
-- `getExpense` → `res.status(200).json({ data: expense })`
-- `createExpense` → `res.status(201).json({ data: expense })`
-- `updateExpense` → `res.status(200).json({ data: expense })`
-- `deleteExpense` → `res.status(200).json({ data: { success: true } })`
-- Pass `req.user.id` as second arg to `createExpense` and optionally to `updateExpense` if needed
-
-### Routes — `expenses.routes.ts`
-
-```
-GET    /expenses                    -> authenticate, authorize('expenses','view'), validate(listExpensesQuerySchema,'query'), handleListExpenses
-GET    /expenses/:id                -> authenticate, authorize('expenses','view'), validate(objectIdParam,'params'), handleGetExpense
-POST   /expenses                    -> authenticate, authorize('expenses','create'), validate(createExpenseSchema), handleCreateExpense
-PUT    /expenses/:id                -> authenticate, authorize('expenses','edit'), validate(updateExpenseSchema), handleUpdateExpense
-DELETE /expenses/:id                -> authenticate, authorize('expenses','delete'), validate(objectIdParam,'params'), handleDeleteExpense
-```
-
-Export default router.
-
-### Module Registration — `backend/src/app.ts`
-
-- `import expensesRoutes from './modules/expenses/expenses.routes';`
-- Add mutation rate limiter (same pattern as vendors):
-```ts
-const expensesMutationLimiter = makeRateLimiter(env.RATE_LIMIT_MAX);
-app.use('/api/v1/expenses', (req, res, next) => {
-  if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method)) {
-    return expensesMutationLimiter(req, res, next);
-  }
-  next();
-});
-```
-- Mount: `app.use('/api/v1', expensesRoutes);` (after `vendorsRoutes`, before `posRoutes`)
-
-### WebSocket / Dashboard Invalidation
-
-Per `API.md` §23: expense creation triggers `dashboard:metricsInvalidate` to refresh dashboard totals.
-
-**Approach (follow existing pattern):**
-- Check if there's an existing WebSocket utility (`backend/src/lib/websocket.ts` or similar) that emits events — if so, import and use it
-- If no WebSocket infra exists yet, use a lightweight approach:
-  - After successful create/update/delete mutations, call a shared `invalidateDashboard()` helper
-  - For now, this can just log a message (WebSocket integration is a future concern per architecture)
-  - Document in code comments that this is where the WebSocket emit should go when infra is ready
-
-Search for existing WebSocket code in the codebase first.
-
-### Activity Logger Configuration — No Code Changes Needed
-
-The `activityLogger.ts` middleware already supports expenses:
-- `TARGET_TYPE_MAP.expenses: 'Expense'` — already confirmed at `activityLogger.ts:69`
-- The logger will automatically capture:
-  - `expenses.created` for `POST /expenses`
-  - `expenses.updated` for `PUT /expenses/:id`
-  - `expenses.deleted` for `DELETE /expenses/:id`
+### No changes to:
+- `activityLogger` middleware — already globally attached to all mutating routes
+- `ActivityLog` model — already exists
+- Constants — `'activity-log': ['view']` already defined in both `backend/src/shared/constants.ts` and `frontend/src/lib/constants.ts`
+- Error codes in `API.md` §23 — no new error codes needed
+- Permission table in `API.md` §24 — already lists `activity-log: view`
 
 ---
 
-## Frontend (`frontend/src/features/expenses/` — schema.ts, api.ts, 3 components + 2 pages)
+## Frontend Implementation
 
-### Already Done (No Changes Needed)
-- Permission module key `expenses: ['view', 'create', 'edit', 'delete']` registered in `frontend/src/lib/constants.ts`
-- Sidebar nav link `/expenses` with `module: 'expenses'` already exists in `Sidebar.tsx` — permission-gated automatically
-- `DataTable` shared component exists for the list view
-- `PermissionGate` shared component exists
-- `ConfirmDialog` shared component exists for delete confirmation
-- `useDateRangeFilter` hook exists at `frontend/src/hooks/useDateRangeFilter.ts`
+### Module Structure — `frontend/src/features/activity-log/`
+
+```
+frontend/src/features/activity-log/
+├── schema.ts
+├── api.ts
+└── components/
+    ├── ActivityLogFilters.tsx
+    └── ActivityLogFeed.tsx
+```
 
 ### Schema — `schema.ts`
 
-**`createExpenseSchema`** — mirrors the backend schema:
 ```ts
-export const createExpenseSchema = z.object({
-  amount: z.coerce.number().positive('Amount must be positive'),
-  date: z.coerce.date({ required_error: 'Date is required' }),
-  description: z.string().min(1, 'Description is required').max(500),
-  category: z.string().min(1, 'Category is required').max(100),
-  vendorId: z.string().optional(),
-  paidBy: z.string().min(1, 'Paid by is required'),
-  paidTo: z.string().min(1, 'Paid to is required').max(200),
-  paymentMethod: z.enum(['cash', 'card', 'bkash', 'nagad']),
+export const activityLogFiltersSchema = z.object({
+  page: z.coerce.number().int().positive().default(1),
+  limit: z.coerce.number().int().positive().max(100).default(20),
+  actor: z.string().optional(),
+  module: z.string().optional(),
+  action: z.string().optional(),
+  search: z.string().optional(),
+  from: z.string().optional(),
+  to: z.string().optional(),
 });
 
-export type CreateExpenseFormData = z.infer<typeof createExpenseSchema>;
+export type ActivityLogFilters = z.infer<typeof activityLogFiltersSchema>;
+export type ActivityLogEntry = { /* matches API response shape */ };
+export type ActivityLogListMeta = { total: number; page: number; limit: number; totalPages: number };
+export type ActivityLogListResponse = { data: ActivityLogEntry[]; meta: ActivityLogListMeta };
 ```
-
-**`updateExpenseSchema`** — same fields, all optional.
-
-**`listExpensesQuerySchema`** — for constructing query params (client-side helper, not zod resolver):
-- Same as backend but with `z.string()` for values
 
 ### API — `api.ts`
 
-- `'use client'` at top
-- Response types:
 ```ts
-export interface ExpenseResponse {
-  id: string;
-  amount: number;
-  date: string;
-  description: string;
-  category: string;
-  vendorId?: { _id: string; name: string } | null;
-  paidBy: { _id: string; name: string; email: string };
-  paidTo: string;
-  paymentMethod: 'cash' | 'card' | 'bkash' | 'nagad';
-  createdBy: { _id: string; name: string };
-  createdAt: string;
-  updatedAt: string;
+export function useActivityLogs(filters: ActivityLogFilters) {
+  const params = new URLSearchParams();
+  params.set('page', String(filters.page));
+  params.set('limit', String(filters.limit));
+  if (filters.actor) params.set('actor', filters.actor);
+  if (filters.module) params.set('module', filters.module);
+  if (filters.action) params.set('action', filters.action);
+  if (filters.search) params.set('search', filters.search);
+  if (filters.from) params.set('from', filters.from);
+  if (filters.to) params.set('to', filters.to);
+  const qs = params.toString();
+
+  return useQuery({
+    queryKey: ['activity-log', qs],
+    queryFn: () => apiClient<ActivityLogListResponse>(`/activity-log?${qs}`),
+  });
 }
 ```
 
-- `useExpensesList(params)` — `useQuery`, key `['expenses', 'list', qs]`
-  - Params: `page?`, `limit?`, `range?`, `from?`, `to?`, `category?`, `vendorId?`, `paymentMethod?`, `paidBy?`
-- `useExpense(id)` — `useQuery`, key `['expenses', 'detail', id]`, enabled only when `id` is truthy
-- `useCreateExpense()` — `useMutation`, invalidates `['expenses']` AND `['dashboard']` on success
-- `useUpdateExpense()` — `useMutation`, invalidates `['expenses']` AND `['dashboard']` on success
-- `useDeleteExpense()` — `useMutation`, invalidates `['expenses']` AND `['dashboard']` on success
-- Query keys follow: `['expenses', 'list', qs]`, `['expenses', 'detail', id]`, `['dashboard']`
+**Filter options hook** (for dropdown population):
+
+```ts
+export function useActivityLogFilterOptions() {
+  // Returns unique modules and actions for filter dropdowns
+  // Use a dedicated lightweight aggregation or cache approach
+  // Option A: Fetch a pre-computed list from a dedicated endpoint (preferred but out of scope for this task)
+  // Option B: Extract from the current page's data (simpler, works for MVP)
+  //
+  // For v1: Hardcode the module options from the known modules constant
+  // and populate action options from the current data's unique actions.
+  // A future enhancement can add a dedicated `GET /activity-log/options` endpoint.
+}
+```
+
+**Decision for v1:** The module filter dropdown uses the static list from `MODULE_ACTIONS` keys (imported from `@/lib/constants`). The action filter is a free-text input (since action values are dynamic and numerous). This avoids building a dedicated options endpoint for v1. The actor filter is also a free-text input (enter a User ID) — or use a user search, which is out of scope for this task.
 
 ### Components
 
-#### `ExpenseForm.tsx`
-- Reusable form for both **create** and **edit** modes
-- Props: `open: boolean`, `expense?: ExpenseResponse`, `onClose: () => void`
-- Fields:
-  - `amount` — number input, `min=0`, `step="0.01"`, required
-  - `date` — date input (`type="date"`), required
-  - `description` — textarea, required
-  - `category` — text input OR dropdown (free-text with optional predefined suggestions; check if a shared Select/CategoryPicker exists)
-  - `vendorId` — vendor select dropdown (use `useVendorsList` with `isActive: false` to include deactivated vendors for historical reference — per EXP-E-01). Optional field.
-  - `paidBy` — user select dropdown (use a `useUsersList` query or similar for staff list). Required.
-  - `paidTo` — text input, required. When `vendorId` is selected, auto-fill from vendor name (user can override — per DATABASE.md: "mirrors vendor name for record consistency").
-  - `paymentMethod` — select/enum dropdown: Cash, Card, bKash, Nagad. Required.
-- In edit mode, pre-populate all fields
-- Submit calls the appropriate mutation based on mode
-- Validation via Zod schemas, displayed inline per-field
+#### `ActivityLogFilters.tsx`
 
-**paidTo auto-fill behavior:**
-- When `vendorId` changes and a vendor is selected, set `paidTo` to `vendor.name`
-- The user can still edit `paidTo` manually after auto-fill
-- This matches DATABASE.md: "When vendorId is set, this typically mirrors the vendor name for record consistency"
-- Implement via `useEffect` watching `vendorId`
+A filter bar above the activity log feed with:
 
-#### `ExpenseList.tsx`
-- Uses `useExpensesList(params)` with current filter state
-- Renders `DataTable` with columns:
-  - `date` — formatted date (short format)
-  - `description` — truncated to 60 chars with tooltip
-  - `category` — badge/tag (small, colored badge)
-  - `paidTo` — payee name
-  - `vendor` — vendor name link (if `vendorId` exists), dash otherwise
-  - `amount` — right-aligned, formatted currency (`$X,XXX.XX`)
-  - `paymentMethod` — icon/label (small badge)
-  - `paidBy` — staff name
-  - Actions column (view, edit, delete) — permission-gated individually
-- **Date range filter bar** using `useDateRangeFilter` hook:
-  - Quick-select buttons: Today, This Week, This Month, Custom
-  - When "Custom" selected, show `from`/`to` date inputs
-- **Category filter** — dropdown or text input (free-text filter)
-- **Vendor filter** — select dropdown (populated from vendors list)
-- **Payment method filter** — multi-select or single-select enum dropdown
-- **Paid by filter** — user/staff select dropdown
-- **Search input** for `description` text (debounced ~300ms) — optional, not in all backends but nice to have
-- Pagination via `DataTable`'s built-in pagination
-- Loading: `DataTable` skeleton. Empty: "No expenses found. Record your first expense to get started."
-- **Mobile degradation:** Use `mobileRender` on `DataTable` to render expense cards (date prominent, description, amount, category badge, payment method)
+| Filter | UI Element | Source |
+|---|---|---|
+| `search` | Text input with search icon (debounced 300ms) | User types |
+| `module` | Dropdown select (all modules + "All") | `MODULE_ACTIONS` keys from `@/lib/constants` |
+| `action` | Text input (label: "Action prefix") | User types e.g. `order.` |
+| `from` / `to` | Two date inputs (native `<input type="date">`) | User picks dates |
 
-#### `ExpenseDetail.tsx`
-- Fetches via `useExpense(id)`
-- Displays expense information in a structured detail card:
-  - **Header:** `amount` (large, formatted), `date`, `category` badge
-  - **Description section:** full description text
-  - **Payment section:** `paidTo`, `vendor` (if present, clickable link to vendor detail), `paymentMethod`, `paidBy`
-  - **Metadata:** Created at, Updated at, created by
-  - **Actions:** Edit button (permission-gated `expenses:edit`), Delete button (permission-gated `expenses:delete`)
-- Delete action uses the shared `ConfirmDialog` with messaging:
-  - Title: "Delete Expense"
-  - Body: `"Are you sure you want to permanently delete this expense of {amount} from {date}? This action cannot be undone."`
-  - Confirm button: "Delete" (destructive style)
-- Loading: content skeleton. Error/not-found: dedicated error state
+Layout: Wrap in a responsive flex grid. On mobile, stack vertically. On desktop, horizontal row.
 
-### Pages
+**State management:** Local `useState` for each filter value. On change (with debounce for search), call `setFilters(...)` to update the query. The `page` resets to `1` whenever any filter changes.
 
-#### `frontend/src/app/(dashboard)/expenses/page.tsx`
-- `'use client'`
-- `<PermissionGate module="expenses" action="view">` wraps the whole page
-- Title: "Expenses" with subtitle "Track your business expenses"
-- "Add Expense" button (permission-gated `expenses:create`) → opens `ExpenseForm` in a modal
-- Filter section: date range tabs + category filter + vendor filter + payment method filter
-- Composition: filter bar → `ExpenseList`
-- When "Add Expense" succeeds, close the modal, invalidate queries, show a success toast
+**Debounce:** `search` uses 300ms debounce. All other filters apply immediately on change.
 
-#### `frontend/src/app/(dashboard)/expenses/[expenseId]/page.tsx`
-- `'use client'`
-- Dynamic route: `[expenseId]` param
-- Fetches expense by ID, renders `<ExpenseDetail />`
-- Back navigation to the expenses list
-- Breadcrumb: Expenses > [date + description]
-- "Edit" button on the detail page opens `ExpenseForm` in edit mode (modal)
+#### `ActivityLogFeed.tsx`
+
+A timeline/feed view of activity log entries, NOT a DataTable — activity logs are inherently temporal and read better as a chronological list.
+
+Each entry renders:
+
+```
+[Timestamp] [Action Badge] [Description]
+            [Actor name] → [targetType]: [targetId]
+```
+
+Visual structure per entry (use `theme.md` tokens only — no hardcoded colors):
+
+```
+┌─────────────────────────────────────────────────────────┐
+│  [Avatar]  [Actor Name]                         2m ago │
+│            [Module Badge] · [Action Badge]              │
+│            [Description]                                │
+│            [Target: Order #123]                         │
+└─────────────────────────────────────────────────────────┘
+```
+
+- **Left:** Actor avatar (first letter of name in a circle, background using `--primary` color, text using `--primary-foreground`). Fallback: show actor name only if no populated data.
+- **Timestamp:** Relative time (using a small utility or hardcoded "X ago" — `date-fns/formatDistanceToNow` if available, else calculate manually). Full ISO date on hover/title.
+- **Module + Action badges:** Two inline badges:
+  - Module badge: `bg-[hsl(var(--secondary))] text-[hsl(var(--secondary-foreground))]`
+  - Action badge: `bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]`
+- **Description:** The main text, `text-sm font-medium text-[hsl(var(--foreground))]`
+- **Target link:** If `targetId` and `targetType` are present, show a clickable link (e.g. `Order #667abc...`) that navigates to the relevant detail page (`/orders/{targetId}`). If `targetType` is not a known module with a detail page, show plain text.
+
+**Loading state:** 5 skeleton cards (`animate-pulse` with rounded-xl bg-slate-200 blocks).
+**Empty state:** "No activity recorded for this filter." with icon.
+**Error state:** "Failed to load activity log." with retry button.
+
+**Pagination:** Use the same pattern as `UserList` — manual page buttons at the bottom. No infinite scroll for v1 (simpler to implement and matches existing patterns).
+
+#### `ActivityLogAvatar.tsx` (helper, inside components/)
+
+A small inline avatar component:
+
+```tsx
+function ActivityLogAvatar({ name }: { name: string | null }) {
+  if (!name) return <div className="h-8 w-8 rounded-full bg-slate-200" />;
+  const initial = name.charAt(0).toUpperCase();
+  return (
+    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[hsl(var(--primary))] text-xs font-semibold text-[hsl(var(--primary-foreground))]">
+      {initial}
+    </div>
+  );
+}
+```
+
+### Page — `frontend/src/app/(dashboard)/activity-log/page.tsx`
+
+```tsx
+export default function ActivityLogPage() {
+  return (
+    <PermissionGate module="activity-log" action="view">
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <h1 className="text-xl font-bold text-slate-800 xs:text-2xl">Activity Log</h1>
+        </div>
+        <ActivityLogFilters onFiltersChange={...} />
+        <ActivityLogFeed filters={...} />
+      </div>
+    </PermissionGate>
+  );
+}
+```
+
+**State management:**
+
+```tsx
+const [filters, setFilters] = useState<ActivityLogFilters>({
+  page: 1,
+  limit: 20,
+});
+
+// When filters change, reset to page 1
+function handleFilterChange(partial: Partial<ActivityLogFilters>) {
+  setFilters((prev) => ({ ...prev, ...partial, page: 1 }));
+}
+
+// Page change preserves filters
+function handlePageChange(page: number) {
+  setFilters((prev) => ({ ...prev, page }));
+}
+
+const { data, isLoading, isError, refetch } = useActivityLogs(filters);
+```
+
+Pass `data`, `isLoading`, `isError`, `refetch` to `ActivityLogFeed`. Pass filter state + handlers to `ActivityLogFilters`.
 
 ---
 
-## Design
+## Already Done (No Changes Needed)
 
-- **Date range filter bar:** Follow the pattern from Reports (when built) — quick-select pills (Today, This Week, This Month, Custom) with date inputs for custom range. Reuse the existing `useDateRangeFilter` hook at `frontend/src/hooks/useDateRangeFilter.ts`.
-- **Category filter:** Free-text input with suggested completions from existing expense categories (fetch distinct categories from backend or maintain client-side set). For v1, a simple text input is sufficient — advanced filtering is a Reports concern.
-- **paidTo/vendorId UX:** When a vendor is selected from the dropdown, auto-populate `paidTo` with the vendor name. The user can override. This matches DATABASE.md: "When vendorId is set, this typically mirrors the vendor name for record consistency."
-- **Amount formatting:** Use currency formatting (locale-aware). Per theme.md, amounts should be right-aligned in tables and bold in detail views.
-- **Hard delete UX:** Per theme.md, use "Delete" vocabulary (not "Deactivate") since Expense is hard-deletable. The button text is "Delete", the confirm dialog says "Delete Expense", and the success toast says "Expense deleted". Use destructive red styling.
+- ✅ `ActivityLog` Mongoose model at `backend/src/models/ActivityLog.ts` — full schema with proper indexes
+- ✅ `activityLogger` middleware at `backend/src/middleware/activityLogger.ts` — globally attached, already writing logs for all mutating routes
+- ✅ Permission module key `activity-log` with `['view']` registered in both `backend/src/shared/constants.ts` and `frontend/src/lib/constants.ts`
+- ✅ Sidebar nav link `/activity-log` already exists with `module: 'activity-log'` and `History` icon (`frontend/src/components/shared/Sidebar.tsx:51`)
+- ✅ `History` icon already imported in `lucide-react` import block (`Sidebar.tsx:19`)
+- ✅ `PermissionGate` component, `Badge` component, shared layout, and all dashboard infrastructure
+- ✅ API.md §21 already defines the endpoint at a high level; this task fleshes it out with pagination and full response shape
+- ✅ API.md §24 permission table already lists `activity-log: view`
+- ✅ `getModuleLabel('activity-log')` already returns `'Activity Log'` in `frontend/src/lib/constants.ts:44`
 
 ---
 
-## Implementation Notes
+## Open Items to Resolve During This Task
 
-### Files to Create
+1. **Actor filter UI:** For v1, the actor filter is a plain text input expecting a User ObjectId. A future enhancement could use a user search/select component. Accept this limitation.
+2. **Action filter UI:** The action filter is a text input for prefix matching. Users can type `user.` to see all user-related actions. Accept this as the MVP UX.
+3. **Target link resolution:** When `targetType` is `'Order'`, the link goes to `/orders/{targetId}`. For `'User'`, `/users/{targetId}`. For unknown/unmapped types, render plain text. Maintain a simple mapping in the component.
+4. **Relative timestamps:** Use a small inline helper or Intl-based formatting rather than adding a dependency. Format: "2m ago", "1h ago", "3d ago", "Jun 27" for older dates.
+5. **`search` field:** Uses regex with `$options: 'i'` on the `description` field. For large collections this won't be performant — a text index is the correct long-term solution. For v1 with moderate data volumes (<100K entries), the regex approach is acceptable. Add a comment noting this for future optimization.
 
-**Model (1 new file):**
-1. `backend/src/models/Expense.ts`
+---
 
-**Backend (4 new files):**
-1. `backend/src/modules/expenses/expenses.validation.ts`
-2. `backend/src/modules/expenses/expenses.service.ts`
-3. `backend/src/modules/expenses/expenses.controller.ts`
-4. `backend/src/modules/expenses/expenses.routes.ts`
-
-**Modify (backend):**
-- `backend/src/app.ts` — register Expenses routes + mutation rate limiter
-
-**Frontend (5 new files):**
-1. `frontend/src/features/expenses/schema.ts`
-2. `frontend/src/features/expenses/api.ts`
-3. `frontend/src/features/expenses/components/ExpenseForm.tsx`
-4. `frontend/src/features/expenses/components/ExpenseList.tsx`
-5. `frontend/src/features/expenses/components/ExpenseDetail.tsx`
-
-**Pages (2 new files):**
-1. `frontend/src/app/(dashboard)/expenses/page.tsx`
-2. `frontend/src/app/(dashboard)/expenses/[expenseId]/page.tsx`
-
-### Patterns to Follow
-
-- **Follow exactly:** controller/service/routes file shape from `vendors` or `orders` module — named exports, `import * as service`, `try/catch/next`, `validate` middleware, `authenticate`/`authorize` chain.
-- **Date range filtering:** Follow the `from`/`to` filter pattern from `orders.service.ts` (lines 193-202) — build a `dateFilter` with `$gte`/`$lte` for the `date` field. The validation schema should handle `range` + computed dates per CC-DATE test cases.
-- **Hard delete pattern:** Use `findByIdAndDelete` (not soft delete). Match the behavior of any existing hard-delete module (none yet — this is the first hard-deletable collection).
-- **Population pattern:** Always populate `vendorId`, `paidBy`, and `createdBy` references to avoid N+1 queries on the frontend. Use `.populate('vendorId', 'name')` and `.populate('paidBy', 'name email')` and `.populate('createdBy', 'name')`.
-- **Follow the DataTable pattern** from categories/vendors list page — column definition, `mobileRender`, loading/empty/error states.
-- **Expense form modal pattern:** Use a modal (dialog) for create/edit, matching the vendors pattern (the existing convention).
-- **Dashboard invalidation structure:** After successful mutations, invalidate `['dashboard']` query key in addition to `['expenses']`. No WebSocket code needed yet — just React Query invalidation on the frontend is sufficient for now.
-
-### Already Done (No Changes Needed)
-- Permission module key `expenses` registered in both `backend/src/shared/constants.ts` and `frontend/src/lib/constants.ts` with `['view', 'create', 'edit', 'delete']`
-- Sidebar nav link `/expenses` already exists in `sidebarLinks` frontend data and is permission-gated
-- `ArrowUpDown` icon is already imported in `Sidebar.tsx` from `lucide-react`
-- `ConfirmDialog` shared component exists for delete confirmation
-- `DataTable` shared component exists with `mobileRender` support
-- `PermissionGate` shared component exists
-- `useDateRangeFilter` hook exists for date range filter state management
-- Activity logger `TARGET_TYPE_MAP` already includes `expenses: 'Expense'`
-
-### Activity Logger
-
-The `activityLogger.ts` middleware auto-captures mutations. No changes needed — `TARGET_TYPE_MAP` already includes `expenses: 'Expense'` at line 69.
-
-### WebSocket / Dashboard Invalidation
-
-Per `API.md` §23:
-> `dashboard:metricsInvalidate` — Any revenue-affecting event (order created/status changed, expense created) triggers Dashboard React Query `invalidateQueries(['dashboard'])`.
-
-**Frontend approach:** In each mutation hook (`useCreateExpense`, `useUpdateExpense`, `useDeleteExpense`), add `queryClient.invalidateQueries({ queryKey: ['dashboard'] })` in the `onSuccess` callback alongside the expenses invalidation.
-
-**Backend approach:** Check if a WebSocket event emitter exists (`backend/src/lib/websocket.ts` or similar). If it does, emit `dashboard:metricsInvalidate` after each expense mutation. If it doesn't, add a comment/TODO noting where the WebSocket emit should go when the infra is built.
-
-### Verification
+## Verification
 
 - `tsc --noEmit` passes clean on both apps
-- `npm run dev` — full CRUD flow works end to end:
-  - Can create an expense with all required fields
-  - Can create an expense with vendorId (optional) — auto-fills paidTo
-  - Can create an expense without vendorId (ad-hoc, paidTo only)
-  - Can browse expense list with date range, category, vendor, payment method filters
-  - Can view expense detail with all payment info, vendor link, staff info
-  - Can edit expense fields
-  - Can hard-delete an expense — confirmed removed from DB
-  - Dashboard metrics update after expense create/update/delete
-- Run the relevant `TEST_CASES.md` §10 (Expenses) cases explicitly:
-  - **EXP-H-01:** `POST /expenses` full valid payload with `vendorId` → `201`
-  - **EXP-H-02:** `POST /expenses` without `vendorId` (ad-hoc) → `201`
-  - **EXP-V-01:** Negative `amount` → `400 VALIDATION_ERROR`
-  - **EXP-V-02:** Missing `paidBy` or `paidTo` → `400 VALIDATION_ERROR`
-  - **EXP-V-03:** `paymentMethod: split` → `400 VALIDATION_ERROR`
-  - **EXP-H-03:** `GET /expenses?range=&category=&vendorId=` → correctly filtered
-  - **EXP-H-04:** `DELETE /expenses/:id` → hard delete succeeds
-  - **EXP-E-01:** `vendorId` references soft-deleted vendor → creation succeeds
-  - **EXP-AUTH-01:** User lacks `expenses:create` → `403 FORBIDDEN`
+- `GET /api/v1/activity-log?page=1&limit=20` returns paginated results with populated actor
+- `GET /api/v1/activity-log?module=users` returns only user-related entries
+- `GET /api/v1/activity-log?action=user.` returns all actions starting with `user.`
+- `GET /api/v1/activity-log?search=created` returns entries whose description contains "created"
+- `GET /api/v1/activity-log?from=2026-06-01&to=2026-06-07` returns entries within date range
+- Empty results return `{ data: [], meta: { total: 0, page: 1, limit: 20, totalPages: 0 } }` (not 404)
+- Activity log page loads at `/activity-log` with sidebar active state
+- Activity log page is gated by `activity-log:view` — users without permission see the `<PermissionGate>` fallback
+- Filtering by module/search/date updates the feed correctly
+- Pagination works (prev/next buttons, page indicator, total count)
+- Timestamps display relative time ("2m ago", "3d ago")
+- Target links navigate to the correct detail pages (Orders, Users, etc.)
+- Loading state shows skeleton cards
+- Empty state shows "No activity recorded for this filter."
+- Error state shows retry button

@@ -326,21 +326,24 @@ Base path: `/tasks`. **Permission module key:** `tasks`. Hard-deletable per `DAT
 
 ## 13. Attendance
 
-Base path: `/attendance`. **Permission module key:** `attendance`. No `delete` action — corrections go through `PUT`, preserving the audit trail rather than erasing a mistaken entry.
+Base path: `/attendance`. **Permission module key:** `attendance`. No `delete` action — corrections go through `PUT`, preserving the audit trail.
 
 | Method | Path | Action | Description |
 |---|---|---|---|
-| GET | `/attendance?userId=&range=` | `view` | History/report list |
+| GET | `/attendance/today?date=` | `view` | Returns all active staff (employees + managers) with their attendance status for the given date (defaults to server's today). Staff without a record have `attendance: null`. Includes a `summary` with counts. |
+| GET | `/attendance` | `view` | History list with filters: `?userId=&status=&from=&to=&page=&limit=` |
 | GET | `/attendance/:id` | `view` | Single record |
-| POST | `/attendance/check-in` | `create` | Self check-in (or `{ "userId": "..." }` if a manager is checking in someone else) |
-| PATCH | `/attendance/:id/check-out` | `edit` | Sets `checkOutAt` on today's record |
-| PUT | `/attendance/:id` | `edit` | Manual correction (admin/manager) — e.g. fixing a forgotten check-out, with `notes` explaining why |
+| POST | `/attendance` | `create` | Mark attendance for one staff member — `{ userId, status, date?, checkInAt?, checkOutAt?, notes? }` |
+| POST | `/attendance/batch` | `create` | Mark attendance for multiple staff — `{ date?, records: [{ userId, status, checkInAt?, checkOutAt?, notes? }] }` |
+| PUT | `/attendance/:id` | `edit` | Correct an existing record — `{ status?, checkInAt?, checkOutAt?, notes? }` |
 
 ```json
-// POST /attendance/check-in response 201
-{ "data": { "id": "...", "userId": "...", "date": "2026-06-20", "checkInAt": "2026-06-20T09:01:00Z" } }
+// POST /attendance request
+{ "userId": "...", "status": "present", "date": "2026-06-27", "checkInAt": "2026-06-27T09:00:00Z" }
+// Response 201
+{ "data": { "id": "...", "userId": { "_id": "...", "name": "Alice" }, "date": "2026-06-27", "status": "present", "checkInAt": "2026-06-27T09:00:00Z", "checkOutAt": null, "notes": "", "markedBy": { "_id": "...", "name": "Bob" } } }
 ```
-`409 ALREADY_CHECKED_IN` if the `{userId, date}` unique index (`DATABASE.md` §3.11) would be violated — this is the actual guard, the API error is just surfacing the DB constraint. `hoursWorked` is computed on read, never stored, matching `DATABASE.md` §3.11.
+`409 ALREADY_CHECKED_IN` if the `{userId, date}` unique index would be violated. `hoursWorked` is computed on read, never stored.
 
 ---
 
@@ -464,11 +467,50 @@ Base path: `/settings`. **Permission module key:** `settings`. Singleton (fixed 
 
 ## 21. Activity Log
 
-Base path: `/activity-log`. **Permission module key:** `activity-log`. **`view` is the only action that exists** — no `PUT`/`DELETE`/`POST` handler is ever registered for this collection (`DATABASE.md` §3.13's "read-only by omission" rule), so there's nothing to list beyond:
+Base path: `/activity-log`. **Permission module key:** `activity-log`. **`view` is the only action that exists** — no `PUT`/`DELETE`/`POST` handler is ever registered for this collection (`DATABASE.md` §3.13's "read-only by omission" rule).
 
 | Method | Path | Action | Description |
 |---|---|---|---|
-| GET | `/activity-log?actor=&module=&action=&from=&to=` | `view` | Reverse-chronological feed |
+| GET | `/activity-log?actor=&module=&action=&search=&from=&to=&page=&limit=` | `view` | Reverse-chronological feed with pagination and filters |
+
+#### Query Parameters
+
+| Param | Type | Default | Description |
+|---|---|---|---|
+| `page` | integer | 1 | Page number (1-based) |
+| `limit` | integer | 20 | Items per page (max 100) |
+| `actor` | string (ObjectId) | — | Filter by actor User ID (exact match) |
+| `module` | string | — | Filter by module name, e.g. `orders`, `users` (exact match) |
+| `action` | string | — | Filter by action with prefix match — `user.` matches `user.created`, `user.updated`, etc. |
+| `search` | string | — | Case-insensitive match against `description` |
+| `from` | string (ISO date) | — | Start date (inclusive) for `createdAt` range |
+| `to` | string (ISO date) | — | End date (inclusive) for `createdAt` range; combined with `from` for a range |
+
+Note: Date filtering uses bare `from`/`to` strings (not the `range=today|week|month|custom` enum used by Dashboard/Reports). Activity log entries are queried by absolute date window.
+
+#### Response
+
+```json
+// 200 OK
+{
+  "data": [
+    {
+      "id": "667abc...",
+      "actor": { "id": "667def...", "name": "Alice", "role": "admin" },
+      "module": "users",
+      "action": "user.created",
+      "targetId": "667ghi...",
+      "targetType": "User",
+      "description": "Created admin account \"bob@example.com\"",
+      "metadata": null,
+      "createdAt": "2026-06-27T10:30:00.000Z"
+    }
+  ],
+  "meta": { "total": 142, "page": 1, "limit": 20, "totalPages": 8 }
+}
+```
+
+The `actor` field is populated from the `User` collection (`.populate('actor', 'name role')`). If the referenced user is later deleted, `actor` may be `null`.
 
 ---
 
@@ -482,7 +524,8 @@ Single namespace, all authenticated dashboard clients join one shared room — n
 | `order:statusChanged` | `PATCH /orders/:id/status` succeeds | `{ orderId, status }` | Orders list, Dashboard |
 | `dashboard:metricsInvalidate` | Any revenue-affecting event (order created/status changed, expense created) | *(signal only, no payload)* | Dashboard triggers a React Query `invalidateQueries(['dashboard'])`, per `ARCHITECTURE.md` §8 |
 | `task:assigned` | Task created/reassigned | `{ taskId, assignedTo }` | Assignee's live task badge |
-| `attendance:checkedIn` / `attendance:checkedOut` | Respective endpoints succeed | `{ userId, date }` | Live attendance view |
+| `attendance:marked` | `POST /attendance` or `POST /attendance/batch` succeeds | `{ userId, date, status }` | Live attendance view |
+| `attendance:updated` | `PUT /attendance/:id` succeeds | `{ userId, date, status }` | Live attendance view |
 
 ---
 
@@ -491,6 +534,7 @@ Single namespace, all authenticated dashboard clients join one shared room — n
 | HTTP | `code` | Meaning |
 |---|---|---|
 | 400 | `VALIDATION_ERROR` | Zod schema rejected the request body; see `details` |
+| 400 | `INVALID_REPORT_TYPE` | `:type` param is not one of `sales\|income\|expense\|attendance` |
 | 400 | `UNSUPPORTED_FILE_TYPE` / `FILE_TOO_LARGE` | Upload rejected before reaching Cloudinary |
 | 400 | `EMAIL_EXISTS` | A user with this email already exists |
 | 400 | `ALREADY_INACTIVE` | Attempt to deactivate an already-deactivated user |
@@ -505,7 +549,7 @@ Single namespace, all authenticated dashboard clients join one shared room — n
 | 404 | `NOT_FOUND` | Resource doesn't exist (or is soft-deleted and the route doesn't opt into `includeInactive`) |
 | 409 | `COUPON_IN_USE` | Hard-delete blocked, `usageCount > 0` |
 | 409 | `COUPON_USAGE_LIMIT_REACHED` | Lost a race at order-commit time |
-| 409 | `ALREADY_CHECKED_IN` | Attendance unique-index violation |
+| 409 | `ALREADY_CHECKED_IN` | Attendance unique-index violation (duplicate mark for same user+date) |
 | 409 | `LAST_ADMIN_PROTECTED` / `CANNOT_DEACTIVATE_SELF` | User-deactivation guard rails |
 | 409 | `ORDER_NOT_DELETABLE` | See §10 open item |
 | 409 | `PRODUCT_UNAVAILABLE` | A submitted product went inactive mid-checkout |
