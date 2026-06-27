@@ -4,9 +4,9 @@ import { useState, useEffect } from 'react';
 import { Search, ChevronLeft, ChevronRight, Edit3, ImageOff } from 'lucide-react';
 import { useProductList, useUpdateProduct, type ProductResponse } from '../api';
 import { useCategoriesList } from '@/features/categories/api';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { AppError } from '@/lib/utils';
+import { formatCurrency } from '@/lib/format';
 
 interface ProductListProps {
   onEdit: (product: ProductResponse) => void;
@@ -78,7 +78,7 @@ export default function ProductList({ onEdit, onDelete, onPermanentDelete }: Pro
         </div>
       )}
 
-      <div className="flex flex-wrap items-center gap-3">
+      <div className="flex flex-col md:flex-row md:items-center gap-3">
         <div className="relative flex-1 min-w-[200px]">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
           <input
@@ -93,7 +93,7 @@ export default function ProductList({ onEdit, onDelete, onPermanentDelete }: Pro
         <select
           value={categoryFilter}
           onChange={(e) => setCategoryFilter(e.target.value)}
-          className="rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-700 ring-ring focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-ring"
+          className="w-full md:w-auto rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-700 ring-ring focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-ring"
         >
           <option value="">All Categories</option>
           {categoriesData?.data.map((cat) => (
@@ -106,7 +106,7 @@ export default function ProductList({ onEdit, onDelete, onPermanentDelete }: Pro
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
-          className="rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-700 ring-ring focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-ring"
+          className="w-full md:w-auto rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-700 ring-ring focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-ring"
         >
           <option value="all">All</option>
           <option value="active">Active</option>
@@ -115,78 +115,78 @@ export default function ProductList({ onEdit, onDelete, onPermanentDelete }: Pro
       </div>
 
       {isLoading ? (
-        <div className="flex items-center justify-center rounded-2xl border border-slate-200 bg-white py-20 text-sm text-slate-400 shadow-sm">
-          Loading products...
+        <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+          {Array.from({ length: 8 }).map((_, i) => (
+            <div key={i} className="animate-pulse rounded-2xl border border-slate-200 bg-white shadow-sm">
+              <div className="aspect-[3/2] w-full rounded-t-2xl bg-slate-200" />
+              <div className="space-y-2 sm:space-y-3 p-3 sm:p-4">
+                <div className="h-4 w-3/4 rounded bg-slate-200" />
+                <div className="h-4 w-1/2 rounded bg-slate-200" />
+                <div className="h-9 w-full rounded-xl bg-slate-200" />
+              </div>
+            </div>
+          ))}
         </div>
       ) : isError ? (
-        <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-slate-200 bg-white py-20 text-sm shadow-sm">
+        <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-slate-200 bg-white py-12 sm:py-20 text-sm shadow-sm">
           <span className="text-red-500">Failed to load products</span>
           <Button variant="primary" size="sm" onClick={() => refetch()}>
             Retry
           </Button>
         </div>
       ) : data && data.data.length === 0 ? (
-        <div className="flex items-center justify-center rounded-2xl border border-slate-200 bg-white py-20 text-sm text-slate-400 shadow-sm">
+        <div className="flex items-center justify-center rounded-2xl border border-slate-200 bg-white py-12 sm:py-20 text-sm text-slate-400 shadow-sm">
           No products found — create one to get started
         </div>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
           {data?.data.map((product) => (
             <div
               key={product.id}
-              className={`group relative flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition-all duration-200 hover:shadow-md ${
+              className={`flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm ${
                 !product.isActive ? 'opacity-60' : ''
               }`}
             >
-              <button
-                onClick={() => onEdit(product)}
-                className="absolute right-2 top-2 z-10 rounded-lg bg-white/80 p-1.5 text-slate-400 opacity-0 shadow-sm backdrop-blur transition-opacity hover:bg-white hover:text-blue-600 group-hover:opacity-100"
-                title="Edit product"
-              >
-                <Edit3 className="h-4 w-4" />
-              </button>
-
-              <div className="aspect-[4/3] w-full overflow-hidden bg-slate-100">
+              <div className="relative aspect-[3/2] w-full overflow-hidden bg-slate-100">
                 {product.image ? (
                   <img
                     src={product.image.url}
                     alt={product.name}
-                    className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                    className="h-full w-full object-cover"
                   />
                 ) : (
                   <div className="flex h-full w-full items-center justify-center">
-                    <ImageOff className="h-10 w-10 text-slate-300" />
+                    <ImageOff className="h-9 w-9 sm:h-10 sm:w-10 text-slate-300" />
                   </div>
                 )}
+                <button
+                  onClick={() => onEdit(product)}
+                  className="absolute right-2 top-2 z-10 rounded-lg bg-white/90 p-2 text-slate-500 shadow-sm backdrop-blur transition-colors hover:bg-white hover:text-blue-600"
+                  title="Edit product"
+                  aria-label="Edit product"
+                >
+                  <Edit3 className="h-4 w-4" />
+                </button>
               </div>
 
-              <div className="flex flex-1 flex-col p-4">
-                <div className="mb-1 flex items-start justify-between gap-2">
-                  <h3 className="line-clamp-2 text-sm font-semibold text-slate-800">
-                    {product.name}
-                  </h3>
-                  {product.isActive ? (
-                    <Badge variant="green">Active</Badge>
-                  ) : (
-                    <Badge variant="slate">Inactive</Badge>
-                  )}
-                </div>
+              <div className="flex flex-1 flex-col p-3 sm:p-4">
+                <h3 className="line-clamp-1 text-sm font-medium text-slate-800 break-words">
+                  {product.name}
+                </h3>
 
-                <p className="mb-3 text-lg font-bold text-slate-900">
-                  TK {product.price.toFixed(2)}
+                <p className="mt-1 text-sm sm:text-base font-semibold text-blue-600">
+                  {formatCurrency(product.price)}
                 </p>
 
-                <div className="mb-3 flex items-center gap-2 text-xs text-slate-500">
-                  <span className="rounded-md bg-slate-100 px-2 py-0.5 font-medium text-slate-600">
-                    {product.categoryName || 'Uncategorized'}
-                  </span>
-                </div>
+                <span className="mt-1 text-xs text-slate-500 truncate">
+                  {product.categoryName || 'Uncategorized'}
+                </span>
 
-                <div className="mt-auto flex gap-2">
+                <div className="mt-auto pt-3 flex flex-col xs:flex-row gap-2" onClick={(e) => e.stopPropagation()}>
                   {product.isActive ? (
                     <Button
                       variant="warning"
-                      size="xs"
+                      size="sm"
                       className="w-full"
                       onClick={() => onDelete(product)}
                     >
@@ -196,8 +196,8 @@ export default function ProductList({ onEdit, onDelete, onPermanentDelete }: Pro
                     <>
                       <Button
                         variant="primary"
-                        size="xs"
-                        className="flex-1"
+                        size="sm"
+                        className="w-full xs:flex-1"
                         onClick={() => handleReactivate(product)}
                         disabled={updateProduct.isPending}
                       >
@@ -205,7 +205,8 @@ export default function ProductList({ onEdit, onDelete, onPermanentDelete }: Pro
                       </Button>
                       <Button
                         variant="destructive"
-                        size="xs"
+                        size="sm"
+                        className="w-full xs:w-auto"
                         onClick={() => onPermanentDelete(product)}
                       >
                         Delete
@@ -221,25 +222,29 @@ export default function ProductList({ onEdit, onDelete, onPermanentDelete }: Pro
 
       {data && data.meta.total > 0 && (
         <div className="flex items-center justify-between text-sm text-slate-500">
-          <span>
-            Showing {Math.min((page - 1) * data.meta.limit + 1, data.meta.total)}&ndash;{Math.min(page * data.meta.limit, data.meta.total)} of{' '}
+          <span className="text-xs xs:text-sm">
+            <span className="hidden xs:inline">Showing </span>
+            {Math.min((page - 1) * data.meta.limit + 1, data.meta.total)}&ndash;{Math.min(page * data.meta.limit, data.meta.total)}{' '}
+            <span className="hidden xs:inline">of </span>
             {data.meta.total}
           </span>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 sm:gap-2">
             <button
               onClick={() => handlePageChange(page - 1)}
               disabled={page <= 1}
-              className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 disabled:opacity-30 disabled:cursor-not-allowed"
+              className="rounded-lg p-2 sm:p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 disabled:opacity-30 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+              aria-label="Previous page"
             >
               <ChevronLeft className="h-4 w-4" />
             </button>
-            <span className="min-w-[2rem] text-center text-slate-600">
+            <span className="min-w-[2rem] text-center text-xs sm:text-sm text-slate-600">
               {page} / {totalPages}
             </span>
             <button
               onClick={() => handlePageChange(page + 1)}
               disabled={page >= totalPages}
-              className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 disabled:opacity-30 disabled:cursor-not-allowed"
+              className="rounded-lg p-2 sm:p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 disabled:opacity-30 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+              aria-label="Next page"
             >
               <ChevronRight className="h-4 w-4" />
             </button>

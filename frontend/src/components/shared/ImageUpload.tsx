@@ -45,6 +45,7 @@ export default function ImageUpload({
     : undefined;
 
   const previewSize = aspectRatio ? 'w-full max-w-48' : 'h-32 w-32';
+  const dropZoneSize = aspectRatio ? 'w-full max-w-48' : 'w-full';
 
   const validateFile = useCallback(
     (file: File): string | null => {
@@ -224,8 +225,8 @@ export default function ImageUpload({
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         className={cn(
-          'flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed p-6 transition-colors',
-          previewSize,
+          'flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed p-4 sm:p-6 transition-colors',
+          dropZoneSize,
           dragOver
             ? 'border-blue-500 bg-blue-50/50'
             : 'border-slate-300 bg-slate-50 hover:border-slate-400',

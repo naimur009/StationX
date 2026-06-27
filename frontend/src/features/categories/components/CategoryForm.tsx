@@ -17,8 +17,18 @@ interface CategoryFormProps {
 
 export default function CategoryForm({ open, category, onClose }: CategoryFormProps) {
   const [error, setError] = useState<string | null>(null);
+  const [isCompact, setIsCompact] = useState(false);
   const createCategory = useCreateCategory();
   const updateCategory = useUpdateCategory();
+
+  useEffect(() => {
+    function check() {
+      setIsCompact(window.innerWidth < 768);
+    }
+    check();
+    window.addEventListener('resize', check);
+    return () => window.removeEventListener('resize', check);
+  }, []);
 
   const isEdit = !!category;
   const schema = isEdit ? updateCategorySchema : createCategorySchema;
@@ -80,22 +90,23 @@ export default function CategoryForm({ open, category, onClose }: CategoryFormPr
       open={open}
       onClose={handleClose}
       title={isEdit ? 'Edit Category' : 'Create Category'}
-      size="sm"
+      size={isCompact ? 'full' : 'sm'}
       footer={
-        <>
-          <Button type="button" variant="ghost" size="md" onClick={handleClose}>
+        <div className="flex w-full flex-col-reverse sm:flex-row sm:justify-end gap-3">
+          <Button type="button" variant="ghost" size="md" className="w-full sm:w-auto" onClick={handleClose}>
             Cancel
           </Button>
           <Button
             type="button"
             variant="primary"
             size="md"
+            className="w-full sm:w-auto"
             disabled={isPending}
             onClick={handleFormSubmit}
           >
             {isPending ? 'Saving\u2026' : isEdit ? 'Save Changes' : 'Create'}
           </Button>
-        </>
+        </div>
       }
     >
       {error && (
