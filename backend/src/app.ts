@@ -23,6 +23,7 @@ import attendanceRoutes from './modules/attendance/attendance.routes';
 import ordersRoutes from './modules/orders/orders.routes';
 import reportsRoutes from './modules/reports/reports.routes';
 import activityLogRoutes from './modules/activity-log/activity-log.routes';
+import dashboardRoutes from './modules/dashboard/dashboard.routes';
 
 const app = express();
 
@@ -169,6 +170,7 @@ app.use('/api/v1/orders', (req, res, next) => {
 app.use('/api/v1', ordersRoutes);
 app.use('/api/v1', reportsRoutes);
 app.use('/api/v1', activityLogRoutes);
+app.use('/api/v1', dashboardRoutes);
 
 app.use(errorHandler);
 

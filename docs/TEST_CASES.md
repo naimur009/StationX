@@ -157,7 +157,7 @@ These apply to **every** module below; listed once here and referenced by ID rat
 | DASH-H-02 | Happy | `range=week`/`month` | Correctly scoped aggregation |
 | DASH-E-01 | Edge | No orders in selected range | `200` with all metrics `0`, not an error |
 | DASH-E-02 | Edge | All orders in range are `cancelled` | Metrics `0` — cancelled orders excluded (`DATABASE.md` §5.4) |
-| DASH-E-03 | Edge | Mix of `pending`/`completed`/`cancelled` orders | Only `completed` (and per business rule, confirm whether `pending` counts toward `totalEarned` — flag: PRD says "total orders **completed**", so `pending` should be excluded too, not just `cancelled`) |
+| DASH-E-03 | Edge | Mix of `pending`/`completed`/`cancelled` orders | Only `completed` orders count. `pending` and `cancelled` are excluded. Dashboard pipeline filters `status: 'completed'` strictly — see `tasks/implementation_plan.md` Decision 1. |
 | DASH-AUTH-01 | Security | User has `dashboard` permission with only `view` action | Succeeds — module only supports `view` per `API.md` §24 |
 | DASH-CACHE-01 | Edge | Repeated requests within 15s | `Cache-Control: private, max-age=15` header present; verify client respects it pre-Redis |
 

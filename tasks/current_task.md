@@ -1,255 +1,269 @@
-# Current Task — Activity Log
+# Current Task — Dashboard (Overview)
 
-**PRD Feature 19** | `API.md` §21 | `ARCHITECTURE.md` §2 (activityLogger middleware), §4 (middleware pipeline)
-**Depends on:** ActivityLog model (already exists at `backend/src/models/ActivityLog.ts`), `activityLogger` middleware (already exists and globally attached — already writing logs for all mutating routes), auth/permission infrastructure.
-**Permission module key:** `activity-log` — actions `['view']`. Read-only by design — no create/edit/delete route ever registered.
-**Sidebar link:** Already exists at `/activity-log` with `module: 'activity-log'` and `History` icon (confirmed in `frontend/src/components/shared/Sidebar.tsx:51`).
+**PRD Feature 3** | `API.md` §7 | `DATABASE.md` §5.4 | `ARCHITECTURE.md` §7
+**Depends on:** Orders (needs real completed orders to aggregate against)
+**Permission module key:** `dashboard` — actions `['view']`. Read-only aggregation; no create/edit/delete routes.
+**Sidebar link:** Already exists at `/overview` with `module: 'dashboard'` and `LayoutDashboard` icon (`frontend/src/components/shared/Sidebar.tsx:37`).
 
 ---
 
 ## Concept
 
-The Activity Log module provides a read-only, reverse-chronological feed of system actions. Every mutating API call (POST/PUT/PATCH/DELETE) is already captured by the global `activityLogger` middleware (`backend/src/middleware/activityLogger.ts`) which writes to the `ActivityLog` collection. This task builds the **read-only API endpoint and UI** to view those logs.
+The Dashboard Overview provides a snapshot of restaurant performance in a selected time range. Three key metrics (total earned, total products sold, total orders completed) plus a top-10 best-selling items list. All data is aggregated from the `Order` collection, excluding cancelled orders.
 
-No new writes to the collection — the `activityLogger` middleware handles all writes. The API route only allows `GET`.
-
-### What gets logged
-
-Every non-GET request that:
-1. Returns a 2xx status code
-2. Has an authenticated user (`req.user`)
-3. Is not opted out via `req.skipActivityLog`
-
-generates an `ActivityLog` entry with:
-- `actor` — the authenticated user's ObjectId
-- `module` — extracted from the URL path's first segment (e.g. `/api/v1/orders` → `'orders'`)
-- `action` — either a state-transition action (via regex rules in `activityLogger.ts`) or `<module>.<method_action>` (e.g. `orders.created`, `products.updated`, `user.deactivated`)
-- `targetId` / `targetType` — the affected document
-- `description` — human-readable, generated server-side
-- `metadata` — optional structured context (e.g. `{ before, after }` for status changes)
+Date range filtering uses the shared `range=today|week|month|custom` pattern (same as Reports). Range defaults to `today`.
 
 ---
 
 ## Data Model
 
-Already exists at `backend/src/models/ActivityLog.ts`. No changes needed.
+No new models needed. Dashboard is a pure aggregation layer over the existing `Order` model (`DATABASE.md` §3.8).
 
-| Field | Type | Notes |
-|---|---|---|
-| `actor` | ObjectId → User | Required, indexed |
-| `module` | String | Required, indexed. Matches the 18 PRD modules. |
-| `action` | String | Required. Dot-notation taxonomy, e.g. `order.completed`, `user.created` |
-| `targetId` | Mixed (ObjectId \| string) | Optional. ID of the affected document. |
-| `targetType` | String | Optional. Collection name, e.g. `'Order'`, `'User'`. |
-| `description` | String | Required. Human-readable, always generated server-side. |
-| `metadata` | Mixed | Optional. Structured diff/context. |
-| `createdAt` | Date | Auto-generated. Immutable — no `updatedAt`. |
+### Cancelled-order exclusion
 
-**Indexes:** `{ actor: 1, createdAt: -1 }`, `{ module: 1, createdAt: -1 }`, `{ createdAt: -1 }`
+Both endpoints filter `status: { $ne: 'cancelled' }` using the shared helper at `backend/src/lib/aggregation.ts`:
+
+```ts
+export function buildCancelledExcludedMatch() {
+  return { status: { $ne: 'cancelled' } };
+}
+```
+
+This helper is reused by Reports (§19) and Income (§8). Already exists — no changes needed.
 
 ---
 
 ## API Changes
 
-### Update `API.md` §21 — Activity Log
+### Update `API.md` §7 — Dashboard
 
-Base path: `/activity-log`. **Permission module key:** `activity-log` — actions `['view']` only.
+Base path: `/dashboard`. Permission module key: `dashboard` — actions `['view']` only.
 
-| Method | Path | Action | Description |
-|---|---|---|---|
-| GET | `/activity-log?actor=&module=&action=&from=&to=&page=&limit=` | `view` | Reverse-chronological feed with pagination & filters |
+| Method | Path | Description |
+|---|---|---|
+| GET | `/dashboard/metrics?range=` | `{ totalEarned, totalProductsSold, totalOrdersCompleted }` for the selected range |
+| GET | `/dashboard/top-items?range=&limit=10` | Top-selling items, same range filter, aggregated from `Order.items` |
 
-#### Query Parameters
+#### Query Parameters (both endpoints)
 
 | Param | Type | Default | Description |
 |---|---|---|---|
-| `page` | integer | 1 | Page number (1-based) |
-| `limit` | integer | 20 | Items per page (max 100) |
-| `actor` | string (ObjectId) | — | Filter by actor User ID |
-| `module` | string | — | Filter by module name (e.g. `orders`, `users`) |
-| `action` | string | — | Filter by action (e.g. `user.created`, `order.status_changed`). Supports prefix match — `user.` matches all user actions. |
-| `search` | string | — | Full-text match against `description` (case-insensitive) |
-| `from` | string (ISO date) | — | Start date (inclusive) for `createdAt` range |
-| `to` | string (ISO date) | — | End date (inclusive) for `createdAt` range |
+| `range` | enum | `today` | `today` \| `week` \| `month` \| `custom` |
+| `from` | string (ISO date) | — | Required only when `range=custom` |
+| `to` | string (ISO date) | — | Required only when `range=custom` |
+| `limit` | integer | 10 | Max items returned (top-items only, max 50) |
 
-Note: Date filtering uses `from`/`to` directly (not `range=week|month|custom`). Activity log is time-travel debugging — users almost always know the rough time window they care about. A simple date-picker pair suffices; the `DateRangeFilter` component is NOT reused here.
-
-#### Response
+#### Response — `GET /dashboard/metrics`
 
 ```json
 // 200 OK
 {
-  "data": [
-    {
-      "id": "667abc...",
-      "actor": {
-        "id": "667def...",
-        "name": "Alice",
-        "role": "admin"
-      },
-      "module": "users",
-      "action": "user.created",
-      "targetId": "667ghi...",
-      "targetType": "User",
-      "description": "Created admin account \"bob@example.com\"",
-      "metadata": null,
-      "createdAt": "2026-06-27T10:30:00.000Z"
+  "data": {
+    "range": { "from": "2026-06-27", "to": "2026-06-27" },
+    "metrics": {
+      "totalEarned": 28400,
+      "totalProductsSold": 142,
+      "totalOrdersCompleted": 38
     }
-  ],
-  "meta": {
-    "total": 142,
-    "page": 1,
-    "limit": 20,
-    "totalPages": 8
   }
 }
 ```
 
-The `actor` field is populated via a `.populate('actor', 'name role')` query — always included. Per `ARCHITECTURE.md` §4.5, the server populates foreign-key references for list endpoints.
+#### Response — `GET /dashboard/top-items`
+
+```json
+// 200 OK
+{
+  "data": {
+    "range": { "from": "2026-06-27", "to": "2026-06-27" },
+    "topItems": [
+      { "productId": "667abc...", "name": "Chicken Fry", "unitsSold": 28, "revenue": 5600 },
+      { "productId": "667def...", "name": "Tea", "unitsSold": 45, "revenue": 1350 }
+    ]
+  }
+}
+```
+
+`topItems` is always sorted descending by `revenue`.
+
+#### Cache Behavior
+
+Response carries `Cache-Control: private, max-age=15` to prevent redundant aggregation loads in the absence of Redis (`ARCHITECTURE.md` §2/§10).
 
 #### Error Codes
 
 | HTTP | `code` | When |
 |---|---|---|
-| 400 | `VALIDATION_ERROR` | Invalid query params |
-
-No `404` — an empty result returns `{ data: [], meta: { total: 0, page: 1, limit: 20, totalPages: 0 } }`.
+| 400 | `VALIDATION_ERROR` | Invalid `range` value, or missing `from`/`to` when `range=custom` |
 
 ---
 
 ## Backend Implementation
 
-### Module Structure — `backend/src/modules/activity-log/`
+### Module Structure — `backend/src/modules/dashboard/`
 
 ```
-backend/src/modules/activity-log/
-├── activity-log.validation.ts
-├── activity-log.service.ts
-├── activity-log.controller.ts
-└── activity-log.routes.ts
+backend/src/modules/dashboard/
+├── dashboard.validation.ts
+├── dashboard.service.ts
+├── dashboard.controller.ts
+└── dashboard.routes.ts
 ```
 
-### Validation — `activity-log.validation.ts`
-
-Standard list-query schema following the pattern from `users.validation.ts`:
+### Validation — `dashboard.validation.ts`
 
 ```ts
-export const listActivityLogSchema = z.object({
-  page: z.coerce.number().int().positive().default(1),
-  limit: z.coerce.number().int().positive().max(100).default(20),
-  actor: z.string().optional(),
-  module: z.string().optional(),
-  action: z.string().optional(),
-  search: z.string().optional(),
+import { z } from 'zod';
+
+const rangeEnum = z.enum(['today', 'week', 'month', 'custom']);
+
+export const dashboardMetricsQuerySchema = z.object({
+  range: rangeEnum.default('today'),
   from: z.string().optional(),
   to: z.string().optional(),
-}).strict();
+}).strict().refine(
+  (data) => {
+    if (data.range === 'custom') return !!data.from && !!data.to;
+    return true;
+  },
+  { message: 'range=custom requires both from and to parameters' }
+);
+
+export const dashboardTopItemsQuerySchema = z.object({
+  range: rangeEnum.default('today'),
+  from: z.string().optional(),
+  to: z.string().optional(),
+  limit: z.coerce.number().int().positive().max(50).default(10),
+}).strict().refine(
+  (data) => {
+    if (data.range === 'custom') return !!data.from && !!data.to;
+    return true;
+  },
+  { message: 'range=custom requires both from and to parameters' }
+);
+
+export type DashboardMetricsQueryDto = z.infer<typeof dashboardMetricsQuerySchema>;
+export type DashboardTopItemsQueryDto = z.infer<typeof dashboardTopItemsQuerySchema>;
 ```
 
-**No `range` enum, no `range=custom` refinement** — activity log uses bare `from`/`to` strings (independent date pickers). This is different from Reports/Dashboard.
+### Service — `dashboard.service.ts`
 
-Parse `from`/`to` as ISO date strings. The service will convert them to `Date` objects for the MongoDB query. If `from` is provided without `to` (or vice versa), the filter still works — `{ $gte: from }` or `{ $lte: to }` alone is valid.
+Uses the same `normalizeDateRange` helper as Reports. Since dashboard and reports share the same logic, extract `normalizeDateRange` into a shared lib (`backend/src/lib/date-range.ts`) so it can be reused across both modules without duplication.
 
-### Service — `activity-log.service.ts`
+#### `getMetrics(query: DashboardMetricsQueryDto)`
 
-**`listActivityLogs(query: ListActivityLogDto)`**
-
-1. Build a MongoDB filter object dynamically:
-   - `actor`: exact match (if provided)
-   - `module`: exact match (if provided)
-   - `action`: if provided, allow prefix match using regex `/^<action>/` — so `action=user.` matches `user.created`, `user.updated`, `user.deactivated`, etc.
-   - `description`: case-insensitive regex match for `search` (if provided, `$regex` with `$options: 'i'`)
-   - `createdAt`: if `from` provided, add `$gte`; if `to` provided, add `$lte` (inclusive, set `to` to end of day)
+1. Normalize the date range from `range`/`from`/`to`
+2. Run aggregation pipeline on `Order` collection:
 
 ```ts
-// Pseudocode
-const filter: Record<string, unknown> = {};
-if (query.actor) filter.actor = query.actor;
-if (query.module) filter.module = query.module;
-if (query.action) filter.action = { $regex: `^${escapeRegex(query.action)}` };
-if (query.search) filter.description = { $regex: query.search, $options: 'i' };
-if (query.from || query.to) {
-  filter.createdAt = {};
-  if (query.from) filter.createdAt.$gte = new Date(query.from);
-  if (query.to) filter.createdAt.$lte = new Date(query.to + 'T23:59:59.999Z');
-}
+const pipeline: PipelineStage[] = [
+  { $match: { ...buildCancelledExcludedMatch(), createdAt: { $gte: from, $lte: to } } },
+  {
+    $group: {
+      _id: null,
+      totalEarned: { $sum: '$grandTotal' },
+      totalProductsSold: { $sum: { $sum: '$items.quantity' } },
+      totalOrdersCompleted: { $sum: 1 },
+    },
+  },
+];
 ```
 
-2. Query: `ActivityLog.find(filter).populate('actor', 'name role').sort({ createdAt: -1 }).skip(skip).limit(limit)`
-3. Count: `ActivityLog.countDocuments(filter)`
-4. Return `{ data: mappedLogs, meta: { total, page, limit, totalPages: Math.ceil(total / limit) } }`
+3. Execute with `Order.aggregate(pipeline)`
+4. Return the metrics object (or zeroes if no results)
 
-**Response mapping:** Map Mongoose documents to the response shape — convert `actor` from populated object `{ _id, name, role }` to `{ id, name, role }`, rename `_id` to `id`, include all other fields.
+#### `getTopItems(query: DashboardTopItemsQueryDto)`
 
-Use the standard list pattern from `users.service.ts`:
+1. Normalize date range
+2. Run aggregation pipeline:
 
 ```ts
-const skip = (query.page - 1) * query.limit;
-const [logs, total] = await Promise.all([
-  ActivityLog.find(filter)
-    .populate('actor', 'name role')
-    .sort({ createdAt: -1 })
-    .skip(skip)
-    .limit(query.limit)
-    .lean(),
-  ActivityLog.countDocuments(filter),
-]);
-
-return {
-  data: logs.map((log) => ({
-    id: log._id,
-    actor: log.actor
-      ? { id: (log.actor as any)._id, name: (log.actor as any).name, role: (log.actor as any).role }
-      : null,
-    module: log.module,
-    action: log.action,
-    targetId: log.targetId ?? null,
-    targetType: log.targetType ?? null,
-    description: log.description,
-    metadata: log.metadata ?? null,
-    createdAt: log.createdAt,
-  })),
-  meta: { total, page: query.page, limit: query.limit, totalPages: Math.ceil(total / query.limit) },
-};
+const pipeline: PipelineStage[] = [
+  { $match: { ...buildCancelledExcludedMatch(), createdAt: { $gte: from, $lte: to } } },
+  { $unwind: '$items' },
+  {
+    $group: {
+      _id: { productId: '$items.productId', name: '$items.nameSnapshot' },
+      unitsSold: { $sum: '$items.quantity' },
+      revenue: { $sum: '$items.lineTotal' },
+    },
+  },
+  { $sort: { revenue: -1 } },
+  { $limit: query.limit },
+  {
+    $project: {
+      _id: 0,
+      productId: '$_id.productId',
+      name: '$_id.name',
+      unitsSold: 1,
+      revenue: { $round: ['$revenue', 2] },
+    },
+  },
+];
 ```
 
-### Controller — `activity-log.controller.ts`
+3. Return `topItems` array
 
-Single handler: `handleListActivityLogs(req, res, next)`.
+### Controller — `dashboard.controller.ts`
 
-Pattern from `users.controller.ts`:
+Two handlers following the pattern from `reports.controller.ts`:
 
 ```ts
-export async function handleListActivityLogs(
+export async function handleGetMetrics(
   req: AuthenticatedRequest,
   res: Response,
   next: NextFunction
 ): Promise<void> {
   try {
-    const query = req.query as unknown as ListActivityLogDto;
-    const result = await activityLogService.listActivityLogs(query);
-    res.status(200).json(result);
+    const query = req.query as unknown as DashboardMetricsQueryDto;
+    const result = await dashboardService.getMetrics(query);
+    res.set('Cache-Control', 'private, max-age=15');
+    res.status(200).json({ data: result });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function handleGetTopItems(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const query = req.query as unknown as DashboardTopItemsQueryDto;
+    const result = await dashboardService.getTopItems(query);
+    res.set('Cache-Control', 'private, max-age=15');
+    res.status(200).json({ data: result });
   } catch (error) {
     next(error);
   }
 }
 ```
 
-### Routes — `activity-log.routes.ts`
+### Routes — `dashboard.routes.ts`
 
 ```
-GET /activity-log -> authenticate, authorize('activity-log', 'view'), validate(listActivityLogSchema, 'query'), handleListActivityLogs
+GET /dashboard/metrics  -> authenticate, authorize('dashboard', 'view'), validate(dashboardMetricsQuerySchema, 'query'), handleGetMetrics
+GET /dashboard/top-items -> authenticate, authorize('dashboard', 'view'), validate(dashboardTopItemsQuerySchema, 'query'), handleGetTopItems
 ```
 
 ```ts
 const router = Router();
 
 router.get(
-  '/activity-log',
+  '/dashboard/metrics',
   authenticate,
-  authorize('activity-log', 'view'),
-  validate(listActivityLogSchema, 'query'),
-  handleListActivityLogs
+  authorize('dashboard', 'view'),
+  validate(dashboardMetricsQuerySchema, 'query'),
+  handleGetMetrics
+);
+
+router.get(
+  '/dashboard/top-items',
+  authenticate,
+  authorize('dashboard', 'view'),
+  validate(dashboardTopItemsQuerySchema, 'query'),
+  handleGetTopItems
 );
 
 export default router;
@@ -257,250 +271,271 @@ export default router;
 
 ### Register in `backend/src/app.ts`
 
-1. Add import alongside the other module imports (around line 24):
+1. Add import alongside the other module imports (after line 25):
    ```ts
-   import activityLogRoutes from './modules/activity-log/activity-log.routes';
+   import dashboardRoutes from './modules/dashboard/dashboard.routes';
    ```
 
-2. Add mount after the last route (after line 169 `app.use('/api/v1', reportsRoutes)`):
+2. Add mount after the last route (after line 171 `app.use('/api/v1', activityLogRoutes)`):
    ```ts
-   app.use('/api/v1', activityLogRoutes);
+   app.use('/api/v1', dashboardRoutes);
    ```
 
-### No changes to:
-- `activityLogger` middleware — already globally attached to all mutating routes
-- `ActivityLog` model — already exists
-- Constants — `'activity-log': ['view']` already defined in both `backend/src/shared/constants.ts` and `frontend/src/lib/constants.ts`
-- Error codes in `API.md` §23 — no new error codes needed
-- Permission table in `API.md` §24 — already lists `activity-log: view`
+### Extract shared `normalizeDateRange` to `backend/src/lib/date-range.ts`
+
+Move the `normalizeDateRange` function from `reports.service.ts` into a shared lib so dashboard and reports both import it:
+
+```ts
+export interface DateRange {
+  from: Date;
+  to: Date;
+}
+
+export function normalizeDateRange(range: string, from?: string, to?: string): DateRange {
+  const now = new Date();
+  switch (range) {
+    case 'today': {
+      const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const end = new Date(start);
+      end.setDate(end.getDate() + 1);
+      return { from: start, to: end };
+    }
+    case 'week': {
+      const dayOfWeek = now.getDay();
+      const start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - dayOfWeek);
+      const end = new Date(start);
+      end.setDate(end.getDate() + 7);
+      return { from: start, to: end };
+    }
+    case 'month': {
+      const start = new Date(now.getFullYear(), now.getMonth(), 1);
+      const end = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+      return { from: start, to: end };
+    }
+    case 'custom': {
+      if (!from || !to) {
+        throw createError(400, 'VALIDATION_ERROR', 'from and to are required for custom range');
+      }
+      const start = new Date(from);
+      const end = new Date(to);
+      end.setDate(end.getDate() + 1);
+      return { from: start, to: end };
+    }
+    default:
+      throw createError(400, 'VALIDATION_ERROR', `Invalid range: ${range}`);
+  }
+}
+```
+
+Update `reports.service.ts` to import from the shared lib instead of defining it inline.
+
+### Socket Events
+
+The backend already emits `dashboard:metricsInvalidate` from revenue-affecting routes (POS creates order, expense creates/updates/deletes). No changes needed on the emit side.
 
 ---
 
 ## Frontend Implementation
 
-### Module Structure — `frontend/src/features/activity-log/`
+### Module Structure — `frontend/src/features/dashboard/`
 
 ```
-frontend/src/features/activity-log/
-├── schema.ts
+frontend/src/features/dashboard/
 ├── api.ts
 └── components/
-    ├── ActivityLogFilters.tsx
-    └── ActivityLogFeed.tsx
-```
-
-### Schema — `schema.ts`
-
-```ts
-export const activityLogFiltersSchema = z.object({
-  page: z.coerce.number().int().positive().default(1),
-  limit: z.coerce.number().int().positive().max(100).default(20),
-  actor: z.string().optional(),
-  module: z.string().optional(),
-  action: z.string().optional(),
-  search: z.string().optional(),
-  from: z.string().optional(),
-  to: z.string().optional(),
-});
-
-export type ActivityLogFilters = z.infer<typeof activityLogFiltersSchema>;
-export type ActivityLogEntry = { /* matches API response shape */ };
-export type ActivityLogListMeta = { total: number; page: number; limit: number; totalPages: number };
-export type ActivityLogListResponse = { data: ActivityLogEntry[]; meta: ActivityLogListMeta };
+    ├── DashboardMetrics.tsx
+    ├── TopItemsList.tsx
+    └── QuickAccess.tsx
 ```
 
 ### API — `api.ts`
 
 ```ts
-export function useActivityLogs(filters: ActivityLogFilters) {
-  const params = new URLSearchParams();
-  params.set('page', String(filters.page));
-  params.set('limit', String(filters.limit));
-  if (filters.actor) params.set('actor', filters.actor);
-  if (filters.module) params.set('module', filters.module);
-  if (filters.action) params.set('action', filters.action);
-  if (filters.search) params.set('search', filters.search);
-  if (filters.from) params.set('from', filters.from);
-  if (filters.to) params.set('to', filters.to);
-  const qs = params.toString();
+export function useDashboardMetrics(filter: { range: string; from?: string; to?: string }) {
+  const params = new URLSearchParams({ range: filter.range });
+  if (filter.from) params.set('from', filter.from);
+  if (filter.to) params.set('to', filter.to);
 
   return useQuery({
-    queryKey: ['activity-log', qs],
-    queryFn: () => apiClient<ActivityLogListResponse>(`/activity-log?${qs}`),
+    queryKey: ['dashboard', 'metrics', params.toString()],
+    queryFn: () => apiClient<DashboardMetricsResponse>(`/dashboard/metrics?${params.toString()}`),
+  });
+}
+
+export function useDashboardTopItems(filter: { range: string; from?: string; to?: string }, limit = 10) {
+  const params = new URLSearchParams({ range: filter.range, limit: String(limit) });
+  if (filter.from) params.set('from', filter.from);
+  if (filter.to) params.set('to', filter.to);
+
+  return useQuery({
+    queryKey: ['dashboard', 'top-items', params.toString()],
+    queryFn: () => apiClient<DashboardTopItemsResponse>(`/dashboard/top-items?${params.toString()}`),
   });
 }
 ```
 
-**Filter options hook** (for dropdown population):
-
-```ts
-export function useActivityLogFilterOptions() {
-  // Returns unique modules and actions for filter dropdowns
-  // Use a dedicated lightweight aggregation or cache approach
-  // Option A: Fetch a pre-computed list from a dedicated endpoint (preferred but out of scope for this task)
-  // Option B: Extract from the current page's data (simpler, works for MVP)
-  //
-  // For v1: Hardcode the module options from the known modules constant
-  // and populate action options from the current data's unique actions.
-  // A future enhancement can add a dedicated `GET /activity-log/options` endpoint.
-}
-```
-
-**Decision for v1:** The module filter dropdown uses the static list from `MODULE_ACTIONS` keys (imported from `@/lib/constants`). The action filter is a free-text input (since action values are dynamic and numerous). This avoids building a dedicated options endpoint for v1. The actor filter is also a free-text input (enter a User ID) — or use a user search, which is out of scope for this task.
+**Query key pattern:** `['dashboard', <sub-resource>, <params>]`. This allows `dashboard:metricsInvalidate` socket events to call `queryClient.invalidateQueries({ queryKey: ['dashboard'] })` which invalidates both metrics and top-items simultaneously.
 
 ### Components
 
-#### `ActivityLogFilters.tsx`
+#### `DashboardMetrics.tsx`
 
-A filter bar above the activity log feed with:
+Renders three `MetricCard` components in a responsive grid:
 
-| Filter | UI Element | Source |
+```tsx
+<div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+  <MetricCard title="Total Earned" value={formatCurrency(metrics.totalEarned)} icon={DollarSign} color="green" />
+  <MetricCard title="Products Sold" value={metrics.totalProductsSold} icon={ShoppingBag} color="blue" />
+  <MetricCard title="Orders Completed" value={metrics.totalOrdersCompleted} icon={ShoppingCart} color="indigo" />
+</div>
+```
+
+- Uses the existing `MetricCard` from `@/components/shared/MetricCard`
+- `formatCurrency` is a small inline helper (or imported from a shared utils if one exists)
+- Loading state: 3 skeleton cards (`animate-pulse` with rounded-2xl bg-slate-100 blocks matching card height)
+- Error state: a single error banner "Failed to load metrics" with retry button
+
+#### `TopItemsList.tsx`
+
+A ranked list (not a DataTable) displaying the top-10 items:
+
+```
+┌────────────────────────────────────────────────────┐
+│  #1  Chicken Fry          28 sold      ৳5,600     │
+│  #2  Tea                  45 sold      ৳1,350     │
+│  #3  Biriyani             12 sold      ৳2,400     │
+└────────────────────────────────────────────────────┘
+```
+
+- Numbered list (1-based rank)
+- Item name, units sold, revenue
+- Loading state: 5 skeleton rows (`animate-pulse` block rows)
+- Empty state: "No items sold in this period."
+- Error state: "Failed to load top items." with retry button
+
+#### `QuickAccess.tsx`
+
+A grid of quick-access shortcut cards linking to other modules. Each card shows the module icon and label. Minimum set:
+
+| Shortcut | Icon | Route |
 |---|---|---|
-| `search` | Text input with search icon (debounced 300ms) | User types |
-| `module` | Dropdown select (all modules + "All") | `MODULE_ACTIONS` keys from `@/lib/constants` |
-| `action` | Text input (label: "Action prefix") | User types e.g. `order.` |
-| `from` / `to` | Two date inputs (native `<input type="date">`) | User picks dates |
+| New POS Order | `ShoppingCart` | `/pos` |
+| Orders | `ClipboardList` | `/orders` |
+| Products | `Package` | `/products` |
+| Customers | `Users` | `/customers` |
 
-Layout: Wrap in a responsive flex grid. On mobile, stack vertically. On desktop, horizontal row.
+Layout: 2×2 grid on desktop, 2 columns on mobile (each card is a clickable rounded-xl card with icon + label).
 
-**State management:** Local `useState` for each filter value. On change (with debounce for search), call `setFilters(...)` to update the query. The `page` resets to `1` whenever any filter changes.
-
-**Debounce:** `search` uses 300ms debounce. All other filters apply immediately on change.
-
-#### `ActivityLogFeed.tsx`
-
-A timeline/feed view of activity log entries, NOT a DataTable — activity logs are inherently temporal and read better as a chronological list.
-
-Each entry renders:
-
-```
-[Timestamp] [Action Badge] [Description]
-            [Actor name] → [targetType]: [targetId]
-```
-
-Visual structure per entry (use `theme.md` tokens only — no hardcoded colors):
-
-```
-┌─────────────────────────────────────────────────────────┐
-│  [Avatar]  [Actor Name]                         2m ago │
-│            [Module Badge] · [Action Badge]              │
-│            [Description]                                │
-│            [Target: Order #123]                         │
-└─────────────────────────────────────────────────────────┘
-```
-
-- **Left:** Actor avatar (first letter of name in a circle, background using `--primary` color, text using `--primary-foreground`). Fallback: show actor name only if no populated data.
-- **Timestamp:** Relative time (using a small utility or hardcoded "X ago" — `date-fns/formatDistanceToNow` if available, else calculate manually). Full ISO date on hover/title.
-- **Module + Action badges:** Two inline badges:
-  - Module badge: `bg-[hsl(var(--secondary))] text-[hsl(var(--secondary-foreground))]`
-  - Action badge: `bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]`
-- **Description:** The main text, `text-sm font-medium text-[hsl(var(--foreground))]`
-- **Target link:** If `targetId` and `targetType` are present, show a clickable link (e.g. `Order #667abc...`) that navigates to the relevant detail page (`/orders/{targetId}`). If `targetType` is not a known module with a detail page, show plain text.
-
-**Loading state:** 5 skeleton cards (`animate-pulse` with rounded-xl bg-slate-200 blocks).
-**Empty state:** "No activity recorded for this filter." with icon.
-**Error state:** "Failed to load activity log." with retry button.
-
-**Pagination:** Use the same pattern as `UserList` — manual page buttons at the bottom. No infinite scroll for v1 (simpler to implement and matches existing patterns).
-
-#### `ActivityLogAvatar.tsx` (helper, inside components/)
-
-A small inline avatar component:
+### Page — Update `frontend/src/app/(dashboard)/overview/page.tsx`
 
 ```tsx
-function ActivityLogAvatar({ name }: { name: string | null }) {
-  if (!name) return <div className="h-8 w-8 rounded-full bg-slate-200" />;
-  const initial = name.charAt(0).toUpperCase();
-  return (
-    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[hsl(var(--primary))] text-xs font-semibold text-[hsl(var(--primary-foreground))]">
-      {initial}
-    </div>
-  );
-}
-```
+'use client';
 
-### Page — `frontend/src/app/(dashboard)/activity-log/page.tsx`
+import { useState, useEffect } from 'react';
+import PermissionGate from '@/components/shared/PermissionGate';
+import DateRangeFilter from '@/components/shared/DateRangeFilter';
+import { useDateRangeFilter } from '@/hooks/useDateRangeFilter';
+import { useDashboardMetrics, useDashboardTopItems } from '@/features/dashboard/api';
+import DashboardMetrics from '@/features/dashboard/components/DashboardMetrics';
+import TopItemsList from '@/features/dashboard/components/TopItemsList';
+import QuickAccess from '@/features/dashboard/components/QuickAccess';
 
-```tsx
-export default function ActivityLogPage() {
+export default function OverviewPage() {
+  const { filter, setRange, setCustomRange, queryString } = useDateRangeFilter('today');
+  const metricsQuery = useDashboardMetrics(filter);
+  const topItemsQuery = useDashboardTopItems(filter);
+
   return (
-    <PermissionGate module="activity-log" action="view">
+    <PermissionGate module="dashboard" action="view">
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <h1 className="text-xl font-bold text-slate-800 xs:text-2xl">Activity Log</h1>
+        <div className="flex flex-col gap-4 xs:flex-row xs:items-center xs:justify-between">
+          <h1 className="text-xl font-bold text-slate-800 xs:text-2xl">Dashboard</h1>
+          <DateRangeFilter
+            value={filter.range}
+            onChange={setRange}
+            onCustomRange={setCustomRange}
+          />
         </div>
-        <ActivityLogFilters onFiltersChange={...} />
-        <ActivityLogFeed filters={...} />
+
+        <DashboardMetrics
+          data={metricsQuery.data}
+          isLoading={metricsQuery.isLoading}
+          isError={metricsQuery.isError}
+          onRetry={metricsQuery.refetch}
+        />
+
+        <TopItemsList
+          data={topItemsQuery.data}
+          isLoading={topItemsQuery.isLoading}
+          isError={topItemsQuery.isError}
+          onRetry={topItemsQuery.refetch}
+        />
+
+        <QuickAccess />
       </div>
     </PermissionGate>
   );
 }
 ```
 
-**State management:**
+#### Socket Listener
 
-```tsx
-const [filters, setFilters] = useState<ActivityLogFilters>({
-  page: 1,
-  limit: 20,
-});
+In the page or a hook, listen for `dashboard:metricsInvalidate` and invalidate the dashboard query cache:
 
-// When filters change, reset to page 1
-function handleFilterChange(partial: Partial<ActivityLogFilters>) {
-  setFilters((prev) => ({ ...prev, ...partial, page: 1 }));
-}
-
-// Page change preserves filters
-function handlePageChange(page: number) {
-  setFilters((prev) => ({ ...prev, page }));
-}
-
-const { data, isLoading, isError, refetch } = useActivityLogs(filters);
+```ts
+useEffect(() => {
+  const socket = getSocket(); // from @/lib/socket
+  socket.on('dashboard:metricsInvalidate', () => {
+    queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+  });
+  return () => { socket.off('dashboard:metricsInvalidate'); };
+}, []);
 ```
-
-Pass `data`, `isLoading`, `isError`, `refetch` to `ActivityLogFeed`. Pass filter state + handlers to `ActivityLogFilters`.
 
 ---
 
 ## Already Done (No Changes Needed)
 
-- ✅ `ActivityLog` Mongoose model at `backend/src/models/ActivityLog.ts` — full schema with proper indexes
-- ✅ `activityLogger` middleware at `backend/src/middleware/activityLogger.ts` — globally attached, already writing logs for all mutating routes
-- ✅ Permission module key `activity-log` with `['view']` registered in both `backend/src/shared/constants.ts` and `frontend/src/lib/constants.ts`
-- ✅ Sidebar nav link `/activity-log` already exists with `module: 'activity-log'` and `History` icon (`frontend/src/components/shared/Sidebar.tsx:51`)
-- ✅ `History` icon already imported in `lucide-react` import block (`Sidebar.tsx:19`)
-- ✅ `PermissionGate` component, `Badge` component, shared layout, and all dashboard infrastructure
-- ✅ API.md §21 already defines the endpoint at a high level; this task fleshes it out with pagination and full response shape
-- ✅ API.md §24 permission table already lists `activity-log: view`
-- ✅ `getModuleLabel('activity-log')` already returns `'Activity Log'` in `frontend/src/lib/constants.ts:44`
+- ✅ `dashboard: ['view']` permission registered in both `backend/src/shared/constants.ts:10` and `frontend/src/lib/constants.ts:8`
+- ✅ `getModuleLabel('dashboard')` returns `'Dashboard'` in `frontend/src/lib/constants.ts:30`
+- ✅ Sidebar nav link at `/overview` with `module: 'dashboard'` and `LayoutDashboard` icon (`Sidebar.tsx:37`)
+- ✅ `MetricCard` shared component (`frontend/src/components/shared/MetricCard.tsx`)
+- ✅ `DateRangeFilter` shared component (`frontend/src/components/shared/DateRangeFilter.tsx`)
+- ✅ `useDateRangeFilter` hook (`frontend/src/hooks/useDateRangeFilter.ts`)
+- ✅ `buildCancelledExcludedMatch` aggregation helper (`backend/src/lib/aggregation.ts`)
+- ✅ `LayoutDashboard` icon already imported in sidebar
+- ✅ `PermissionGate` component, shared layout, and all dashboard infrastructure
+- ✅ Socket event `dashboard:metricsInvalidate` already emitted from POS (order creation) and expenses (create/update/delete) — see `TEST_CASES.md` §22
+- ✅ API.md §7 already defines the endpoints at a high level; this task fleshes them out with full schema and response shapes
+- ✅ API.md §24 permission table already lists `dashboard: view`
+- ✅ Overview placeholder page exists at `frontend/src/app/(dashboard)/overview/page.tsx`
 
 ---
 
 ## Open Items to Resolve During This Task
 
-1. **Actor filter UI:** For v1, the actor filter is a plain text input expecting a User ObjectId. A future enhancement could use a user search/select component. Accept this limitation.
-2. **Action filter UI:** The action filter is a text input for prefix matching. Users can type `user.` to see all user-related actions. Accept this as the MVP UX.
-3. **Target link resolution:** When `targetType` is `'Order'`, the link goes to `/orders/{targetId}`. For `'User'`, `/users/{targetId}`. For unknown/unmapped types, render plain text. Maintain a simple mapping in the component.
-4. **Relative timestamps:** Use a small inline helper or Intl-based formatting rather than adding a dependency. Format: "2m ago", "1h ago", "3d ago", "Jun 27" for older dates.
-5. **`search` field:** Uses regex with `$options: 'i'` on the `description` field. For large collections this won't be performant — a text index is the correct long-term solution. For v1 with moderate data volumes (<100K entries), the regex approach is acceptable. Add a comment noting this for future optimization.
+1. **`normalizeDateRange` extraction:** Move the function from `reports.service.ts` into `backend/src/lib/date-range.ts` so Dashboard and Reports reuse the same logic. Update the import in `reports.service.ts`.
+2. **`formatCurrency` utility:** Create a small shared formatter (e.g. `frontend/src/lib/format.ts`) with `formatCurrency(amount: number): string` since both Dashboard and other modules will need it.
+3. **Date range shapes:** The frontend `useDateRangeFilter` hook returns `{ range, from?, to? }` but the component's `filter` property type needs to be compatible with both the hook and the API query params. Ensure the type flows correctly.
+4. **Metrics card locale/currency:** Dashboard displays currency amounts. Decide whether to hardcode `BDT` (the likely target market) or use a configurable symbol — for v1, hardcode `৳` with a comment noting this should read from Settings in a future task.
 
 ---
 
 ## Verification
 
 - `tsc --noEmit` passes clean on both apps
-- `GET /api/v1/activity-log?page=1&limit=20` returns paginated results with populated actor
-- `GET /api/v1/activity-log?module=users` returns only user-related entries
-- `GET /api/v1/activity-log?action=user.` returns all actions starting with `user.`
-- `GET /api/v1/activity-log?search=created` returns entries whose description contains "created"
-- `GET /api/v1/activity-log?from=2026-06-01&to=2026-06-07` returns entries within date range
-- Empty results return `{ data: [], meta: { total: 0, page: 1, limit: 20, totalPages: 0 } }` (not 404)
-- Activity log page loads at `/activity-log` with sidebar active state
-- Activity log page is gated by `activity-log:view` — users without permission see the `<PermissionGate>` fallback
-- Filtering by module/search/date updates the feed correctly
-- Pagination works (prev/next buttons, page indicator, total count)
-- Timestamps display relative time ("2m ago", "3d ago")
-- Target links navigate to the correct detail pages (Orders, Users, etc.)
-- Loading state shows skeleton cards
-- Empty state shows "No activity recorded for this filter."
+- `GET /api/v1/dashboard/metrics?range=today` returns metrics with zeroes when no orders exist
+- `GET /api/v1/dashboard/metrics?range=custom&from=2026-06-01&to=2026-06-07` returns scoped metrics
+- `GET /api/v1/dashboard/metrics?range=custom` returns 400 (missing from/to)
+- `GET /api/v1/dashboard/top-items?range=month&limit=5` returns top 5 items sorted by revenue desc
+- `GET /api/v1/dashboard/top-items?range=invalid` returns 400
+- `Cache-Control: private, max-age=15` header present on both endpoints
+- Dashboard page loads at `/overview` with sidebar active state
+- Date range filter switches between Today/Week/Month/Custom and feeds the correct range to API calls
+- Metrics cards render with formatted currency
+- Top items list renders ranked rows
+- Quick-access shortcuts navigate to correct routes
+- Loading skeleton shows while data fetches
+- Empty state shows appropriate messaging when no data
 - Error state shows retry button
+- `dashboard:metricsInvalidate` socket event (from POS order creation) triggers React Query invalidation — metrics and top-items refetch automatically

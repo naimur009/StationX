@@ -15,47 +15,7 @@ import {
   type ReportType,
 } from './reports.helper';
 import type { ReportQueryDto, ExportQueryDto } from './reports.validation';
-
-interface DateRange {
-  from: Date;
-  to: Date;
-}
-
-function normalizeDateRange(range: string, from?: string, to?: string): DateRange {
-  const now = new Date();
-
-  switch (range) {
-    case 'today': {
-      const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-      const end = new Date(start);
-      end.setDate(end.getDate() + 1);
-      return { from: start, to: end };
-    }
-    case 'week': {
-      const dayOfWeek = now.getDay();
-      const start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - dayOfWeek);
-      const end = new Date(start);
-      end.setDate(end.getDate() + 7);
-      return { from: start, to: end };
-    }
-    case 'month': {
-      const start = new Date(now.getFullYear(), now.getMonth(), 1);
-      const end = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-      return { from: start, to: end };
-    }
-    case 'custom': {
-      if (!from || !to) {
-        throw createError(400, 'VALIDATION_ERROR', 'from and to are required for custom range');
-      }
-      const start = new Date(from);
-      const end = new Date(to);
-      end.setDate(end.getDate() + 1);
-      return { from: start, to: end };
-    }
-    default:
-      throw createError(400, 'VALIDATION_ERROR', `Invalid range: ${range}`);
-  }
-}
+import { normalizeDateRange } from '../../lib/date-range';
 
 function arrayToObject(
   arr: Array<{ method: string; count: number; revenue?: number; total?: number }>,
