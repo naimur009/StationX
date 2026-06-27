@@ -1,0 +1,114 @@
+'use client';
+
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { apiClient } from '@/lib/api-client';
+
+export interface VendorResponse {
+  id: string;
+  name: string;
+  contactPerson?: string;
+  phone?: string;
+  email?: string;
+  address?: string;
+  itemsSupplied: string[];
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface VendorsListResponse {
+  data: VendorResponse[];
+  meta: { total: number; page: number; limit: number };
+}
+
+interface VendorsListParams {
+  page?: number;
+  limit?: number;
+  isActive?: string;
+  search?: string;
+}
+
+export function useVendorsList(params: VendorsListParams) {
+  const searchParams = new URLSearchParams();
+  if (params.page) searchParams.set('page', String(params.page));
+  if (params.limit) searchParams.set('limit', String(params.limit));
+  if (params.isActive) searchParams.set('isActive', params.isActive);
+  if (params.search) searchParams.set('search', params.search);
+
+  const qs = searchParams.toString();
+
+  return useQuery({
+    queryKey: ['vendors', 'list', qs],
+    queryFn: () => apiClient<VendorsListResponse>(`/vendors${qs ? `?${qs}` : ''}`),
+  });
+}
+
+export function useVendor(id: string) {
+  return useQuery({
+    queryKey: ['vendors', 'detail', id],
+    queryFn: () => apiClient<{ data: VendorResponse }>(`/vendors/${id}`),
+    enabled: !!id,
+  });
+}
+
+export function useCreateVendor() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (data: {
+      name: string;
+      contactPerson?: string;
+      phone?: string;
+      email?: string;
+      address?: string;
+      itemsSupplied?: string[];
+    }) =>
+      apiClient<{ data: VendorResponse }>('/vendors', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['vendors'] });
+    },
+  });
+}
+
+export function useUpdateVendor() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (data: {
+      id: string;
+      name?: string;
+      contactPerson?: string;
+      phone?: string;
+      email?: string;
+      address?: string;
+      itemsSupplied?: string[];
+      isActive?: boolean;
+    }) => {
+      const { id, ...body } = data;
+      return apiClient<{ data: VendorResponse }>(`/vendors/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(body),
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['vendors'] });
+    },
+  });
+}
+
+export function useDeleteVendor() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: string) =>
+      apiClient<{ data: { success: boolean } }>(`/vendors/${id}`, {
+        method: 'DELETE',
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['vendors'] });
+    },
+  });
+}

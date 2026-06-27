@@ -16,6 +16,8 @@ import uploadsRoutes from './modules/uploads/uploads.routes';
 import couponsRoutes from './modules/coupons/coupons.routes';
 import customersRoutes from './modules/customers/customers.routes';
 import posRoutes from './modules/pos/pos.routes';
+import vendorsRoutes from './modules/vendors/vendors.routes';
+import expensesRoutes from './modules/expenses/expenses.routes';
 import ordersRoutes from './modules/orders/orders.routes';
 
 const app = express();
@@ -120,6 +122,22 @@ app.use('/api/v1/customers', (req, res, next) => {
   next();
 });
 app.use('/api/v1', customersRoutes);
+const vendorsMutationLimiter = makeRateLimiter(env.RATE_LIMIT_MAX);
+app.use('/api/v1/vendors', (req, res, next) => {
+  if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method)) {
+    return vendorsMutationLimiter(req, res, next);
+  }
+  next();
+});
+app.use('/api/v1', vendorsRoutes);
+const expensesMutationLimiter = makeRateLimiter(env.RATE_LIMIT_MAX);
+app.use('/api/v1/expenses', (req, res, next) => {
+  if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method)) {
+    return expensesMutationLimiter(req, res, next);
+  }
+  next();
+});
+app.use('/api/v1', expensesRoutes);
 app.use('/api/v1', posRoutes);
 const ordersMutationLimiter = makeRateLimiter(env.RATE_LIMIT_MAX);
 app.use('/api/v1/orders', (req, res, next) => {

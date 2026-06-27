@@ -1,409 +1,390 @@
-# Current Task — Orders
+# Current Task — Expenses
 
-**PRD Feature 5** | `API.md` §10 | `DATABASE.md` §3.8 | `ARCHITECTURE.md` §5, §7
-**Depends on:** POS (Task 10) — `Order` model, `Counter` helper, and the `pos:order_created` socket event all exist and are reused here
-**Permission module key:** `orders` — already registered in `backend/src/shared/constants.ts` and `frontend/src/lib/constants.ts`
-**Sidebar link:** Already exists at `/orders` with `module: 'orders'` — the route doesn't exist yet; this task creates it.
-
-> ⚠️ **Open items carried from `API.md` §25 — resolve first, build against the resolved doc, not the open question (see below).** This is the only module that needs to decide between hard-delete and soft-delete for `Order`, and whether `completed → cancelled` needs a permission stricter than `orders:edit`.
+**PRD Feature 9** | `API.md` §14 | `DATABASE.md` §3.12 | `ARCHITECTURE.md` §5, §9
+**Depends on:** Users & Permissions (Task 1), Vendors (Task 14) — `vendorId` optional ref
+**Permission module key:** `expenses` — already registered in `backend/src/shared/constants.ts` and `frontend/src/lib/constants.ts` with actions `['view', 'create', 'edit', 'delete']`
+**Sidebar link:** Already exists at `/expenses` with `module: 'expenses'` and `ArrowUpDown` icon — the route doesn't exist yet; this task creates it.
 
 ---
 
-## Open Items to Resolve During This Task
+## Backend (`backend/src/modules/expenses/` — 4 new files, 1 new model)
 
-### 1. `API.md` §25.1 — Order hard-delete vs schema strategy
+### Model — `backend/src/models/Expense.ts`
 
-`DATABASE.md` §3.8 has no `isActive`/`deletedAt` field on `Order`. The current narrow `DELETE /orders/:id` (same-day, `pending`, no coupon usage) sidesteps the problem by making successful hard deletes extremely rare. Decide:
+Create the Mongoose model matching `DATABASE.md` §3.12:
 
-- **Option A — Stay narrow (v1 conservative):** Keep the current narrow hard-delete rules. If `isActive`/`deletedAt` are ever needed, it's a schema migration added in a future task. No `Order` model changes now.
-- **Option B — Add `isActive` now:** Add `isActive` (Boolean, default `true`) to `DATABASE.md` §3.8 and the `Order` model now. `DELETE` becomes a soft-delete (`isActive: false`). This makes the delete endpoint uniform with every other module but adds a field to the highest-traffic collection that won't be used for queries by any v1 feature (all list queries need an `{ isActive: { $ne: false } }` filter forever, even though `isActive: false` orders won't exist for months).
+```ts
+import mongoose, { Schema, Document, Types } from 'mongoose';
 
-**Recommendation:** Option A — don't add `isActive` to `Order` now. The narrow-delete rules are a deliberate safety measure, not an oversight. If hard-delete of a *completed* order becomes a real requirement post-v1, the schema change and the history-preservation semantics can be designed properly with the benefit of real usage data.
+export interface IExpense extends Document {
+  amount: number;
+  date: Date;
+  description: string;
+  category: string;
+  vendorId?: Types.ObjectId;
+  paidBy: Types.ObjectId;
+  paidTo: string;
+  paymentMethod: 'cash' | 'card' | 'bkash' | 'nagad';
+  createdBy: Types.ObjectId;
+  createdAt: Date;
+  updatedAt: Date;
+}
 
-Update `API.md` §10 / `DATABASE.md` §8.1 with whichever decision is made. This task's implementation reflects Option A below; adjust if Option B is chosen.
+const expenseSchema = new Schema<IExpense>(
+  {
+    amount: { type: Number, required: true, min: 0 },
+    date: { type: Date, required: true },
+    description: { type: String, required: true, trim: true },
+    category: { type: String, required: true, trim: true },
+    vendorId: { type: Schema.Types.ObjectId, ref: 'Vendor' },
+    paidBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+    paidTo: { type: String, required: true, trim: true },
+    paymentMethod: {
+      type: String,
+      enum: ['cash', 'card', 'bkash', 'nagad'],
+      required: true,
+    },
+    createdBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+  },
+  { timestamps: true, toJSON: { versionKey: false } }
+);
 
-### 2. `API.md` §25.3 — `completed → cancelled` permission gating
+expenseSchema.index({ date: -1 });
+expenseSchema.index({ category: 1 });
+expenseSchema.index({ vendorId: 1 });
+expenseSchema.index({ paidBy: 1 });
 
-Currently gated by `orders:edit` — the same permission that allows editing `tableNumber`/`orderType`/`customerId`. Decide whether `completed → cancelled` (which has financial implications — a cancellation after payment potentially means a refund) needs its own permission action or a role gate (`admin` only).
+const Expense = mongoose.model<IExpense>('Expense', expenseSchema);
 
-**Recommendation:** Keep `orders:edit` for v1. The `cancelReason` requirement already provides an audit trail; adding a new permission action that doesn't exist in `DATABASE.md` §3.1 yet would require a schema migration and per-user retraining for a case that's rare in a restaurant context (cancelling a completed order is effectively a void/refund). If a stricter gate is wanted later, it's a non-breaking addition (`PATCH /orders/:id/status` keeps working, just gets an additional permission check). Update `DATABASE.md` and `API.md` with the decision.
+export default Expense;
+```
 
----
+- **Hard-deletable** — no `isActive` field. Falls outside the five-collection soft-delete list per `DATABASE.md` §3.12.
+- `vendorId` is optional — ad-hoc payments use only `paidTo` (free-text).
+- `createdBy` is set server-side from `req.user.id`, **not** from the request body.
+- `paymentMethod` enum is `cash | card | bkash | nagad` — same as `Order.payment.method` minus `split` (not applicable to expenses).
+- `category` is free-text string — no separate `ExpenseCategory` collection in v1 (open item per §8 of DATABASE.md).
 
-## Backend (`backend/src/modules/orders/` — 4 new files, no new model files)
+### Backend Setup — `backend/src/shared/constants.ts`
 
-**No new models.** `Order` (model + all interfaces) was already built in Task 10 (POS). `Counter` and the `getNextSequence` helper also exist. This task is purely read/edit/status-transition/bill/delete logic around the existing `Order` model.
+**Already done** — `expenses: ['view', 'create', 'edit', 'delete']` is registered.
 
-### Validation — `orders.validation.ts`
+### Validation — `expenses.validation.ts`
 
-**`listOrdersQuerySchema`** (query, for `GET /orders`):
-- `status` — optional enum `pending | completed | cancelled`
-- `from` — optional ISO date string
-- `to` — optional ISO date string
-- `createdBy` — optional string (Mongo ObjectId format)
-- `customerId` — optional string (Mongo ObjectId format)
-- `search` — optional string, max 50 (matches `orderNumber`)
-- `sort` — optional string, default `-createdAt` (only `createdAt` and `-createdAt` allowed — restrict the sort field to prevent query injection via arbitrary sort keys)
+**`createExpenseSchema`** (body, for `POST /expenses`):
+- `amount` — required number, positive (`> 0`), max precision 2 decimal places (currency)
+- `date` — required, coerceable to Date via `z.coerce.date()` (accepts ISO string)
+- `description` — required string, min 1, max 500, trimmed
+- `category` — required string, min 1, max 100, trimmed
+- `vendorId` — optional string, must be valid Mongo ObjectId if provided
+- `paidBy` — required string, must be valid Mongo ObjectId (User ref)
+- `paidTo` — required string, min 1, max 200, trimmed
+- `paymentMethod` — required enum: `'cash' | 'card' | 'bkash' | 'nagad'`
+- Use `.strict()` — no unexpected fields
+- Note: `createdBy` is NOT in the schema — it's set server-side
+
+**`updateExpenseSchema`** (body, for `PUT /expenses/:id`):
+- Same fields as create, all optional
+- Use `.strict()`
+
+**`listExpensesQuerySchema`** (query, for `GET /expenses`):
+- `range` — optional enum `'today' | 'week' | 'month' | 'custom'`
+- `from` — optional string (date ISO), required when `range === 'custom'`
+- `to` — optional string (date ISO), required when `range === 'custom'`
+- `category` — optional string, max 100, for category filter
+- `vendorId` — optional string, valid Mongo ObjectId, for vendor filter
+- `paymentMethod` — optional enum `'cash' | 'card' | 'bkash' | 'nagad'`
+- `paidBy` — optional string, valid Mongo ObjectId
 - `page` — optional, coerce to int, min 1, default 1
 - `limit` — optional, coerce to int, min 1, max 100, default 20
+- Use `.strict()`
+- Validation: when `range === 'custom'`, `from` and `to` must be present (refine)
+- Validation: when `range !== 'custom'`, `from`/`to` should be ignored (server-computed)
 
-Use `.strict()` here — no unexpected query params should pass through.
+**`objectIdParam`** (params, for all `/:id` routes):
+- `id` — string, must be valid Mongo ObjectId
 
-**`orderIdParamSchema`** (params, for all `/:id` routes):
-- `id` — string, must be a valid Mongo ObjectId
+Export types for all schemas.
 
-**`updateOrderSchema`** (body, for `PUT /orders/:id`):
-- `tableNumber` — optional string, max 20, trimmed
-- `orderType` — optional enum `dine-in | takeaway | delivery`
-- `customerId` — optional nullable string (ObjectId format)
+### Service — `expenses.service.ts`
 
-Use `.strict()` — reject any unexpected fields (e.g. `items`, `subtotal`, `grandTotal`) with `400 VALIDATION_ERROR`. Per `API.md` §10 and `TEST_CASES.md` ORD-V-01 / ORD-S-01, only `tableNumber`, `orderType`, and `customerId` are ever editable.
+Follow the same pattern as `orders.service.ts` for date-range filtering.
 
-**`updateOrderStatusSchema`** (body, for `PATCH /orders/:id/status`):
-- `status` — enum `pending | completed | cancelled`
-- `cancelReason` — optional string, max 500, trimmed. **Required** when transitioning to `cancelled` from any status (enforced via `.refine()`, not at field level — the `cancelReason` field itself is optional on the schema; the refine only requires it when `status === 'cancelled'`)
+**Date range computation (`computeDateRange` helper):**
+- `'today'` → from = start of today, to = end of today
+- `'week'` → from = start of current week (Monday), to = end of today
+- `'month'` → from = start of current month, to = end of today
+- `'custom'` → from = provided `from` at 00:00:00, to = provided `to` at 23:59:59.999
 
-Use `.strict()` — no extra fields.
+**`listExpenses(query)`**
+- Build MongoDB filter:
+  - Date range: if `range` or `from`/`to` present, build `date` filter (gte/lte using computed dates)
+  - `category` → `{ category }` exact match (free-text, case-insensitive via regex or exact — follow the Orders convention of exact match for enum-like fields)
+  - `vendorId` → `{ vendorId: ObjectId }`
+  - `paymentMethod` → `{ paymentMethod }`
+  - `paidBy` → `{ paidBy: ObjectId }`
+- Sort by `{ date: -1, createdAt: -1 }` — most recent first
+- Paginate with `.skip().limit()`, `total` from `Expense.countDocuments(filter)`
+- `.lean()` for performance
+- Populate `vendorId` with `name` only (for display), `paidBy` with `name` and `email`, `createdBy` with `name`
+- Return `{ data: expenses, meta: { total, page, limit } }`
+- Response shape per expense:
+  ```ts
+  {
+    id: string;
+    amount: number;
+    date: string;
+    description: string;
+    category: string;
+    vendorId?: { _id: string; name: string } | null;
+    paidBy: { _id: string; name: string; email: string };
+    paidTo: string;
+    paymentMethod: string;
+    createdBy: { _id: string; name: string };
+    createdAt: string;
+    updatedAt: string;
+  }
+  ```
 
-**`billQuerySchema`** (query, for `GET /orders/:id/bill`):
-- `format` — optional enum `pdf | html`, default `html`
+**`getExpenseById(id)`**
+- `Expense.findById(id).lean()` with same population as list
+- If not found → `createError(404, 'NOT_FOUND', 'Expense not found')`
+- Return `{ data: expense }`
 
-Use `.strict()`.
+**`createExpense(dto, userId)`**
+- `Vendor.findById(dto.vendorId)` → verify vendor exists (even if deactivated, allow — per EXP-E-01)
+- `User.findById(dto.paidBy)` → verify user exists (404 if not)
+- `Expense.create({ ...dto, createdBy: userId })`
+- Emit `dashboard:metricsInvalidate` via WebSocket (or at least trigger invalidation — see WebSocket section)
+- Return `{ data: expense }`
 
-**`deleteOrderParamSchema`** (params, for `DELETE /orders/:id`):
-- `id` — string, Mongo ObjectId format (reuse `orderIdParamSchema`)
-
-### Service — `orders.service.ts`
-
-Per `ARCHITECTURE.md` §4: *"Order listing, detail, status transitions, bill generation"* lives here. All functions **read only** — no order creation (that's POS). No Mongoose transactions needed — these are all single-document operations (except delete, which may delete an ActivityLog entry too but doesn't need atomicity).
-
-**`listOrders(filters)`**
-- Build a MongoDB filter object from the validated query params:
-  - `status` filter directly
-  - `from`/`to` → `createdAt: { $gte, $lte }` range
-  - `createdBy` → ObjectId filter
-  - `customerId` → ObjectId filter
-  - `search` → `orderNumber` regex (case-insensitive, anchored substring — e.g. `{ orderNumber: { $regex: search, $options: 'i' } }`). Do NOT use `$text` here — `orderNumber` is a predictable formatted string (`ORD-YYYY-XXXXXX`), not free text, and a regex on the unique-indexed field is performant for the expected order volume.
-- Sort by the validated `sort` param (default `{ createdAt: -1 }`)
-- Paginate using `.skip().limit()` with `total` count from `Order.countDocuments(filter)`
-- `.lean()` for response speed
-- Return `{ data: orders, meta: { total, page, limit } }` matching the app's standard list envelope
-- **Do NOT populate** `customerId`/`createdBy` in the list view — that's for the detail endpoint only. The list response should be lean: `_id`, `orderNumber`, `orderType`, `grandTotal`, `status`, `createdAt`, `createdBy` (id only), and `customerId` (id only). `items` array is also excluded from list — the list is a summary; `items` are returned only in the detail view.
-
-**`getOrderById(id)`**
-- `Order.findById(id).populate('customerId', 'name phone').populate('createdBy', 'name').lean()`
-- If not found → `createError(404, 'NOT_FOUND', 'Order not found')` — per `TEST_CASES.md` ORD-E-01
-- Return `{ data: order }` with full detail including `items[]`
-
-**`updateOrder(id, dto)`**
-- `Order.findByIdAndUpdate(id, { $set: sanitizedFields }, { new: true, runValidators: true })`
-- Sanitize: only `tableNumber`, `orderType`, `customerId` are allowed. Strip everything else at the validation layer (`.strict()` already handles this) — see `TEST_CASES.md` ORD-V-01 and ORD-S-01.
+**`updateExpense(id, dto)`**
+- Optionally verify `vendorId`/`paidBy` if provided (same as create)
+- `Expense.findByIdAndUpdate(id, { $set: dto }, { new: true, runValidators: true }).lean()`
 - If not found → `404 NOT_FOUND`
-- `customerId: null` explicitly clears the customer association (walk-in stays walk-in; this is a correction endpoint, not a "must have customer" rule)
-- Return `{ data: order }`
+- Emit `dashboard:metricsInvalidate` (expense update affects totals)
+- Return `{ data: expense }`
 
-**`updateOrderStatus(id, status, cancelReason?)`**
-- Validate transition rules **before** the database write:
-  - `pending → completed`: allowed. Set `completedAt = new Date()`. Clear `cancelledAt` and `cancelReason` if somehow set.
-  - `pending → cancelled`: allowed. Set `cancelledAt = new Date()`. Requires `cancelReason` (enforced at validation layer, but double-check in service as defense-in-depth). Clear `completedAt` if somehow set.
-  - `completed → cancelled`: allowed. Requires `cancelReason`. Set `cancelledAt = new Date()`. This is the "void/refund acknowledgment" path.
-  - `cancelled → anything`: **REJECTED** — `cancelled` is terminal per `API.md` §10. Throw `400 VALIDATION_ERROR`.
-  - `completed → pending`: **REJECTED** — not in the allowed transition set. Throw `400 VALIDATION_ERROR`.
-  - Same-status no-op: e.g. `pending → pending`. Technically valid but pointless — silently succeed without writing (return the current document unchanged).
-- If order not found → `404 NOT_FOUND`
-- Use `Order.findByIdAndUpdate(id, { $set: updateFields }, { new: true })` — atomic, no read-then-write race needed since status transitions are idempotent and the set of valid transitions is exhaustive
-- After a successful transition, emit the socket event (see below)
-- Return `{ data: order }`
-
-**`deleteOrder(id)`**
-- Hard-delete per the narrow rules from `API.md` §10:
-  - Fetch the order first (single query, no need for transaction)
-  - If not found → `404 NOT_FOUND`
-  - If `status !== 'pending'` → `409 ORDER_NOT_DELETABLE`, message: `"Only pending orders can be deleted. Use 'Cancel' instead."`
-  - If created on a **different day** (server-local date, not client-supplied) → `409 ORDER_NOT_DELETABLE`, message: `"Only same-day orders can be deleted."`
-  - If `couponId` is set → `409 ORDER_NOT_DELETABLE`, message: `"Orders with coupon usage cannot be deleted. Use 'Cancel' instead."`
-  - Otherwise: `Order.findByIdAndDelete(id)`. Also delete the associated `ActivityLog` entry (by `targetId`) — this is a genuine mistaken/duplicate draft, so its log entry is noise, not a record.
-  - Return `{ data: { success: true } }`
-
-**`getOrderBill(id, format)`**
-- Fetch order with populated `customerId` and `createdBy`
+**`deleteExpense(id)`**
+- Hard delete: `Expense.findByIdAndDelete(id)`
 - If not found → `404 NOT_FOUND`
-- Generate the bill:
-  - **HTML format:** render a **server-side template** (not a React component — this is a Puppeteer print path, not a page). Build the HTML string with inline styles (no CSS framework, no Tailwind — the PDF renderer has no JS runtime; inline styles guarantee consistent output). The template should match the visual layout of the POS `BillPreview` component closely enough that the cashier doesn't see two different "receipt" designs.
-  - **PDF format:** use Puppeteer to render the same HTML template, return `application/pdf` binary
-  - Return `{ data: { html } }` for HTML format, or `{ data: { pdf: Buffer } }` with `application/pdf` content-type for PDF format
-  - Per `API.md` §9.4, this endpoint also serves the POS screen's "print" button — POS never needs its own bill-rendering endpoint.
+- Emit `dashboard:metricsInvalidate` (expense deletion affects totals)
+- Return `{ data: { success: true } }`
 
-**Socket.io events — emitted from the service after successful mutations:**
+### Controller — `expenses.controller.ts`
 
-```
-getIO().emit('order:statusChanged', { orderId: order.id, status: order.status, orderNumber: order.orderNumber });
-```
+- Named exports: `handleListExpenses`, `handleGetExpense`, `handleCreateExpense`, `handleUpdateExpense`, `handleDeleteExpense`
+- Same pattern as vendors controller: extract from `req.query`/`req.body`/`req.params`, call service, wrap in `try/catch/next`
+- `listExpenses` → `res.status(200).json(result)` (paginated list with meta)
+- `getExpense` → `res.status(200).json({ data: expense })`
+- `createExpense` → `res.status(201).json({ data: expense })`
+- `updateExpense` → `res.status(200).json({ data: expense })`
+- `deleteExpense` → `res.status(200).json({ data: { success: true } })`
+- Pass `req.user.id` as second arg to `createExpense` and optionally to `updateExpense` if needed
 
-Per `TEST_CASES.md` ORD-RT-01. The `orders:statusChanged` event is registered in `activityLogger.ts`'s `STATE_TRANSITION_RULES` (already exists — see line 21 of that file). The frontend socket listener (built in Dashboard Task 12) will consume this to invalidate metrics.
-
-### Controller — `orders.controller.ts`
-
-- Named exports: `listOrders`, `getOrderById`, `updateOrder`, `updateOrderStatus`, `getOrderBill`, `deleteOrder`
-- Same pattern as every other module: extract from `req.query`/`req.body`/`req.params`, call service, `res.status(200).json({ data: result })` or `res.status(200).json(result)` for paginated list
-- `getOrderBill` for PDF format: set `res.setHeader('Content-Type', 'application/pdf')` and `res.setHeader('Content-Disposition', inline|attachment)`, then `res.send(pdfBuffer)`. For HTML: wrap in the standard `{ data: { html } }` envelope.
-- `import * as ordersService from './orders.service'`
-
-### Routes — `orders.routes.ts`
+### Routes — `expenses.routes.ts`
 
 ```
-GET    /orders                    -> authenticate, authorize('orders','view'), validate(listOrdersQuerySchema,'query'), listOrders
-GET    /orders/:id                -> authenticate, authorize('orders','view'), validate(orderIdParamSchema,'params'), getOrderById
-PUT    /orders/:id                -> authenticate, authorize('orders','edit'), validate(orderIdParamSchema,'params'), validate(updateOrderSchema), updateOrder
-PATCH  /orders/:id/status         -> authenticate, authorize('orders','edit'), validate(orderIdParamSchema,'params'), validate(updateOrderStatusSchema), updateOrderStatus
-GET    /orders/:id/bill           -> authenticate, authorize('orders','view'), validate(orderIdParamSchema,'params'), validate(billQuerySchema,'query'), getOrderBill
-DELETE /orders/:id                -> authenticate, authorize('orders','delete'), validate(orderIdParamSchema,'params'), deleteOrder
+GET    /expenses                    -> authenticate, authorize('expenses','view'), validate(listExpensesQuerySchema,'query'), handleListExpenses
+GET    /expenses/:id                -> authenticate, authorize('expenses','view'), validate(objectIdParam,'params'), handleGetExpense
+POST   /expenses                    -> authenticate, authorize('expenses','create'), validate(createExpenseSchema), handleCreateExpense
+PUT    /expenses/:id                -> authenticate, authorize('expenses','edit'), validate(updateExpenseSchema), handleUpdateExpense
+DELETE /expenses/:id                -> authenticate, authorize('expenses','delete'), validate(objectIdParam,'params'), handleDeleteExpense
 ```
 
 Export default router.
 
 ### Module Registration — `backend/src/app.ts`
 
-- `import ordersRoutes from './modules/orders/orders.routes';`
-- Mount: `app.use('/api/v1', ordersRoutes);` (after `posRoutes`, before `errorHandler`)
-- Add mutation rate limiter:
+- `import expensesRoutes from './modules/expenses/expenses.routes';`
+- Add mutation rate limiter (same pattern as vendors):
 ```ts
-const ordersMutationLimiter = makeRateLimiter(env.RATE_LIMIT_MAX);
-app.use('/api/v1/orders', (req, res, next) => {
+const expensesMutationLimiter = makeRateLimiter(env.RATE_LIMIT_MAX);
+app.use('/api/v1/expenses', (req, res, next) => {
   if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method)) {
-    return ordersMutationLimiter(req, res, next);
+    return expensesMutationLimiter(req, res, next);
   }
   next();
 });
 ```
-- Note: `POST` is in the mutation list for coverage consistency, even though this module has no `POST` endpoint (order creation is POS's job). If a `POST` ever hits `/orders`, it gets rate-limited like any other mutation.
+- Mount: `app.use('/api/v1', expensesRoutes);` (after `vendorsRoutes`, before `posRoutes`)
+
+### WebSocket / Dashboard Invalidation
+
+Per `API.md` §23: expense creation triggers `dashboard:metricsInvalidate` to refresh dashboard totals.
+
+**Approach (follow existing pattern):**
+- Check if there's an existing WebSocket utility (`backend/src/lib/websocket.ts` or similar) that emits events — if so, import and use it
+- If no WebSocket infra exists yet, use a lightweight approach:
+  - After successful create/update/delete mutations, call a shared `invalidateDashboard()` helper
+  - For now, this can just log a message (WebSocket integration is a future concern per architecture)
+  - Document in code comments that this is where the WebSocket emit should go when infra is ready
+
+Search for existing WebSocket code in the codebase first.
 
 ### Activity Logger Configuration — No Code Changes Needed
 
-The `activityLogger.ts` middleware already has:
-- `TARGET_TYPE_MAP.orders: 'Order'` (line 65)
-- `STATE_TRANSITION_RULES` for `order.status_changed` (line 21)
-
-The logger will automatically capture:
-- `orders.updated` for `PUT /orders/:id`
-- `order.status_changed` for `PATCH /orders/:id/status`
-- `orders.deleted` for `DELETE /orders/:id`
-
-No `skipActivityLog` flag needed here — unlike POS's order creation (which writes its own `ActivityLog` inside a transaction), the Orders module's mutations are simple single-document operations that the global middleware handles correctly.
+The `activityLogger.ts` middleware already supports expenses:
+- `TARGET_TYPE_MAP.expenses: 'Expense'` — already confirmed at `activityLogger.ts:69`
+- The logger will automatically capture:
+  - `expenses.created` for `POST /expenses`
+  - `expenses.updated` for `PUT /expenses/:id`
+  - `expenses.deleted` for `DELETE /expenses/:id`
 
 ---
 
-## Frontend (`frontend/src/features/orders/` — schema.ts, api.ts, 4 components + 2 pages)
+## Frontend (`frontend/src/features/expenses/` — schema.ts, api.ts, 3 components + 2 pages)
 
 ### Already Done (No Changes Needed)
-- Permission module key `orders: ['view', 'edit', 'delete']` registered in `frontend/src/lib/constants.ts`
-- Sidebar nav link `/orders` with `module: 'orders'` already exists in `Sidebar.tsx` — permission-gated automatically
+- Permission module key `expenses: ['view', 'create', 'edit', 'delete']` registered in `frontend/src/lib/constants.ts`
+- Sidebar nav link `/expenses` with `module: 'expenses'` already exists in `Sidebar.tsx` — permission-gated automatically
 - `DataTable` shared component exists for the list view
 - `PermissionGate` shared component exists
+- `ConfirmDialog` shared component exists for delete confirmation
+- `useDateRangeFilter` hook exists at `frontend/src/hooks/useDateRangeFilter.ts`
 
 ### Schema — `schema.ts`
 
-**`listOrdersQuerySchema`** — mirrors the backend's `listOrdersQuerySchema` for use in filter state (Zod is the single validation source; the frontend schema can be a lighter version that just types the filter form):
-
+**`createExpenseSchema`** — mirrors the backend schema:
 ```ts
-export const ordersFilterSchema = z.object({
-  status: z.enum(['pending', 'completed', 'cancelled']).optional(),
-  from: z.string().optional(),
-  to: z.string().optional(),
-  search: z.string().max(50).optional(),
+export const createExpenseSchema = z.object({
+  amount: z.coerce.number().positive('Amount must be positive'),
+  date: z.coerce.date({ required_error: 'Date is required' }),
+  description: z.string().min(1, 'Description is required').max(500),
+  category: z.string().min(1, 'Category is required').max(100),
+  vendorId: z.string().optional(),
+  paidBy: z.string().min(1, 'Paid by is required'),
+  paidTo: z.string().min(1, 'Paid to is required').max(200),
+  paymentMethod: z.enum(['cash', 'card', 'bkash', 'nagad']),
 });
 
-export type OrdersFilterFormData = z.infer<typeof ordersFilterSchema>;
+export type CreateExpenseFormData = z.infer<typeof createExpenseSchema>;
 ```
 
-**`updateOrderSchema`** (edit form):
-```ts
-export const updateOrderSchema = z.object({
-  tableNumber: z.string().max(20).optional(),
-  orderType: z.enum(['dine-in', 'takeaway', 'delivery']).optional(),
-  customerId: z.string().nullable().optional(),
-});
+**`updateExpenseSchema`** — same fields, all optional.
 
-export type UpdateOrderFormData = z.infer<typeof updateOrderSchema>;
-```
-
-**`updateStatusSchema`** (status change):
-```ts
-export const updateStatusSchema = z.object({
-  status: z.enum(['pending', 'completed', 'cancelled']),
-  cancelReason: z.string().max(500).optional(),
-}).refine(
-  (data) => data.status !== 'cancelled' || (data.cancelReason && data.cancelReason.trim().length > 0),
-  { message: 'Cancel reason is required when cancelling an order', path: ['cancelReason'] }
-);
-
-export type UpdateStatusFormData = z.infer<typeof updateStatusSchema>;
-```
+**`listExpensesQuerySchema`** — for constructing query params (client-side helper, not zod resolver):
+- Same as backend but with `z.string()` for values
 
 ### API — `api.ts`
 
 - `'use client'` at top
-- Response types matching `API.md` §10 response shapes exactly:
-
+- Response types:
 ```ts
-export interface OrderListItem {
+export interface ExpenseResponse {
   id: string;
-  orderNumber: string;
-  orderType: 'dine-in' | 'takeaway' | 'delivery';
-  grandTotal: number;
-  status: 'pending' | 'completed' | 'cancelled';
+  amount: number;
+  date: string;
+  description: string;
+  category: string;
+  vendorId?: { _id: string; name: string } | null;
+  paidBy: { _id: string; name: string; email: string };
+  paidTo: string;
+  paymentMethod: 'cash' | 'card' | 'bkash' | 'nagad';
+  createdBy: { _id: string; name: string };
   createdAt: string;
-  createdBy: string;    // user id
-  customerId: string | null;
-}
-
-export interface OrderDetail extends OrderListItem {
-  tableNumber?: string;
-  items: Array<{
-    productId: string;
-    nameSnapshot: string;
-    priceSnapshot: number;
-    quantity: number;
-    lineTotal: number;
-  }>;
-  couponId?: string | null;
-  discountAmount: number;
-  taxAmount: number;
-  subtotal: number;
-  payment: {
-    method: 'cash' | 'card' | 'bkash' | 'nagad' | 'split';
-    splits?: Array<{ method: 'cash' | 'card' | 'bkash' | 'nagad'; amount: number }>;
-  };
-  completedAt?: string;
-  cancelledAt?: string;
-  cancelReason?: string;
-  createdBy: { _id: string; name: string } | string;
-  customerId: { _id: string; name: string; phone: string } | string | null;
   updatedAt: string;
 }
 ```
 
-- `useOrderList(params)` — `useQuery`, key `['orders', 'list', qs]`
-- `useOrder(id)` — `useQuery`, key `['orders', 'detail', id]`, enabled only when `id` is truthy
-- `useUpdateOrder()` — `useMutation`, invalidates `['orders']` on success
-- `useUpdateOrderStatus()` — `useMutation`, invalidates `['orders']` on success
-- `useDeleteOrder()` — `useMutation`, invalidates `['orders']` on success
-- `useOrderBill(id, format?)` — `useQuery`, key `['orders', 'bill', id, format]`, returns HTML string or PDF blob URL. For PDF, fetch as blob via `apiClient` with `responseType: 'blob'`, create an object URL for the print/download button. For HTML, return the string for an iframe/inline preview.
-- Query keys follow: `['orders', 'list', qs]`, `['orders', 'detail', id]`, `['orders', 'bill', id, format]`
+- `useExpensesList(params)` — `useQuery`, key `['expenses', 'list', qs]`
+  - Params: `page?`, `limit?`, `range?`, `from?`, `to?`, `category?`, `vendorId?`, `paymentMethod?`, `paidBy?`
+- `useExpense(id)` — `useQuery`, key `['expenses', 'detail', id]`, enabled only when `id` is truthy
+- `useCreateExpense()` — `useMutation`, invalidates `['expenses']` AND `['dashboard']` on success
+- `useUpdateExpense()` — `useMutation`, invalidates `['expenses']` AND `['dashboard']` on success
+- `useDeleteExpense()` — `useMutation`, invalidates `['expenses']` AND `['dashboard']` on success
+- Query keys follow: `['expenses', 'list', qs]`, `['expenses', 'detail', id]`, `['dashboard']`
 
 ### Components
 
-#### `OrderFilters.tsx`
-- Inline filter bar (not a separate page or modal — filters live directly above the order list)
-- Status dropdown (All / Pending / Completed / Cancelled)
-- Date range: From + To date inputs (native `date` inputs, matching the convention set by `useDateRangeFilter` in Dashboard Task 12 — but since Dashboard hasn't been built yet, use standalone date inputs here that will be easy to replace with the shared component later)
-- Search text input for `orderNumber` (debounced ~300ms)
-- All filters update the query params (or filter state) immediately — no "Apply" button, auto-submit on change
-- A "Clear filters" action when any filter is active
-- Match the same filter-bar visual pattern used by Coupons/Products/Customers lists
+#### `ExpenseForm.tsx`
+- Reusable form for both **create** and **edit** modes
+- Props: `open: boolean`, `expense?: ExpenseResponse`, `onClose: () => void`
+- Fields:
+  - `amount` — number input, `min=0`, `step="0.01"`, required
+  - `date` — date input (`type="date"`), required
+  - `description` — textarea, required
+  - `category` — text input OR dropdown (free-text with optional predefined suggestions; check if a shared Select/CategoryPicker exists)
+  - `vendorId` — vendor select dropdown (use `useVendorsList` with `isActive: false` to include deactivated vendors for historical reference — per EXP-E-01). Optional field.
+  - `paidBy` — user select dropdown (use a `useUsersList` query or similar for staff list). Required.
+  - `paidTo` — text input, required. When `vendorId` is selected, auto-fill from vendor name (user can override — per DATABASE.md: "mirrors vendor name for record consistency").
+  - `paymentMethod` — select/enum dropdown: Cash, Card, bKash, Nagad. Required.
+- In edit mode, pre-populate all fields
+- Submit calls the appropriate mutation based on mode
+- Validation via Zod schemas, displayed inline per-field
 
-#### `OrderList.tsx`
-- Uses `useOrderList(params)` with current filter state
+**paidTo auto-fill behavior:**
+- When `vendorId` changes and a vendor is selected, set `paidTo` to `vendor.name`
+- The user can still edit `paidTo` manually after auto-fill
+- This matches DATABASE.md: "When vendorId is set, this typically mirrors the vendor name for record consistency"
+- Implement via `useEffect` watching `vendorId`
+
+#### `ExpenseList.tsx`
+- Uses `useExpensesList(params)` with current filter state
 - Renders `DataTable` with columns:
-  - `orderNumber` — link to the detail page
-  - `orderType` — badge-style label
-  - `grandTotal` — formatted with the currency convention decided in POS (e.g. `৳540.00`)
-  - `status` — status badge with color coding matching the POS bill preview's convention (pending: yellow/amber, completed: green, cancelled: red)
-  - `createdAt` — formatted date/time
+  - `date` — formatted date (short format)
+  - `description` — truncated to 60 chars with tooltip
+  - `category` — badge/tag (small, colored badge)
+  - `paidTo` — payee name
+  - `vendor` — vendor name link (if `vendorId` exists), dash otherwise
+  - `amount` — right-aligned, formatted currency (`$X,XXX.XX`)
+  - `paymentMethod` — icon/label (small badge)
+  - `paidBy` — staff name
   - Actions column (view, edit, delete) — permission-gated individually
-- Row click → navigate to `[orderId]` detail page
-- **Mobile degradation:** Use `mobileRender` on `DataTable` to render order cards (orderNumber prominent, status badge, grandTotal, date) — per `TEST_CASES.md` ORD-MOB-01
-- Loading: `DataTable` skeleton. Empty: "No orders found. Orders appear here once a POS sale is completed."
+- **Date range filter bar** using `useDateRangeFilter` hook:
+  - Quick-select buttons: Today, This Week, This Month, Custom
+  - When "Custom" selected, show `from`/`to` date inputs
+- **Category filter** — dropdown or text input (free-text filter)
+- **Vendor filter** — select dropdown (populated from vendors list)
+- **Payment method filter** — multi-select or single-select enum dropdown
+- **Paid by filter** — user/staff select dropdown
+- **Search input** for `description` text (debounced ~300ms) — optional, not in all backends but nice to have
+- Pagination via `DataTable`'s built-in pagination
+- Loading: `DataTable` skeleton. Empty: "No expenses found. Record your first expense to get started."
+- **Mobile degradation:** Use `mobileRender` on `DataTable` to render expense cards (date prominent, description, amount, category badge, payment method)
 
-#### `OrderDetail.tsx`
-- Fetches via `useOrder(id)`
-- Displays full order information in a structured layout:
-  - **Header:** `orderNumber`, status badge, `createdAt` timestamp
-  - **Order info section:** `orderType`, `tableNumber` (if dine-in), customer name/phone (if attached), staff name who created it
-  - **Items table:** product name (snapshot), unit price, qty, line total
-  - **Totals section:** subtotal, discount (if any, with coupon code label), tax, grand total — right-aligned, receipt-style
-  - **Payment section:** method, amount. For split payments: list each split method + amount
-  - **Actions section:** status transition buttons (permission-gated per action), edit link, bill view/print/download
-  - **Status history:** `completedAt` or `cancelledAt`/`cancelReason` displayed if set
-- Cancel reason shown as a quoted block when present
-- Loading: content skeleton. Error/not-found: dedicated error state matching the app's pattern
-
-#### `OrderStatusActions.tsx`
-- Renders inside `OrderDetail` — the set of available status transition buttons based on the current order status
-- **Pending order:**
-  - "Mark Completed" button → calls `useUpdateOrderStatus({ status: 'completed' })`
-  - "Cancel Order" button → opens a cancel-reason modal/dialog first, then calls `useUpdateOrderStatus({ status: 'cancelled', cancelReason })`
-- **Completed order:**
-  - "Cancel / Void" button → opens a cancel-reason modal/dialog that explains "This acknowledges a refund/void of a completed order" (per `API.md` §10, `completed → cancelled` is the refund acknowledgment path), then calls `useUpdateOrderStatus({ status: 'cancelled', cancelReason })`
-- **Cancelled order:**
-  - No status actions — `cancelled` is terminal. Show a muted "Order cancelled" indicator.
-- All buttons wrapped in `<PermissionGate module="orders" action="edit">`
-- Loading state: buttons disabled with spinner during mutation
-- On success: `queryClient.invalidateQueries({ queryKey: ['orders'] })` and show a success toast
-- On error: surface the error message
-
-#### `OrderCancelDialog.tsx`
-- Modal dialog with:
-  - Title: "Cancel Order" (for pending) or "Void / Refund Order" (for completed)
-  - Descriptive text explaining the implications
-  - Textarea for `cancelReason` (required, max 500 chars)
-  - "Proceed" button (disabled until reason is entered) + "Go Back" button
-- Validation: reason required, min 3 chars, max 500
-- Error state: show inline validation and API errors
-
-#### `OrderEditForm.tsx`
-- Inline form (or dialog) for editing the restricted fields: `tableNumber`, `orderType`, `customerId`
-- Pre-populated with current values
-- CustomerId: reuse the customer search/picker pattern from POS's `CustomerPicker` (debounced search, select from results, clear to set walk-in)
-- On save: calls `useUpdateOrder()`, invalidates queries, closes the form
-- Wrapped in `<PermissionGate module="orders" action="edit">`
-- Cancel button to discard changes
-
-#### `BillView.tsx`
-- Tab/mode toggle: Preview / Print / Download
-- **Preview:** renders the bill HTML inline (via iframe or `dangerouslySetInnerHTML` with sanitized HTML) — only when the fetched bill format is HTML
-- **Print:** opens the bill HTML in a new window with `window.print()` called on load, or triggers the browser's print dialog
-- **Download:** triggers PDF download via blob URL when `format=pdf`
-- Fetches via `useOrderBill(id, format)` — fetch HTML eagerly for preview, fetch PDF on demand for download
-- Handle the case where the order is cancelled (bill should still render, showing the cancelled status and possibly reflecting zero/refund amounts)
-- Handle the case where the order doesn't exist → show appropriate error
+#### `ExpenseDetail.tsx`
+- Fetches via `useExpense(id)`
+- Displays expense information in a structured detail card:
+  - **Header:** `amount` (large, formatted), `date`, `category` badge
+  - **Description section:** full description text
+  - **Payment section:** `paidTo`, `vendor` (if present, clickable link to vendor detail), `paymentMethod`, `paidBy`
+  - **Metadata:** Created at, Updated at, created by
+  - **Actions:** Edit button (permission-gated `expenses:edit`), Delete button (permission-gated `expenses:delete`)
+- Delete action uses the shared `ConfirmDialog` with messaging:
+  - Title: "Delete Expense"
+  - Body: `"Are you sure you want to permanently delete this expense of {amount} from {date}? This action cannot be undone."`
+  - Confirm button: "Delete" (destructive style)
+- Loading: content skeleton. Error/not-found: dedicated error state
 
 ### Pages
 
-#### `frontend/src/app/(dashboard)/orders/page.tsx`
+#### `frontend/src/app/(dashboard)/expenses/page.tsx`
 - `'use client'`
-- `<PermissionGate module="orders" action="view">` wraps the whole page
-- Title: "Orders" with subtitle "View and manage all orders"
-- No "Create" button (orders are only created via POS)
-- Composition: `<OrderFilters />` → `<OrderList />`
-- Standard layout matching other list pages (Coupons, Products, Customers)
+- `<PermissionGate module="expenses" action="view">` wraps the whole page
+- Title: "Expenses" with subtitle "Track your business expenses"
+- "Add Expense" button (permission-gated `expenses:create`) → opens `ExpenseForm` in a modal
+- Filter section: date range tabs + category filter + vendor filter + payment method filter
+- Composition: filter bar → `ExpenseList`
+- When "Add Expense" succeeds, close the modal, invalidate queries, show a success toast
 
-#### `frontend/src/app/(dashboard)/orders/[orderId]/page.tsx`
+#### `frontend/src/app/(dashboard)/expenses/[expenseId]/page.tsx`
 - `'use client'`
-- Dynamic route: `[orderId]` param
-- Fetches order by ID, renders `<OrderDetail />`
-- Back navigation to the orders list
-- Breadcrumb: Orders > [orderNumber]
+- Dynamic route: `[expenseId]` param
+- Fetches expense by ID, renders `<ExpenseDetail />`
+- Back navigation to the expenses list
+- Breadcrumb: Expenses > [date + description]
+- "Edit" button on the detail page opens `ExpenseForm` in edit mode (modal)
 
 ---
 
 ## Design
 
-- **Order status badge colors:** reuse the same convention established in POS's `BillPreview` — the three statuses appear in both modules.
-  - `pending` → amber/yellow (`bg-amber-100 text-amber-800` or equivalent from `theme.md`'s tokens)
-  - `completed` → green (`bg-green-100 text-green-800`)
-  - `cancelled` → red (`bg-red-100 text-red-800`)
-  - These should be defined as a shared constant/utility so POS, Orders, and Dashboard all render the same badge.
-- **Cancel-reason input:** modal prompt (not inline). A modal forces the staff member to explicitly acknowledge the cancellation rather than accidentally tapping a button. The modal title differs based on current status (`pending` → "Cancel Order" vs `completed` → "Void / Refund Order").
-- **Orders list mobile degradation pattern:** per `TEST_CASES.md` ORD-MOB-01 — the `DataTable` component already supports `mobileRender` for card-style layout. Each card shows: `orderNumber` (prominent), status badge, `grandTotal`, and `createdAt`. The detail page's bill/print action must remain reachable — position the bill download button prominently in the detail page header, not buried at the bottom.
-- **Bill template layout:** match the POS `BillPreview` component's visual hierarchy:
-  - Restaurant name/logo (placeholder — `Settings.restaurantName` is not wired into the template yet since this is a server-side template, not a React component; add a TODO in the template to wire it in once Settings has a public read path)
-  - Order number, date, type, table if dine-in
-  - Item lines (name, qty, price, total)
-  - Totals (subtotal, discount, tax, grand total)
-  - Payment method summary
-  - Footer: "Thank you" message
-- **Money formatting:** reuse the format decided in POS (e.g. `৳540.00`). Since this is a server-side HTML template, the formatting is done in TypeScript on the backend (a simple `formatBDT(n)` helper in `orders.service.ts` or a shared formatting utility). Do NOT introduce a second format — the POS on-screen preview and the printed bill must use the same convention.
+- **Date range filter bar:** Follow the pattern from Reports (when built) — quick-select pills (Today, This Week, This Month, Custom) with date inputs for custom range. Reuse the existing `useDateRangeFilter` hook at `frontend/src/hooks/useDateRangeFilter.ts`.
+- **Category filter:** Free-text input with suggested completions from existing expense categories (fetch distinct categories from backend or maintain client-side set). For v1, a simple text input is sufficient — advanced filtering is a Reports concern.
+- **paidTo/vendorId UX:** When a vendor is selected from the dropdown, auto-populate `paidTo` with the vendor name. The user can override. This matches DATABASE.md: "When vendorId is set, this typically mirrors the vendor name for record consistency."
+- **Amount formatting:** Use currency formatting (locale-aware). Per theme.md, amounts should be right-aligned in tables and bold in detail views.
+- **Hard delete UX:** Per theme.md, use "Delete" vocabulary (not "Deactivate") since Expense is hard-deletable. The button text is "Delete", the confirm dialog says "Delete Expense", and the success toast says "Expense deleted". Use destructive red styling.
 
 ---
 
@@ -411,147 +392,81 @@ export interface OrderDetail extends OrderListItem {
 
 ### Files to Create
 
+**Model (1 new file):**
+1. `backend/src/models/Expense.ts`
+
 **Backend (4 new files):**
-1. `backend/src/modules/orders/orders.validation.ts`
-2. `backend/src/modules/orders/orders.service.ts`
-3. `backend/src/modules/orders/orders.controller.ts`
-4. `backend/src/modules/orders/orders.routes.ts`
+1. `backend/src/modules/expenses/expenses.validation.ts`
+2. `backend/src/modules/expenses/expenses.service.ts`
+3. `backend/src/modules/expenses/expenses.controller.ts`
+4. `backend/src/modules/expenses/expenses.routes.ts`
 
 **Modify (backend):**
-- `backend/src/app.ts` — register Orders routes + mutation rate limiter
+- `backend/src/app.ts` — register Expenses routes + mutation rate limiter
 
-**Frontend (9 new files):**
-1. `frontend/src/features/orders/schema.ts`
-2. `frontend/src/features/orders/api.ts`
-3. `frontend/src/features/orders/components/OrderFilters.tsx`
-4. `frontend/src/features/orders/components/OrderList.tsx`
-5. `frontend/src/features/orders/components/OrderDetail.tsx`
-6. `frontend/src/features/orders/components/OrderStatusActions.tsx`
-7. `frontend/src/features/orders/components/OrderCancelDialog.tsx`
-8. `frontend/src/features/orders/components/OrderEditForm.tsx`
-9. `frontend/src/features/orders/components/BillView.tsx`
+**Frontend (5 new files):**
+1. `frontend/src/features/expenses/schema.ts`
+2. `frontend/src/features/expenses/api.ts`
+3. `frontend/src/features/expenses/components/ExpenseForm.tsx`
+4. `frontend/src/features/expenses/components/ExpenseList.tsx`
+5. `frontend/src/features/expenses/components/ExpenseDetail.tsx`
 
 **Pages (2 new files):**
-1. `frontend/src/app/(dashboard)/orders/page.tsx`
-2. `frontend/src/app/(dashboard)/orders/[orderId]/page.tsx`
+1. `frontend/src/app/(dashboard)/expenses/page.tsx`
+2. `frontend/src/app/(dashboard)/expenses/[expenseId]/page.tsx`
 
-### Patterns to Follow / Patterns That Are New
+### Patterns to Follow
 
-- **Follow exactly:** controller/service/routes file shape from `categories`/`coupons` modules — named exports, `import * as service`, `try/catch/next`, `validate` middleware, `authenticate`/`authorize` chain.
-- **Follow the DataTable pattern** from `coupons`/`products` list pages — column definition, `mobileRender`, loading/empty/error states.
-- **New to the codebase, no prior file to copy:**
-  - Server-side bill template rendering (HTML string with inline styles, no JSX/React — this is the first server-rendered template in the app). The template is just string interpolation — no template engine dependency needed.
-  - Puppeteer PDF generation from the HTML template — `backend/src/lib/pdf.ts` is already a stub placeholder; this task makes it real. Only the `orders.service.ts` calls it; the library should be generic enough for Reports (Task 18) to reuse.
-  - Status transition state machine — this is the first module with a non-trivial state machine (3 states, 3 valid transitions, 2 terminal-emission rules). The POS module had a simpler model (order created as `completed` or `pending`, no post-creation transitions).
-  - Narrow hard-delete with business-logic preconditions (same-day, pending-only, no coupon). This is the app's first delete endpoint that doesn't just toggle `isActive`.
-  - The `customerId` editable field requires reusing the customer search/picker from POS's `CustomerPicker` — confirm that component is modular enough to import into Orders. If not, extract it to `components/shared/`.
+- **Follow exactly:** controller/service/routes file shape from `vendors` or `orders` module — named exports, `import * as service`, `try/catch/next`, `validate` middleware, `authenticate`/`authorize` chain.
+- **Date range filtering:** Follow the `from`/`to` filter pattern from `orders.service.ts` (lines 193-202) — build a `dateFilter` with `$gte`/`$lte` for the `date` field. The validation schema should handle `range` + computed dates per CC-DATE test cases.
+- **Hard delete pattern:** Use `findByIdAndDelete` (not soft delete). Match the behavior of any existing hard-delete module (none yet — this is the first hard-deletable collection).
+- **Population pattern:** Always populate `vendorId`, `paidBy`, and `createdBy` references to avoid N+1 queries on the frontend. Use `.populate('vendorId', 'name')` and `.populate('paidBy', 'name email')` and `.populate('createdBy', 'name')`.
+- **Follow the DataTable pattern** from categories/vendors list page — column definition, `mobileRender`, loading/empty/error states.
+- **Expense form modal pattern:** Use a modal (dialog) for create/edit, matching the vendors pattern (the existing convention).
+- **Dashboard invalidation structure:** After successful mutations, invalidate `['dashboard']` query key in addition to `['expenses']`. No WebSocket code needed yet — just React Query invalidation on the frontend is sufficient for now.
 
 ### Already Done (No Changes Needed)
-- `Order` model + all interfaces (`IOrder`, `IOrderItem`, `IPayment`, `IPaymentSplit`) exist
-- `Counter` model + `getNextSequence` helper exist
-- Permission module key `orders` registered (fixed list since Task 3)
-- Sidebar nav link `/orders` already exists and is permission-gated
-- `activityLogger.ts` already has `orders: 'Order'` in `TARGET_TYPE_MAP` and `order.status_changed` in `STATE_TRANSITION_RULES`
-- `ActivityLog` model exists and the global middleware handles logging for this module's mutations automatically
+- Permission module key `expenses` registered in both `backend/src/shared/constants.ts` and `frontend/src/lib/constants.ts` with `['view', 'create', 'edit', 'delete']`
+- Sidebar nav link `/expenses` already exists in `sidebarLinks` frontend data and is permission-gated
+- `ArrowUpDown` icon is already imported in `Sidebar.tsx` from `lucide-react`
+- `ConfirmDialog` shared component exists for delete confirmation
+- `DataTable` shared component exists with `mobileRender` support
+- `PermissionGate` shared component exists
+- `useDateRangeFilter` hook exists for date range filter state management
+- Activity logger `TARGET_TYPE_MAP` already includes `expenses: 'Expense'`
 
-### Puppeteer / PDF Utility — `backend/src/lib/pdf.ts`
+### Activity Logger
 
-This file exists as a placeholder from Task 0. Make it real:
+The `activityLogger.ts` middleware auto-captures mutations. No changes needed — `TARGET_TYPE_MAP` already includes `expenses: 'Expense'` at line 69.
 
-```ts
-import puppeteer from 'puppeteer';
+### WebSocket / Dashboard Invalidation
 
-export async function renderPdf(html: string): Promise<Buffer> {
-  const browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox'] });
-  try {
-    const page = await browser.newPage();
-    await page.setContent(html, { waitUntil: 'networkidle0' });
-    const pdf = await page.pdf({ format: 'A4', margin: { top: '10mm', bottom: '10mm', left: '10mm', right: '10mm' } });
-    return Buffer.from(pdf);
-  } finally {
-    await browser.close();
-  }
-}
-```
+Per `API.md` §23:
+> `dashboard:metricsInvalidate` — Any revenue-affecting event (order created/status changed, expense created) triggers Dashboard React Query `invalidateQueries(['dashboard'])`.
 
-The bill template calls `renderPdf(billHtml)` to generate the PDF. See also `TEST_CASES.md` ORD-H-09 (valid PDF binary, `application/pdf` content-type).
+**Frontend approach:** In each mutation hook (`useCreateExpense`, `useUpdateExpense`, `useDeleteExpense`), add `queryClient.invalidateQueries({ queryKey: ['dashboard'] })` in the `onSuccess` callback alongside the expenses invalidation.
 
-### Bill Template — server-side HTML string
-
-Create a `renderBillHtml(order)` function in `orders.service.ts` (or a separate `orders.bill.ts` file — choose whichever keeps the service file focused). The function takes a populated `Order` document and returns an HTML string:
-
-```ts
-function renderBillHtml(order: PopulatedOrder): string {
-  const lineItems = order.items.map(item => `
-    <tr>
-      <td>${escapeHtml(item.nameSnapshot)}</td>
-      <td style="text-align: center">${item.quantity}</td>
-      <td style="text-align: right">${formatBdt(item.priceSnapshot)}</td>
-      <td style="text-align: right">${formatBdt(item.lineTotal)}</td>
-    </tr>
-  `).join('');
-
-  return `<!DOCTYPE html>
-<html><head><meta charset="utf-8"><title>Bill - ${order.orderNumber}</title>
-<style>
-  body { font-family: 'Courier New', monospace; font-size: 12px; max-width: 300px; margin: 0 auto; padding: 16px; }
-  h1 { text-align: center; font-size: 16px; margin-bottom: 4px; }
-  .meta { text-align: center; margin-bottom: 16px; }
-  table { width: 100%; border-collapse: collapse; }
-  th { border-bottom: 1px dashed #000; padding: 4px 0; text-align: left; }
-  td { padding: 4px 0; }
-  .total-row td { border-top: 1px dashed #000; padding-top: 8px; font-weight: bold; }
-  .footer { text-align: center; margin-top: 24px; font-size: 10px; }
-</style></head><body>
-<h1>${escapeHtml(restaurantName)}</h1>
-<div class="meta">
-  <p>${order.orderNumber}</p>
-  <p>${formatDate(order.createdAt)}</p>
-  <p>${order.orderType}${order.tableNumber ? ` · Table ${order.tableNumber}` : ''}</p>
-</div>
-<table>
-  <thead><tr><th>Item</th><th>Qty</th><th>Price</th><th>Total</th></tr></thead>
-  <tbody>${lineItems}</tbody>
-  <tfoot>
-    <tr><td colspan="3" style="text-align: right">Subtotal</td><td style="text-align: right">${formatBdt(order.subtotal)}</td></tr>
-    ${order.discountAmount > 0 ? `<tr><td colspan="3" style="text-align: right">Discount</td><td style="text-align: right">-${formatBdt(order.discountAmount)}</td></tr>` : ''}
-    <tr class="total-row"><td colspan="3" style="text-align: right">Grand Total</td><td style="text-align: right">${formatBdt(order.grandTotal)}</td></tr>
-  </tfoot>
-</table>
-<div class="meta" style="margin-top: 16px">
-  <p>Paid: ${order.payment.method.toUpperCase()}${order.payment.splits ? ' · ' + order.payment.splits.map(s => s.method.toUpperCase() + ' ' + formatBdt(s.amount)).join(' + ') : ''}</p>
-</div>
-${order.customerId ? `<p>Customer: ${escapeHtml(typeof order.customerId === 'object' ? order.customerId.name : '')}</p>` : ''}
-<p style="margin-top: 24px; text-align: center">Thank you!</p>
-</body></html>`;
-}
-```
-
-- `escapeHtml` — basic HTML entity escape (prevents product name injection into the template)
-- `formatBdt` — `৳${n.toFixed(2)}` matching POS's money format
-- `formatDate` — locale-friendly date string
-- The `<style>` block uses **inline styles in the HTML** (not Tailwind, not a CSS-in-JS solution — Puppeteer doesn't load external resources by default and the PDF path has no JS runtime)
-- A `<link>` to the restaurant's font or Cloudinary-hosted logo could be added later; for v1, keep it plain monospace (the "receipt printer" aesthetic is standard for restaurant bills)
+**Backend approach:** Check if a WebSocket event emitter exists (`backend/src/lib/websocket.ts` or similar). If it does, emit `dashboard:metricsInvalidate` after each expense mutation. If it doesn't, add a comment/TODO noting where the WebSocket emit should go when the infra is built.
 
 ### Verification
 
 - `tsc --noEmit` passes clean on both apps
-- `npm run dev` — full flow works end to end:
-  - Can browse orders (after creating one via POS first)
-  - Can filter by status, date range, search `orderNumber`
-  - Can view full order detail with populated customer/staff names
-  - Can edit `tableNumber`, `orderType`, `customerId`
-  - Can transition status: `pending → completed`, `pending → cancelled`, `completed → cancelled`
-  - Can cancel an order with a reason (both from pending and completed)
-  - Can view/print/download bill as HTML and PDF
-  - Can delete a same-day, pending, no-coupon order
-- Run the relevant `TEST_CASES.md` §6 (Orders) cases explicitly — at minimum:
-  - **Happy paths:** ORD-H-01 through ORD-H-05 (list, filter, search, detail, edit customerId)
-  - **Happy status transitions:** ORD-H-06 through ORD-H-08
-  - **Validation:** ORD-V-01 (reject items edit), ORD-V-02 (cancel reason required)
-  - **Security:** ORD-S-01 (reject financial field edit), ORD-AUTH-01 (permission gating)
-  - **Errors:** ORD-E-01 (not found), ORD-E-02/03 (invalid transitions)
-  - **Bill:** ORD-H-09 (PDF binary, correct content-type), ORD-H-10 (HTML renders), ORD-E-04 (not found)
-  - **Delete:** ORD-DEL-01 through ORD-DEL-05 (happy + all rejection cases + day boundary)
-  - **Real-time:** ORD-RT-01 (confirm `order:statusChanged` fires, observable from a second connected client)
-  - **Mobile:** ORD-MOB-01 (list degrades to cards, detail actions remain reachable)
+- `npm run dev` — full CRUD flow works end to end:
+  - Can create an expense with all required fields
+  - Can create an expense with vendorId (optional) — auto-fills paidTo
+  - Can create an expense without vendorId (ad-hoc, paidTo only)
+  - Can browse expense list with date range, category, vendor, payment method filters
+  - Can view expense detail with all payment info, vendor link, staff info
+  - Can edit expense fields
+  - Can hard-delete an expense — confirmed removed from DB
+  - Dashboard metrics update after expense create/update/delete
+- Run the relevant `TEST_CASES.md` §10 (Expenses) cases explicitly:
+  - **EXP-H-01:** `POST /expenses` full valid payload with `vendorId` → `201`
+  - **EXP-H-02:** `POST /expenses` without `vendorId` (ad-hoc) → `201`
+  - **EXP-V-01:** Negative `amount` → `400 VALIDATION_ERROR`
+  - **EXP-V-02:** Missing `paidBy` or `paidTo` → `400 VALIDATION_ERROR`
+  - **EXP-V-03:** `paymentMethod: split` → `400 VALIDATION_ERROR`
+  - **EXP-H-03:** `GET /expenses?range=&category=&vendorId=` → correctly filtered
+  - **EXP-H-04:** `DELETE /expenses/:id` → hard delete succeeds
+  - **EXP-E-01:** `vendorId` references soft-deleted vendor → creation succeeds
+  - **EXP-AUTH-01:** User lacks `expenses:create` → `403 FORBIDDEN`

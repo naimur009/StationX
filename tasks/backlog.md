@@ -21,10 +21,10 @@
 - [ok] 8. Coupons
 - [ok] 9. Customers
 - [ok] 10. POS
-- [ ] 11. Orders
+- [ok] 11. Orders
 - [ ] 12. Dashboard (Overview)
 - [ ] 13. Income
-- [ ] 14. Vendors
+- [ok] 14. Vendors
 - [ ] 15. Expenses
 - [ ] 16. Task Management
 - [ ] 17. Attendance
