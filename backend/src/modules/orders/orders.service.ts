@@ -25,6 +25,8 @@ interface OrderListItem {
   tableNumber?: string;
   customerId: string | null;
   customerName?: string;
+  customerPhone?: string;
+  servedBy: string | null;
   grandTotal: number;
   status: string;
   createdAt: Date;
@@ -36,6 +38,9 @@ interface OrderDetailItem {
   orderNumber: string;
   tableNumber?: string;
   customerId: unknown;
+  customerName?: string;
+  customerPhone?: string;
+  servedBy?: unknown;
   items: Array<{
     productId: string;
     nameSnapshot: string;
@@ -44,10 +49,13 @@ interface OrderDetailItem {
     lineTotal: number;
   }>;
   couponId?: string | null;
+  discountPercent: number;
   discountAmount: number;
   taxAmount: number;
   subtotal: number;
   grandTotal: number;
+  cashTendered?: number;
+  changeAmount?: number;
   payment: {
     method: string;
   };
@@ -71,7 +79,9 @@ function toListItem(order: Record<string, unknown>): OrderListItem {
     orderNumber: order.orderNumber as string,
     tableNumber: order.tableNumber as string | undefined,
     customerId: customerRaw?._id?.toString() ?? null,
-    customerName: customerRaw?.name,
+    customerName: customerRaw?.name ?? (order.customerName as string | undefined),
+    customerPhone: order.customerPhone as string | undefined,
+    servedBy: (order.servedBy as { name?: string } | null)?.name ?? (order.servedBy ? String(order.servedBy) : null),
     grandTotal: order.grandTotal as number,
     status: order.status as string,
     createdAt: order.createdAt as Date,
@@ -85,6 +95,9 @@ function toDetail(order: Record<string, unknown>): OrderDetailItem {
     orderNumber: order.orderNumber as string,
     tableNumber: order.tableNumber as string | undefined,
     customerId: order.customerId ?? null,
+    customerName: order.customerName as string | undefined,
+    customerPhone: order.customerPhone as string | undefined,
+    servedBy: order.servedBy ?? null,
     items: (order.items as Array<Record<string, unknown>>).map((i) => ({
       productId: String(i.productId),
       nameSnapshot: i.nameSnapshot as string,
@@ -93,10 +106,13 @@ function toDetail(order: Record<string, unknown>): OrderDetailItem {
       lineTotal: i.lineTotal as number,
     })),
     couponId: order.couponId ? String(order.couponId) : null,
+    discountPercent: order.discountPercent as number,
     discountAmount: order.discountAmount as number,
     taxAmount: order.taxAmount as number,
     subtotal: order.subtotal as number,
     grandTotal: order.grandTotal as number,
+    cashTendered: order.cashTendered as number | undefined,
+    changeAmount: order.changeAmount as number | undefined,
     payment: order.payment as { method: string },
     status: order.status as string,
     createdBy: order.createdBy ?? null,
@@ -209,6 +225,10 @@ export async function listOrders(query: ListOrdersQuery) {
     filter.customerId = new mongoose.Types.ObjectId(query.customerId);
   }
 
+  if (query.customerPhone) {
+    filter.customerPhone = { $regex: escapeRegex(query.customerPhone), $options: 'i' };
+  }
+
   if (query.search) {
     filter.orderNumber = { $regex: escapeRegex(query.search), $options: 'i' };
   }
@@ -220,6 +240,8 @@ export async function listOrders(query: ListOrdersQuery) {
     _id: 1,
     orderNumber: 1,
     tableNumber: 1,
+    customerName: 1,
+    customerPhone: 1,
     grandTotal: 1,
     status: 1,
     createdAt: 1,
@@ -230,6 +252,7 @@ export async function listOrders(query: ListOrdersQuery) {
   const [orders, total] = await Promise.all([
     Order.find(filter, projection)
       .populate('customerId', 'name')
+      .populate('servedBy', 'name')
       .sort(sortField).skip(skip).limit(query.limit).lean(),
     Order.countDocuments(filter),
   ]);
@@ -245,6 +268,7 @@ export async function listOrders(query: ListOrdersQuery) {
 export async function getOrderById(id: string) {
   const order = await Order.findById(id)
     .populate('customerId', 'name phone')
+    .populate('servedBy', 'name')
     .populate('createdBy', 'name')
     .lean();
 
@@ -317,6 +341,9 @@ export async function updateOrder(id: string, dto: UpdateOrderDto) {
     if (dto.payment.method) updates['payment.method'] = dto.payment.method;
   }
 
+  if (dto.cashTendered !== undefined) updates.cashTendered = dto.cashTendered;
+  if (dto.changeAmount !== undefined) updates.changeAmount = dto.changeAmount;
+
   const updated = await Order.findByIdAndUpdate(
     id,
     { $set: updates },
@@ -336,10 +363,11 @@ export async function updateOrder(id: string, dto: UpdateOrderDto) {
     // socket not available
   }
 
-  const populated = await Order.findById(updated._id)
-    .populate('customerId', 'name phone')
-    .populate('createdBy', 'name')
-    .lean();
+    const populated = await Order.findById(updated._id)
+      .populate('customerId', 'name phone')
+      .populate('servedBy', 'name')
+      .populate('createdBy', 'name')
+      .lean();
 
   return { data: toDetail(populated as unknown as Record<string, unknown>) };
 }
@@ -357,6 +385,7 @@ export async function updateOrderStatus(id: string, dto: UpdateOrderStatusDto) {
   if (currentStatus === targetStatus) {
     const populated = await Order.findById(order._id)
       .populate('customerId', 'name phone')
+      .populate('servedBy', 'name')
       .populate('createdBy', 'name')
       .lean();
     return { data: toDetail(populated as unknown as Record<string, unknown>) };
@@ -409,15 +438,34 @@ export async function updateOrderStatus(id: string, dto: UpdateOrderStatusDto) {
 
   const populated = await Order.findById(updated._id)
     .populate('customerId', 'name phone')
+    .populate('servedBy', 'name')
     .populate('createdBy', 'name')
     .lean();
 
   return { data: toDetail(populated as unknown as Record<string, unknown>) };
 }
 
+export async function deleteOrder(id: string) {
+  const order = await Order.findById(id);
+  if (!order) {
+    throw createError(404, 'NOT_FOUND', 'Order not found');
+  }
+
+  await Order.findByIdAndDelete(id);
+
+  try {
+    getIO().emit('order:deleted', { orderId: id });
+  } catch {
+    // socket not available
+  }
+
+  return { data: { success: true } };
+}
+
 export async function getOrderBill(id: string, format: string) {
   const order = await Order.findById(id)
     .populate('customerId', 'name phone')
+    .populate('servedBy', 'name')
     .populate('createdBy', 'name')
     .lean();
 

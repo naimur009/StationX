@@ -62,6 +62,19 @@ export async function handleUpdateOrderStatus(
   }
 }
 
+export async function handleDeleteOrder(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const result = await ordersService.deleteOrder(req.params.id);
+    res.status(200).json(result);
+  } catch (error) {
+    next(error);
+  }
+}
+
 export async function handleGetOrderBill(
   req: AuthenticatedRequest,
   res: Response,

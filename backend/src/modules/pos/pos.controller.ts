@@ -3,6 +3,19 @@ import { AuthenticatedRequest } from '../../middleware/authenticate';
 import * as posService from './pos.service';
 import type { CreateOrderDto, CreateCustomerDto } from './pos.validation';
 
+export async function handleGetEmployees(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const employees = await posService.getEmployees();
+    res.status(200).json({ data: employees });
+  } catch (error) {
+    next(error);
+  }
+}
+
 export async function handleGetCatalog(
   req: AuthenticatedRequest,
   res: Response,

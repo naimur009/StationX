@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog } from '@/components/ui/dialog';
@@ -21,16 +21,20 @@ function round2(n: number): number {
 
 interface OrderEditFormProps {
   order: OrderDetail;
-  onCancel: () => void;
+  open: boolean;
+  onClose: () => void;
   onSaved: () => void;
 }
 
-export default function OrderEditForm({ order, onCancel, onSaved }: OrderEditFormProps) {
+export default function OrderEditForm({ order, open, onClose, onSaved }: OrderEditFormProps) {
   const [tableNumber, setTableNumber] = useState(order.tableNumber || '');
   const [items, setItems] = useState<OrderItemUpdate[]>(
     order.items.map((i) => ({ productId: i.productId, quantity: i.quantity }))
   );
   const [paymentMethod, setPaymentMethod] = useState(order.payment.method);
+  const [cashTendered, setCashTendered] = useState(
+    order.cashTendered ? String(order.cashTendered) : ''
+  );
   const [productCatalog, setProductCatalog] = useState<CatalogProduct[]>([]);
   const [catalogError, setCatalogError] = useState('');
   const [productSearch, setProductSearch] = useState('');
@@ -40,6 +44,7 @@ export default function OrderEditForm({ order, onCancel, onSaved }: OrderEditFor
   const updateMutation = useUpdateOrder();
 
   useEffect(() => {
+    if (!open) return;
     apiClient<{ data: unknown }>('/pos/catalog').then((res) => {
       if (Array.isArray(res.data)) {
         setProductCatalog(res.data as CatalogProduct[]);
@@ -49,21 +54,31 @@ export default function OrderEditForm({ order, onCancel, onSaved }: OrderEditFor
     }).catch(() => {
       setCatalogError('Failed to load product catalog');
     });
-  }, []);
+    setTableNumber(order.tableNumber || '');
+    setItems(order.items.map((i) => ({ productId: i.productId, quantity: i.quantity })));
+    setPaymentMethod(order.payment.method);
+    setCashTendered(order.cashTendered ? String(order.cashTendered) : '');
+    setError('');
+  }, [open, order]);
 
-  const productMap = new Map(productCatalog.map((p) => [p.id, p]));
+  const productMap = useMemo(() => new Map(productCatalog.map((p) => [p.id, p])), [productCatalog]);
 
-  const computedItems = items.map((item) => {
+  const computedItems = useMemo(() => items.map((item) => {
     const product = productMap.get(item.productId);
     const price = product?.price ?? 0;
     return { ...item, name: product?.name || 'Unknown', price, lineTotal: round2(price * item.quantity) };
-  });
+  }), [items, productMap]);
 
   const subtotal = round2(computedItems.reduce((sum, i) => sum + i.lineTotal, 0));
   const discountAmount = order.couponId
     ? round2(subtotal * (order.discountAmount / (order.subtotal || 1)))
     : 0;
   const grandTotal = round2(subtotal - discountAmount);
+
+  const tendered = parseFloat(cashTendered) || 0;
+  const changeAmount = paymentMethod === 'cash' && tendered >= grandTotal
+    ? round2(tendered - grandTotal)
+    : 0;
 
   const filteredProducts = productCatalog.filter(
     (p) => !items.some((i) => i.productId === p.id) && p.name.toLowerCase().includes(productSearch.toLowerCase())
@@ -90,19 +105,19 @@ export default function OrderEditForm({ order, onCancel, onSaved }: OrderEditFor
   async function handleSave() {
     setError('');
     const payload: Record<string, unknown> = {};
-    if (tableNumber !== order.tableNumber) payload.tableNumber = tableNumber || undefined;
+    if (tableNumber !== (order.tableNumber || '')) payload.tableNumber = tableNumber || undefined;
     if (JSON.stringify(items) !== JSON.stringify(order.items.map((i) => ({ productId: i.productId, quantity: i.quantity })))) {
       payload.items = items;
     }
-    const paymentChanged =
-      paymentMethod !== order.payment.method;
-    if (paymentChanged) {
-      payload.payment = {
-        method: paymentMethod,
-      };
+    if (paymentMethod !== order.payment.method) {
+      payload.payment = { method: paymentMethod };
+    }
+    if (paymentMethod === 'cash' && tendered > 0) {
+      payload.cashTendered = tendered;
+      payload.changeAmount = changeAmount;
     }
     if (Object.keys(payload).length === 0) {
-      onCancel();
+      onClose();
       return;
     }
     try {
@@ -113,97 +128,104 @@ export default function OrderEditForm({ order, onCancel, onSaved }: OrderEditFor
     }
   }
 
+  const hasChanges =
+    tableNumber !== (order.tableNumber || '') ||
+    JSON.stringify(items) !== JSON.stringify(order.items.map((i) => ({ productId: i.productId, quantity: i.quantity }))) ||
+    paymentMethod !== order.payment.method ||
+    (paymentMethod === 'cash' && tendered > 0 && tendered !== (order.cashTendered || 0));
+
   return (
-    <div className="space-y-5">
-      {/* Table Number */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+    <Dialog open={open} onClose={onClose} title={`Edit ${order.orderNumber}`} size="lg">
+      <div className="space-y-5">
+        {/* Table Number */}
         <div>
-          <label className="mb-1 block text-sm font-medium text-slate-700">Table Number</label>
+          <label className="mb-1.5 block text-sm font-medium text-slate-700">Table Number</label>
           <Input
             placeholder="e.g. 12"
             value={tableNumber}
             onChange={(e) => setTableNumber(e.target.value)}
           />
         </div>
-      </div>
 
-      {/* Items Editor */}
-      <div>
-        <div className="mb-3 flex items-center justify-between">
-          <h3 className="text-sm font-bold text-slate-800">Items</h3>
-          <Button variant="secondary" size="sm" onClick={() => setProductPickerOpen(true)}>
-            <Plus className="mr-1 h-3 w-3" /> Add Item
-          </Button>
+        {/* Items */}
+        <div>
+          <div className="mb-2.5 flex items-center justify-between">
+            <h3 className="text-sm font-bold text-slate-800">Items</h3>
+            <Button variant="primary" size="sm" onClick={() => setProductPickerOpen(true)}>
+              <Plus className="mr-1 h-3 w-3" /> Add Item
+            </Button>
+          </div>
+
+          {computedItems.length === 0 ? (
+            <div className="rounded-xl border-2 border-dashed border-border p-8 text-center">
+              <p className="text-sm text-slate-400">No items in this order.</p>
+              <p className="mt-1 text-xs text-slate-400">Add at least one item to save changes.</p>
+            </div>
+          ) : (
+            <div className="space-y-1.5">
+              {computedItems.map((item) => (
+                <div key={item.productId} className="flex items-center gap-3 rounded-xl border border-border bg-white px-3 py-2.5">
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium text-slate-800">{item.name}</p>
+                    <p className="text-xs text-slate-500">{formatBdt(item.price)}</p>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => handleQuantityChange(item.productId, item.quantity - 1)}
+                      className="flex h-7 w-7 items-center justify-center rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200"
+                    >
+                      <Minus className="h-3 w-3" />
+                    </button>
+                    <span className="flex h-7 w-8 items-center justify-center text-sm font-semibold text-slate-800">
+                      {item.quantity}
+                    </span>
+                    <button
+                      onClick={() => handleQuantityChange(item.productId, item.quantity + 1)}
+                      className="flex h-7 w-7 items-center justify-center rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200"
+                    >
+                      <Plus className="h-3 w-3" />
+                    </button>
+                  </div>
+                  <p className="w-20 text-right text-sm font-semibold text-slate-800">{formatBdt(item.lineTotal)}</p>
+                  <button onClick={() => handleRemoveItem(item.productId)} className="text-slate-400 hover:text-red-500">
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {computedItems.length > 0 && (
+            <div className="mt-2.5 space-y-0.5 border-t border-border pt-2.5">
+              <div className="flex justify-between text-sm">
+                <span className="text-slate-500">Subtotal</span>
+                <span className="text-slate-800">{formatBdt(subtotal)}</span>
+              </div>
+              {discountAmount > 0 && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-slate-500">Discount{order.couponId ? ' (Coupon)' : ''}</span>
+                  <span className="text-green-600">-{formatBdt(discountAmount)}</span>
+                </div>
+              )}
+              <div className="flex justify-between border-t border-border pt-1.5 text-base font-bold">
+                <span className="text-slate-800">Grand Total</span>
+                <span className="text-slate-800">{formatBdt(grandTotal)}</span>
+              </div>
+            </div>
+          )}
         </div>
 
-        {computedItems.length === 0 ? (
-          <p className="py-4 text-center text-sm text-slate-400">No items. Add at least one item.</p>
-        ) : (
-          <div className="space-y-2">
-            {computedItems.map((item) => (
-              <div key={item.productId} className="flex items-center gap-3 rounded-xl border border-border bg-white p-3">
-                <div className="flex-1 min-w-0">
-                  <p className="truncate text-sm font-medium text-slate-800">{item.name}</p>
-                  <p className="text-xs text-slate-500">BDT {item.price.toFixed(2)}</p>
-                </div>
-                <div className="flex items-center gap-1">
-                  <button
-                    onClick={() => handleQuantityChange(item.productId, item.quantity - 1)}
-                    className="flex h-7 w-7 items-center justify-center rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200"
-                  >
-                    <Minus className="h-3 w-3" />
-                  </button>
-                  <span className="flex h-7 w-8 items-center justify-center text-sm font-semibold text-slate-800">
-                    {item.quantity}
-                  </span>
-                  <button
-                    onClick={() => handleQuantityChange(item.productId, item.quantity + 1)}
-                    className="flex h-7 w-7 items-center justify-center rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200"
-                  >
-                    <Plus className="h-3 w-3" />
-                  </button>
-                </div>
-                <p className="w-20 text-right text-sm font-semibold text-slate-800">BDT {item.lineTotal.toFixed(2)}</p>
-                <button onClick={() => handleRemoveItem(item.productId)} className="text-slate-400 hover:text-red-500">
-                  <Trash2 className="h-4 w-4" />
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {computedItems.length > 0 && (
-          <div className="mt-3 space-y-1 text-sm">
-            <div className="flex justify-between text-slate-600">
-              <span>Subtotal</span>
-              <span>BDT {subtotal.toFixed(2)}</span>
-            </div>
-            {discountAmount > 0 && (
-              <div className="flex justify-between text-green-600">
-                <span>Discount</span>
-                <span>-BDT {discountAmount.toFixed(2)}</span>
-              </div>
-            )}
-            <div className="flex justify-between border-t border-border pt-1 text-base font-bold text-slate-800">
-              <span>Grand Total</span>
-              <span>BDT {grandTotal.toFixed(2)}</span>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Payment Section */}
-      <div>
-        <h3 className="mb-3 text-sm font-bold text-slate-800">Payment</h3>
-        <div className="space-y-3">
+        {/* Payment */}
+        <div className="pb-3">
+          <h3 className="mb-2.5 text-sm font-bold text-slate-800">Payment</h3>
           <div className="flex flex-wrap gap-2">
             {['cash', 'card', 'bkash', 'nagad'].map((method) => (
               <button
                 key={method}
                 onClick={() => setPaymentMethod(method)}
-                className={`rounded-xl px-3 py-2 text-xs font-semibold transition-colors ${
+                className={`rounded-xl px-4 py-2 text-xs font-semibold transition-colors ${
                   paymentMethod === method
-                    ? 'bg-primary text-primary-foreground'
+                    ? 'bg-primary text-primary-foreground shadow-blue-500/25'
                     : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                 }`}
               >
@@ -211,16 +233,48 @@ export default function OrderEditForm({ order, onCancel, onSaved }: OrderEditFor
               </button>
             ))}
           </div>
+
+          {paymentMethod === 'cash' && (
+            <div className="mt-3 grid grid-cols-2 gap-3">
+              <div>
+                <label className="mb-1 block text-sm font-medium text-slate-700">Cash Tendered</label>
+                <Input
+                  type="number"
+                  inputMode="decimal"
+                  step="0.01"
+                  min="0"
+                  placeholder="0.00"
+                  value={cashTendered}
+                  onChange={(e) => setCashTendered(e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-slate-700">Change</label>
+                <div className="flex h-10 items-center rounded-xl border border-slate-200 bg-slate-50 px-3.5 text-sm font-medium text-green-600">
+                  {formatBdt(changeAmount)}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
+
+        {error && (
+          <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3">
+            <p className="text-xs text-red-600">{error}</p>
+          </div>
+        )}
       </div>
 
-      {error && <p className="text-xs text-red-500">{error}</p>}
-
-      <div className="flex gap-3">
-        <Button variant="primary" size="md" onClick={handleSave} disabled={updateMutation.isPending || items.length === 0}>
+      <div className="flex items-center justify-end gap-3 border-t border-border px-2 pt-4">
+        <Button
+          variant="primary"
+          size="md"
+          onClick={handleSave}
+          disabled={updateMutation.isPending || items.length === 0 || !hasChanges}
+        >
           {updateMutation.isPending ? 'Saving...' : 'Save Changes'}
         </Button>
-        <Button variant="secondary" size="md" onClick={onCancel} disabled={updateMutation.isPending}>
+        <Button variant="secondary" size="md" onClick={onClose} disabled={updateMutation.isPending}>
           Cancel
         </Button>
       </div>
@@ -257,13 +311,17 @@ export default function OrderEditForm({ order, onCancel, onSaved }: OrderEditFor
                   className="flex w-full items-center justify-between rounded-xl px-3 py-2 text-left transition-colors hover:bg-slate-100"
                 >
                   <span className="text-sm font-medium text-slate-800">{product.name}</span>
-                  <span className="text-xs text-slate-500">BDT {product.price.toFixed(2)}</span>
+                  <span className="text-xs text-slate-500">{formatBdt(product.price)}</span>
                 </button>
               ))
             )}
           </div>
         </div>
       </Dialog>
-    </div>
+    </Dialog>
   );
+}
+
+function formatBdt(n: number): string {
+  return `\u09F3${n.toFixed(2)}`;
 }

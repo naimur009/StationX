@@ -7,6 +7,7 @@ import { useAuthStore } from '@/stores/auth-store';
 import { useUIStore } from '@/stores/ui-store';
 import { useMe } from '@/features/auth/api';
 import { useLogout } from '@/features/auth/api';
+import { connectSocket, disconnectSocket } from '@/lib/socket';
 import Sidebar from '@/components/shared/Sidebar';
 import TopBar from '@/components/shared/TopBar';
 import MobileNav from '@/components/shared/MobileNav';
@@ -62,6 +63,13 @@ export default function DashboardLayout({
       clearAuth();
     }
   }, [isAuthenticated, user, clearAuth]);
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    const token = useAuthStore.getState().accessToken;
+    if (token) connectSocket(token);
+    return () => { disconnectSocket(); };
+  }, [isAuthenticated]);
 
   useEffect(() => {
     function handleResize() {

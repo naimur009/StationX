@@ -13,7 +13,7 @@ export default function OrderFilters({ onFilter }: OrderFiltersProps) {
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
   const [search, setSearch] = useState('');
-  const [customerSearch, setCustomerSearch] = useState('');
+  const [customerPhone, setCustomerPhone] = useState('');
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -22,21 +22,21 @@ export default function OrderFilters({ onFilter }: OrderFiltersProps) {
         from: from || undefined,
         to: to || undefined,
         search: search || undefined,
-        customerSearch: customerSearch || undefined,
+        customerPhone: customerPhone || undefined,
       });
     }, 300);
     return () => clearTimeout(timer);
-  }, [status, from, to, search, customerSearch, onFilter]);
+  }, [status, from, to, search, customerPhone, onFilter]);
 
   const clearFilters = () => {
     setStatus('all');
     setFrom('');
     setTo('');
     setSearch('');
-    setCustomerSearch('');
+    setCustomerPhone('');
   };
 
-  const hasFilters = status !== 'all' || from || to || search || customerSearch;
+  const hasFilters = status !== 'all' || from || to || search || customerPhone;
 
   return (
     <div className="flex flex-wrap items-end gap-3">
@@ -74,11 +74,12 @@ export default function OrderFilters({ onFilter }: OrderFiltersProps) {
       </div>
 
       <div className="w-56">
-        <label className="mb-1 block text-xs font-medium text-slate-500">Customer</label>
+        <label className="mb-1 block text-xs font-medium text-slate-500">Customer Phone</label>
         <Input
-          placeholder="Customer name..."
-          value={customerSearch}
-          onChange={(e) => setCustomerSearch(e.target.value)}
+          placeholder="Search by phone..."
+          value={customerPhone}
+          onChange={(e) => setCustomerPhone(e.target.value)}
+          inputMode="tel"
         />
       </div>
 

@@ -1,6 +1,7 @@
 import Product from '../../models/Product';
 import Coupon from '../../models/Coupon';
 import Customer from '../../models/Customer';
+import User from '../../models/User';
 import Order from '../../models/Order';
 import ActivityLog from '../../models/ActivityLog';
 import { withTransaction } from '../../lib/transaction';
@@ -24,6 +25,18 @@ function getDiscountInfo(coupon: ICoupon, subtotal: number): { discountAmount: n
     : rawDiscount;
 
   return { discountAmount, couponId: coupon._id.toString() };
+}
+
+export async function getEmployees() {
+  const users = await User.find({ role: { $in: ['manager', 'employee'] }, isActive: true })
+    .select('name role')
+    .sort({ name: 1 });
+
+  return users.map((u) => ({
+    id: u._id.toString(),
+    name: u.name,
+    role: u.role,
+  }));
 }
 
 export async function getCatalog() {
@@ -112,8 +125,21 @@ export async function createOrder(dto: CreateOrderDto, userId: string) {
     couponId = info.couponId;
   }
 
+  let manualDiscountAmount = 0;
+  if (rest.discountPercent && rest.discountPercent > 0) {
+    manualDiscountAmount = round2(computedSubtotal * (rest.discountPercent / 100));
+    discountAmount = round2(discountAmount + manualDiscountAmount);
+  }
+
   const taxAmount = 0;
   const grandTotal = round2(computedSubtotal - discountAmount + taxAmount);
+
+  let cashTendered: number | undefined;
+  let changeAmount: number | undefined;
+  if (rest.cashTendered != null) {
+    cashTendered = rest.cashTendered;
+    changeAmount = round2(Math.max(0, cashTendered - grandTotal));
+  }
 
   const orderNumber = await withTransaction(async (session) => {
     const seq = await getNextSequence('orderNumber', session);
@@ -127,12 +153,18 @@ export async function createOrder(dto: CreateOrderDto, userId: string) {
         orderType: rest.orderType || 'dine-in',
         tableNumber: rest.tableNumber,
         customerId: rest.customerId || null,
+        customerName: rest.customerName,
+        customerPhone: rest.customerPhone,
+        servedBy: rest.servedBy || null,
         items,
         couponId: couponId ?? undefined,
+        discountPercent: rest.discountPercent || 0,
         discountAmount,
         taxAmount,
         subtotal: computedSubtotal,
         grandTotal,
+        cashTendered,
+        changeAmount,
         payment: {
           method: paymentMethod,
         },

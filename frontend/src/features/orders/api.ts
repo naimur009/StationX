@@ -9,6 +9,8 @@ export interface OrderListItem {
   tableNumber?: string;
   customerId: string | null;
   customerName?: string;
+  customerPhone?: string;
+  servedBy?: string | null;
   grandTotal: number;
   status: 'pending' | 'completed' | 'cancelled';
   createdAt: string;
@@ -28,12 +30,18 @@ export interface OrderDetail {
   orderNumber: string;
   tableNumber?: string;
   customerId: { _id: string; name: string; phone: string } | string | null;
+  customerName?: string;
+  customerPhone?: string;
+  servedBy?: { _id: string; name: string } | string | null;
   items: OrderItemDetail[];
   couponId?: string | null;
+  discountPercent: number;
   discountAmount: number;
   taxAmount: number;
   subtotal: number;
   grandTotal: number;
+  cashTendered?: number;
+  changeAmount?: number;
   payment: {
     method: string;
   };
@@ -62,6 +70,7 @@ interface OrdersListParams {
   to?: string;
   createdBy?: string;
   customerId?: string;
+  customerPhone?: string;
   search?: string;
   sort?: string;
   page?: number;
@@ -75,6 +84,7 @@ export function useOrderList(params: OrdersListParams) {
   if (params.to) searchParams.set('to', params.to);
   if (params.createdBy) searchParams.set('createdBy', params.createdBy);
   if (params.customerId) searchParams.set('customerId', params.customerId);
+  if (params.customerPhone) searchParams.set('customerPhone', params.customerPhone);
   if (params.search) searchParams.set('search', params.search);
   if (params.sort) searchParams.set('sort', params.sort);
   if (params.page) searchParams.set('page', String(params.page));
@@ -85,6 +95,7 @@ export function useOrderList(params: OrdersListParams) {
   return useQuery({
     queryKey: ['orders', 'list', qs],
     queryFn: () => apiClient<OrdersListResponse>(`/orders${qs ? `?${qs}` : ''}`),
+    refetchInterval: 30_000,
   });
 }
 
@@ -107,6 +118,18 @@ export function useUpdateOrder() {
         body: JSON.stringify(body),
       });
     },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['orders'] });
+    },
+  });
+}
+
+export function useDeleteOrder() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: string) =>
+      apiClient<{ data: { success: boolean } }>(`/orders/${id}`, { method: 'DELETE' }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['orders'] });
     },

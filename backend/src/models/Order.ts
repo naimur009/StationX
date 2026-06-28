@@ -17,12 +17,18 @@ export interface IOrder extends Document {
   orderType: 'dine-in' | 'takeaway' | 'delivery';
   tableNumber?: string;
   customerId?: mongoose.Types.ObjectId | null;
+  customerName?: string;
+  customerPhone?: string;
+  servedBy?: mongoose.Types.ObjectId | null;
   items: IOrderItem[];
   couponId?: mongoose.Types.ObjectId | null;
+  discountPercent: number;
   discountAmount: number;
   taxAmount: number;
   subtotal: number;
   grandTotal: number;
+  cashTendered?: number;
+  changeAmount?: number;
   payment: IPayment;
   status: 'pending' | 'completed' | 'cancelled';
   createdBy: mongoose.Types.ObjectId;
@@ -64,12 +70,18 @@ const orderSchema = new Schema<IOrder>(
     },
     tableNumber: { type: String, required: false },
     customerId: { type: Schema.Types.ObjectId, ref: 'Customer', required: false, default: null },
+    customerName: { type: String, required: false },
+    customerPhone: { type: String, required: false },
+    servedBy: { type: Schema.Types.ObjectId, ref: 'User', required: false, default: null },
     items: { type: [orderItemSchema], required: true, validate: [(v: IOrderItem[]) => v.length > 0, 'Order must have at least one item'] },
     couponId: { type: Schema.Types.ObjectId, ref: 'Coupon', required: false, default: null },
+    discountPercent: { type: Number, required: true, default: 0 },
     discountAmount: { type: Number, required: true, default: 0 },
     taxAmount: { type: Number, required: true, default: 0 },
     subtotal: { type: Number, required: true },
     grandTotal: { type: Number, required: true },
+    cashTendered: { type: Number, required: false },
+    changeAmount: { type: Number, required: false },
     payment: { type: paymentSchema, required: true },
     status: {
       type: String,

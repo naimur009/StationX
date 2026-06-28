@@ -14,12 +14,24 @@ export interface CustomerInfo {
   phone: string;
 }
 
+export interface EmployeeInfo {
+  id: string;
+  name: string;
+  role: string;
+}
+
 export interface PosState {
   items: CartItem[];
   customer: CustomerInfo | null;
+  customerName: string;
+  customerPhone: string;
+  tableNumber: string;
+  servedBy: string;
   couponCode: string;
   couponDiscount: number;
   couponType: 'flat' | 'percentage' | null;
   paymentMethod: PaymentMethod;
+  discountPercent: number;
+  cashTendered: string;
   submitting: boolean;
 }

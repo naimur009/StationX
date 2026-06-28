@@ -8,6 +8,7 @@ export const listOrdersQuerySchema = z.object({
   to: z.string().optional(),
   createdBy: z.string().regex(objectIdPattern, 'Invalid user ID format').optional(),
   customerId: z.string().regex(objectIdPattern, 'Invalid customer ID format').optional(),
+  customerPhone: z.string().max(30).optional(),
   search: z.string().max(50).optional(),
   sort: z.enum(['createdAt', '-createdAt']).optional().default('-createdAt'),
   page: z.coerce.number().int().positive('Page must be a positive number').max(1000, 'Page number must not exceed 1000').default(1),
@@ -32,6 +33,8 @@ export const updateOrderSchema = z.object({
   customerId: z.string().regex(objectIdPattern, 'Invalid customer ID format').nullable().optional(),
   items: z.array(updateOrderItemSchema).min(1, 'Order must have at least one item').optional(),
   payment: updatePaymentSchema,
+  cashTendered: z.number().nonnegative().multipleOf(0.01).optional(),
+  changeAmount: z.number().nonnegative().multipleOf(0.01).optional(),
 }).strict();
 
 export const updateOrderStatusSchema = z.object({

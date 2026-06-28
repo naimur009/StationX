@@ -12,7 +12,13 @@ interface PosActions {
   setCoupon: (code: string, discount: number, type: 'flat' | 'percentage') => void;
   clearCoupon: () => void;
   setCustomer: (customer: CustomerInfo | null) => void;
+  setCustomerName: (name: string) => void;
+  setCustomerPhone: (phone: string) => void;
+  setTableNumber: (table: string) => void;
+  setServedBy: (userId: string) => void;
   setPaymentMethod: (method: PaymentMethod) => void;
+  setDiscountPercent: (percent: number) => void;
+  setCashTendered: (amount: string) => void;
   setSubmitting: (submitting: boolean) => void;
   reset: () => void;
 }
@@ -20,10 +26,16 @@ interface PosActions {
 const initialState: PosState = {
   items: [],
   customer: null,
+  customerName: '',
+  customerPhone: '',
+  tableNumber: '',
+  servedBy: '',
   couponCode: '',
   couponDiscount: 0,
   couponType: null,
   paymentMethod: 'cash',
+  discountPercent: 0,
+  cashTendered: '',
   submitting: false,
 };
 
@@ -57,7 +69,13 @@ export const usePosStore = create<PosState & PosActions>((set) => ({
   setCoupon: (couponCode, couponDiscount, couponType) => set({ couponCode, couponDiscount, couponType }),
   clearCoupon: () => set({ couponCode: '', couponDiscount: 0, couponType: null }),
   setCustomer: (customer) => set({ customer }),
+  setCustomerName: (customerName) => set({ customerName }),
+  setCustomerPhone: (customerPhone) => set({ customerPhone }),
+  setTableNumber: (tableNumber) => set({ tableNumber }),
+  setServedBy: (servedBy) => set({ servedBy }),
   setPaymentMethod: (paymentMethod) => set({ paymentMethod }),
+  setDiscountPercent: (discountPercent) => set({ discountPercent }),
+  setCashTendered: (cashTendered) => set({ cashTendered }),
   setSubmitting: (submitting) => set({ submitting }),
   reset: () => set(initialState),
 }));

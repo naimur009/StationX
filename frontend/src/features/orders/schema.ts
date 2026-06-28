@@ -7,7 +7,7 @@ export const ordersFilterSchema = z.object({
   from: z.string().optional(),
   to: z.string().optional(),
   search: z.string().max(50).optional(),
-  customerSearch: z.string().max(50).optional(),
+  customerPhone: z.string().max(30).optional(),
 });
 
 export const updateOrderItemSchema = z.object({

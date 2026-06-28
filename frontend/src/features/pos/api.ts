@@ -3,6 +3,12 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api-client';
 
+export interface EmployeeInfo {
+  id: string;
+  name: string;
+  role: string;
+}
+
 export interface CatalogProduct {
   id: string;
   name: string;
@@ -23,6 +29,14 @@ export interface CustomerResult {
   name: string;
   phone: string;
   created: boolean;
+}
+
+export function useEmployees() {
+  return useQuery({
+    queryKey: ['pos', 'employees'],
+    queryFn: () => apiClient<{ data: EmployeeInfo[] }>('/pos/employees'),
+    staleTime: 60_000,
+  });
 }
 
 export function useCatalog() {
