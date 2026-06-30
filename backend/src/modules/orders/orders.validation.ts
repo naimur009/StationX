@@ -35,6 +35,7 @@ export const updateOrderSchema = z.object({
   payment: updatePaymentSchema,
   cashTendered: z.number().nonnegative().multipleOf(0.01).optional(),
   changeAmount: z.number().nonnegative().multipleOf(0.01).optional(),
+  discountPercent: z.number().min(0).max(100).multipleOf(0.01).optional(),
 }).strict();
 
 export const updateOrderStatusSchema = z.object({

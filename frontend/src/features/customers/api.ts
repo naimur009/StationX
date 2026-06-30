@@ -9,7 +9,7 @@ export interface CustomerResponse {
   phone: string;
   email?: string;
   address?: string;
-  isActive: boolean;
+  orderCount: number;
   createdAt: string;
   updatedAt: string;
 }

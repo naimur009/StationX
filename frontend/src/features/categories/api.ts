@@ -6,6 +6,7 @@ import { apiClient } from '@/lib/api-client';
 export interface CategoryResponse {
   id: string;
   name: string;
+  taxRate: number;
   isActive: boolean;
   productCount: number;
   createdAt: string;
@@ -51,7 +52,7 @@ export function useCreateCategory() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (data: { name: string }) =>
+    mutationFn: (data: { name: string; taxRate?: number }) =>
       apiClient<{ data: CategoryResponse }>('/categories', {
         method: 'POST',
         body: JSON.stringify(data),
@@ -66,7 +67,7 @@ export function useUpdateCategory() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (data: { id: string; name?: string; isActive?: boolean }) => {
+    mutationFn: (data: { id: string; name?: string; isActive?: boolean; taxRate?: number }) => {
       const { id, ...body } = data;
       return apiClient<{ data: CategoryResponse }>(`/categories/${id}`, {
         method: 'PUT',

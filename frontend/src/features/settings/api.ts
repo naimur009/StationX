@@ -20,6 +20,7 @@ export interface SettingsResponse {
   taxId: string;
   businessHours: BusinessHourEntry[];
   taxConfig: { mode: string; rate: number };
+  loyaltyOrderThreshold: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -32,6 +33,7 @@ interface SettingsUpdateData {
   taxId?: string;
   businessHours?: BusinessHourEntry[];
   taxConfig?: { mode: string; rate: number };
+  loyaltyOrderThreshold?: number;
 }
 
 export function useSettings() {

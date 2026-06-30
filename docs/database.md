@@ -146,16 +146,22 @@ Not explicitly modeled in `ARCHITECTURE.md` §5's collection list, but required 
 ### 3.6 Customer
 
 | Field | Type | Required | Notes |
-|---|---|---|---|
+|---|---|---|---|---|
 | `name` | String | ✓ | |
 | `phone` | String | ✓ | indexed for fast POS lookup/dedupe at order time |
 | `email` | String | — | |
 | `address` | String | — | |
-| `isActive` | Boolean | ✓ (default `true`) | soft delete |
+| `isActive` | Boolean | ✓ (default `true`) | |
+| `orderCount` | Number | ✓ (default `0`) | incremented on each POS order placed by this customer |
+| `history` | Array of `{ field, oldValue, newValue, changedAt }` | — | audit trail of field changes (name, phone, email, address); pushed on every update via `updateCustomer` or POS order creation |
 
 **Indexes:** `phone`, text index on `name` (Customers module search).
 
-> **Note:** `phone` is *not* marked globally unique — walk-in/phone-optional households sharing a line, or data-entry duplicates, shouldn't hard-block order creation. Dedupe is a UX nudge ("a customer with this phone already exists — link instead?") rather than a hard DB constraint, since blocking on it could stall POS during a rush.
+> **Note:** `phone` is the primary customer identifier. When a POS order is placed with `customerPhone` filled in, the server looks up by phone — if found, it updates the customer's name (if provided) and increments `orderCount`; if not found, it creates a new customer. No name-matching is required — phone match is sufficient.
+>
+> **Hard delete:** Customers are permanently removed from the database via `DELETE /customers/:id`. There is no soft-delete for customers — the `isActive` field remains for informational use.
+>
+> **`orderCount` is maintained automatically by the POS order-creation flow.** When a POS order is placed with `customerPhone` filled in, the server auto-creates or updates the corresponding `Customer` document and increments `orderCount`. The `updateCustomer` endpoint also preserves previous field values by pushing to `history` before applying changes.
 
 ---
 

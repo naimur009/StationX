@@ -35,6 +35,7 @@ export default function OrderEditForm({ order, open, onClose, onSaved }: OrderEd
   const [cashTendered, setCashTendered] = useState(
     order.cashTendered ? String(order.cashTendered) : ''
   );
+  const [discountPercent, setDiscountPercent] = useState(order.discountPercent);
   const [productCatalog, setProductCatalog] = useState<CatalogProduct[]>([]);
   const [catalogError, setCatalogError] = useState('');
   const [productSearch, setProductSearch] = useState('');
@@ -58,6 +59,7 @@ export default function OrderEditForm({ order, open, onClose, onSaved }: OrderEd
     setItems(order.items.map((i) => ({ productId: i.productId, quantity: i.quantity })));
     setPaymentMethod(order.payment.method);
     setCashTendered(order.cashTendered ? String(order.cashTendered) : '');
+    setDiscountPercent(order.discountPercent);
     setError('');
   }, [open, order]);
 
@@ -70,10 +72,10 @@ export default function OrderEditForm({ order, open, onClose, onSaved }: OrderEd
   }), [items, productMap]);
 
   const subtotal = round2(computedItems.reduce((sum, i) => sum + i.lineTotal, 0));
-  const discountAmount = order.couponId
-    ? round2(subtotal * (order.discountAmount / (order.subtotal || 1)))
-    : 0;
-  const grandTotal = round2(subtotal - discountAmount);
+  const discountAmount = discountPercent > 0 ? round2(subtotal * (discountPercent / 100)) : 0;
+  const taxRate = 5;
+  const taxAmount = round2(subtotal * (taxRate / 100));
+  const grandTotal = round2(subtotal - discountAmount + taxAmount);
 
   const tendered = parseFloat(cashTendered) || 0;
   const changeAmount = paymentMethod === 'cash' && tendered >= grandTotal
@@ -116,6 +118,9 @@ export default function OrderEditForm({ order, open, onClose, onSaved }: OrderEd
       payload.cashTendered = tendered;
       payload.changeAmount = changeAmount;
     }
+    if (discountPercent !== order.discountPercent) {
+      payload.discountPercent = discountPercent;
+    }
     if (Object.keys(payload).length === 0) {
       onClose();
       return;
@@ -132,7 +137,8 @@ export default function OrderEditForm({ order, open, onClose, onSaved }: OrderEd
     tableNumber !== (order.tableNumber || '') ||
     JSON.stringify(items) !== JSON.stringify(order.items.map((i) => ({ productId: i.productId, quantity: i.quantity }))) ||
     paymentMethod !== order.payment.method ||
-    (paymentMethod === 'cash' && tendered > 0 && tendered !== (order.cashTendered || 0));
+    (paymentMethod === 'cash' && tendered > 0 && tendered !== (order.cashTendered || 0)) ||
+    discountPercent !== order.discountPercent;
 
   return (
     <Dialog open={open} onClose={onClose} title={`Edit ${order.orderNumber}`} size="lg">
@@ -203,8 +209,14 @@ export default function OrderEditForm({ order, open, onClose, onSaved }: OrderEd
               </div>
               {discountAmount > 0 && (
                 <div className="flex justify-between text-sm">
-                  <span className="text-slate-500">Discount{order.couponId ? ' (Coupon)' : ''}</span>
+                  <span className="text-slate-500">Discount ({discountPercent}%)</span>
                   <span className="text-green-600">-{formatBdt(discountAmount)}</span>
+                </div>
+              )}
+              {taxAmount > 0 && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-slate-500">Tax ({taxRate}%)</span>
+                  <span className="text-slate-600">{formatBdt(taxAmount)}</span>
                 </div>
               )}
               <div className="flex justify-between border-t border-border pt-1.5 text-base font-bold">
@@ -213,6 +225,32 @@ export default function OrderEditForm({ order, open, onClose, onSaved }: OrderEd
               </div>
             </div>
           )}
+        </div>
+
+        {/* Discount */}
+        <div>
+          <h3 className="mb-2.5 text-sm font-bold text-slate-800">Discount</h3>
+          <div className="flex items-end gap-3">
+            <div className="flex-1">
+              <label className="mb-1 block text-sm font-medium text-slate-700">Discount (%)</label>
+              <Input
+                type="number"
+                inputMode="decimal"
+                step="0.01"
+                min="0"
+                max="100"
+                placeholder="0"
+                value={discountPercent || ''}
+                onChange={(e) => setDiscountPercent(parseFloat(e.target.value) || 0)}
+              />
+            </div>
+            <div className="flex-1">
+              <label className="mb-1 block text-sm font-medium text-slate-700">Amount</label>
+              <div className="flex h-10 items-center rounded-xl border border-slate-200 bg-slate-50 px-3.5 text-sm font-medium text-green-600">
+                {discountAmount > 0 ? `-${formatBdt(discountAmount)}` : formatBdt(0)}
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* Payment */}

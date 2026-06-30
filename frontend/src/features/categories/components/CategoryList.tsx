@@ -126,11 +126,11 @@ export default function CategoryList({ onEdit, onDelete, onPermanentDelete }: Ca
                   !category.isActive ? 'opacity-60' : ''
                 }`}
               >
-                <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate font-medium text-slate-800">{category.name}</p>
-                    <p className="text-sm text-slate-500">{category.productCount} product{category.productCount !== 1 ? 's' : ''}</p>
-                  </div>
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate font-medium text-slate-800">{category.name}</p>
+                      <p className="text-sm text-slate-500">{category.productCount} product{category.productCount !== 1 ? 's' : ''} &middot; Tax: {category.taxRate}%</p>
+                    </div>
                   <div className="shrink-0">
                     {category.isActive ? (
                       <span className="inline-block size-1.5 rounded-full bg-green-500" title="Active" />
@@ -179,12 +179,13 @@ export default function CategoryList({ onEdit, onDelete, onPermanentDelete }: Ca
           <div className="hidden md:block overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
             <table className="w-full text-left text-sm">
               <thead>
-                <tr className="border-b border-slate-200 bg-slate-50 text-xs font-semibold uppercase text-slate-500">
-                  <th className="px-4 py-3">Name</th>
-                  <th className="hidden sm:table-cell px-4 py-3">Products</th>
-                  <th className="px-4 py-3">Status</th>
-                  <th className="px-4 py-3 text-right">Actions</th>
-                </tr>
+                  <tr className="border-b border-slate-200 bg-slate-50 text-xs font-semibold uppercase text-slate-500">
+                    <th className="px-4 py-3">Name</th>
+                    <th className="hidden sm:table-cell px-4 py-3">Tax Rate</th>
+                    <th className="hidden sm:table-cell px-4 py-3">Products</th>
+                    <th className="px-4 py-3">Status</th>
+                    <th className="px-4 py-3 text-right">Actions</th>
+                  </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {data?.data.map((category) => (
@@ -196,6 +197,9 @@ export default function CategoryList({ onEdit, onDelete, onPermanentDelete }: Ca
                   >
                     <td className="max-w-[300px] truncate px-4 py-3 font-medium text-slate-800">
                       {category.name}
+                    </td>
+                    <td className="hidden sm:table-cell px-4 py-3 text-slate-600">
+                      {category.taxRate}%
                     </td>
                     <td className="hidden sm:table-cell px-4 py-3 text-slate-600">
                       {category.productCount}

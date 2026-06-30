@@ -440,8 +440,15 @@ These apply to **every** module below; listed once here and referenced by ID rat
 | CUST-H-05 | Happy | `GET /customers?search=` matching by phone | Confirm phone search also works, not just name (per `DATABASE.md` §4 "search by name or phone") |
 | CUST-CROSS-01 | Integration | Cashier without `customers:create` permission completes a walk-in order with `customerId: null` | Order creation succeeds — confirms POS doesn't require Customer permission for a walk-in (`API.md` §18 cross-module note) |
 | CUST-CROSS-02 | Integration | Cashier without `customers:create` attempts to register a new customer inline during checkout | `403 FORBIDDEN` on the `POST /customers` call specifically, while the order itself can still proceed without attaching one |
-| CUST-H-06 | Happy | `DELETE /customers/:id` | Soft delete |
-| CUST-E-01 | Edge | Soft-deleted customer still referenced by historical Orders | Order detail/history views remain fully reconstructable |
+| CUST-H-06 | Happy | `DELETE /customers/:id` | **Hard delete** — document permanently removed from database |
+| CUST-H-07 | Happy | POS order created with `customerPhone` for a new phone number (no `customerName` needed) | New `Customer` document created with name = phone, `orderCount: 1`, `order.customerId` linked |
+| CUST-H-08 | Happy | POS order created with `customerPhone` for an existing phone number | Existing customer's `orderCount` incremented by 1; name updated if provided, old name pushed to `history` |
+| CUST-H-09 | Happy | `PUT /customers/:id` changing a customer's name | Previous name pushed to `history` array with `field: 'name'`, `oldValue`, `newValue`, `changedAt` |
+| CUST-H-10 | Happy | `PUT /customers/:id` changing phone/email/address | Each changed field gets its own entry in `history` |
+| CUST-H-11 | Happy | `GET /customers/:id?includeOrders=true` | Returns `orderCount` plus `orders[]` array with recent orders (id, total, status, createdAt) |
+| CUST-CROSS-03 | Integration | POS order created with `customerPhone` links `customerId` on the Order | Fetching the Order returns `customerId` populated with the auto-created/updated Customer |
+| CUST-CROSS-04 | Integration | After POS order creation, customers list auto-refreshes | React Query `['customers']` key invalidated — list updates without manual refresh |
+| CUST-E-02 | Edge | `PUT /customers/:id` with no field changes (same values) | No history entries added — only actually-changed fields produce a history entry |
 
 ---
 

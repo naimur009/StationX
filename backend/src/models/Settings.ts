@@ -25,6 +25,7 @@ export interface ISettings {
   taxId: string;
   businessHours: IBusinessHours[];
   taxConfig: ITaxConfig;
+  loyaltyOrderThreshold: number;
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -87,6 +88,7 @@ const settingsSchema = new Schema(
       type: taxConfigSchema,
       default: () => ({ mode: 'none', rate: 0 }),
     },
+    loyaltyOrderThreshold: { type: Number, default: 0 },
   },
   { timestamps: true, toJSON: { versionKey: false } }
 );
@@ -112,6 +114,7 @@ export const DEFAULT_SETTINGS: ISettings = {
   taxId: '',
   businessHours: DEFAULT_BUSINESS_HOURS,
   taxConfig: { mode: 'none', rate: 0 },
+  loyaltyOrderThreshold: 0,
 };
 
 const Settings = mongoose.model<ISettings>('Settings', settingsSchema);

@@ -1,9 +1,8 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { Search, ChevronLeft, ChevronRight, Edit3, Phone, Mail, MapPin } from 'lucide-react';
+import { Search, ChevronLeft, ChevronRight, Edit3, Phone, Mail, MapPin, ShoppingBag, Trash2 } from 'lucide-react';
 import { useCustomersList, type CustomerResponse } from '../api';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 
 interface CustomerListProps {
@@ -15,7 +14,6 @@ interface CustomerListProps {
 export default function CustomerList({ onEdit, onDelete, onCreate }: CustomerListProps) {
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
   const [page, setPage] = useState(1);
   const [error, setError] = useState<string | null>(null);
   const mountedRef = useRef(true);
@@ -33,18 +31,15 @@ export default function CustomerList({ onEdit, onDelete, onCreate }: CustomerLis
     };
   }, [search]);
 
-  const isActiveParam = statusFilter === 'all' ? undefined : (statusFilter === 'active' ? 'true' : 'false');
-
   const { data, isLoading, isError } = useCustomersList({
     page,
     limit: 20,
-    isActive: isActiveParam,
     search: debouncedSearch || undefined,
   });
 
   useEffect(() => {
     setPage(1);
-  }, [statusFilter, debouncedSearch]);
+  }, [debouncedSearch]);
 
   function handlePageChange(newPage: number) {
     if (newPage < 1 || (data && newPage > Math.ceil(data.meta.total / data.meta.limit))) return;
@@ -64,27 +59,15 @@ export default function CustomerList({ onEdit, onDelete, onCreate }: CustomerLis
         </div>
       )}
 
-      <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-3">
-        <div className="relative flex-1 min-w-[200px]">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-          <input
-            type="text"
-            placeholder="Search by name or phone..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full rounded-xl border border-slate-300 bg-white py-2.5 pl-10 pr-3.5 text-sm text-slate-800 placeholder-slate-400 ring-ring focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-ring"
-          />
-        </div>
-
-        <select
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-          className="rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-700 ring-ring focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-ring"
-        >
-          <option value="all">All</option>
-          <option value="active">Active</option>
-          <option value="inactive">Deactivated</option>
-        </select>
+      <div className="relative flex-1 min-w-[200px] max-w-md">
+        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+        <input
+          type="text"
+          placeholder="Search by name or phone..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="w-full rounded-xl border border-slate-300 bg-white py-2.5 pl-10 pr-3.5 text-sm text-slate-800 placeholder-slate-400 ring-ring focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-ring"
+        />
       </div>
 
       {/* Loading / Error / Empty */}
@@ -112,9 +95,7 @@ export default function CustomerList({ onEdit, onDelete, onCreate }: CustomerLis
             {data?.data.map((customer) => (
               <div
                 key={customer.id}
-                className={`rounded-2xl border border-slate-200 bg-white p-4 shadow-sm ${
-                  !customer.isActive ? 'opacity-60' : ''
-                }`}
+                className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
               >
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0 flex-1">
@@ -138,14 +119,11 @@ export default function CustomerList({ onEdit, onDelete, onCreate }: CustomerLis
                           {customer.address}
                         </span>
                       )}
+                      <span className="flex items-center gap-1">
+                        <ShoppingBag className="h-3 w-3 shrink-0" />
+                        {customer.orderCount} order{customer.orderCount !== 1 ? 's' : ''}
+                      </span>
                     </div>
-                  </div>
-                  <div className="shrink-0">
-                    {customer.isActive ? (
-                      <span className="inline-block size-1.5 rounded-full bg-green-500" title="Active" />
-                    ) : (
-                      <Badge variant="slate">Deactivated</Badge>
-                    )}
                   </div>
                 </div>
                 <div className="mt-3 flex items-center justify-end gap-1.5">
@@ -156,11 +134,10 @@ export default function CustomerList({ onEdit, onDelete, onCreate }: CustomerLis
                   >
                     <Edit3 className="h-4 w-4" />
                   </button>
-                  {customer.isActive ? (
-                    <Button variant="warning" size="xs" onClick={() => onDelete(customer)}>
-                      Deactivate
-                    </Button>
-                  ) : null}
+                  <Button variant="destructive" size="xs" onClick={() => onDelete(customer)}>
+                    <Trash2 className="mr-1 h-3.5 w-3.5" />
+                    Delete
+                  </Button>
                 </div>
               </div>
             ))}
@@ -175,7 +152,7 @@ export default function CustomerList({ onEdit, onDelete, onCreate }: CustomerLis
                   <th className="px-5 py-3.5">Phone</th>
                   <th className="hidden sm:table-cell px-5 py-3.5">Email</th>
                   <th className="hidden lg:table-cell px-5 py-3.5">Address</th>
-                  <th className="px-5 py-3.5">Status</th>
+                  <th className="px-5 py-3.5 text-center">Orders</th>
                   <th className="px-5 py-3.5 text-right">Actions</th>
                 </tr>
               </thead>
@@ -183,9 +160,7 @@ export default function CustomerList({ onEdit, onDelete, onCreate }: CustomerLis
                 {data?.data.map((customer) => (
                   <tr
                     key={customer.id}
-                    className={`transition-colors hover:bg-slate-50 ${
-                      !customer.isActive ? 'opacity-60' : ''
-                    }`}
+                    className="transition-colors hover:bg-slate-50"
                   >
                     <td className="max-w-[200px] truncate px-5 py-3.5 font-medium text-slate-800">
                       {customer.name}
@@ -197,12 +172,8 @@ export default function CustomerList({ onEdit, onDelete, onCreate }: CustomerLis
                     <td className="hidden lg:table-cell max-w-[250px] truncate px-5 py-3.5 text-slate-600">
                       {customer.address || '—'}
                     </td>
-                    <td className="px-5 py-3.5">
-                      {customer.isActive ? (
-                        <span className="inline-block size-1.5 rounded-full bg-green-500" title="Active" />
-                      ) : (
-                        <Badge variant="slate">Deactivated</Badge>
-                      )}
+                    <td className="px-5 py-3.5 text-center text-slate-600">
+                      {customer.orderCount}
                     </td>
                     <td className="px-5 py-3.5">
                       <div className="flex items-center justify-end gap-2">
@@ -213,11 +184,10 @@ export default function CustomerList({ onEdit, onDelete, onCreate }: CustomerLis
                         >
                           <Edit3 className="h-4 w-4" />
                         </button>
-                        {customer.isActive && (
-                          <Button variant="warning" size="xs" onClick={() => onDelete(customer)}>
-                            Deactivate
-                          </Button>
-                        )}
+                        <Button variant="destructive" size="xs" onClick={() => onDelete(customer)}>
+                          <Trash2 className="mr-1 h-3.5 w-3.5" />
+                          Delete
+                        </Button>
                       </div>
                     </td>
                   </tr>

@@ -1,8 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { usePosStore } from '@/features/pos/store';
 import { useEmployees, useCreateOrder } from '@/features/pos/api';
+import { useSettings } from '@/features/settings/api';
+import { apiClient } from '@/lib/api-client';
 import ProductGrid from '@/features/pos/components/ProductGrid';
 import Cart from '@/features/pos/components/Cart';
 import CouponInput from '@/features/pos/components/CouponInput';
@@ -43,6 +45,53 @@ export default function PosPage() {
   const createOrder = useCreateOrder();
   const { data: employeesData } = useEmployees();
   const employees = employeesData?.data ?? [];
+  const { data: settingsData } = useSettings();
+  const loyaltyThreshold = settingsData?.data?.loyaltyOrderThreshold ?? 0;
+
+  const [lookedUpCust, setLookedUpCust] = useState<{ name: string; orderCount: number } | null>(null);
+  const [lookingUpCust, setLookingUpCust] = useState(false);
+  const custTimerRef = useRef<ReturnType<typeof setTimeout>>();
+  const custAbortRef = useRef<AbortController>();
+  const isLoyaltyEligible = loyaltyThreshold > 0 && lookedUpCust !== null && lookedUpCust.orderCount >= loyaltyThreshold;
+
+  useEffect(() => {
+    if (custTimerRef.current) clearTimeout(custTimerRef.current);
+    if (custAbortRef.current) custAbortRef.current.abort();
+    const trimmed = customerPhone.trim();
+    if (!trimmed) {
+      setLookedUpCust(null);
+      setLookingUpCust(false);
+      return;
+    }
+    setLookingUpCust(true);
+    custTimerRef.current = setTimeout(async () => {
+      const controller = new AbortController();
+      custAbortRef.current = controller;
+      try {
+        const res = await apiClient<{ data: { id: string; name: string; phone: string; orderCount: number } | null }>(
+          `/pos/customers/lookup?phone=${encodeURIComponent(trimmed)}`,
+          { signal: controller.signal }
+        );
+        if (controller.signal.aborted) return;
+        if (res.data) {
+          setLookedUpCust({ name: res.data.name, orderCount: res.data.orderCount });
+          setCustomerName(res.data.name);
+        } else {
+          setLookedUpCust(null);
+          setCustomerName('');
+        }
+      } catch (e) {
+        if (e instanceof DOMException && e.name === 'AbortError') return;
+        setLookedUpCust(null);
+      } finally {
+        setLookingUpCust(false);
+      }
+    }, 500);
+    return () => {
+      if (custTimerRef.current) clearTimeout(custTimerRef.current);
+      if (custAbortRef.current) custAbortRef.current.abort();
+    };
+  }, [customerPhone]);
 
   const subtotal = items.reduce((sum, i) => sum + i.lineTotal, 0);
   const rawDiscount = couponType === 'percentage' ? subtotal * (couponDiscount / 100) : couponDiscount;
@@ -195,26 +244,45 @@ export default function PosPage() {
                 <ChevronDown className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 pointer-events-none" />
               </div>
 
-              {/* Customer name & phone (optional) */}
+              {/* Customer name & phone (optional) with auto-lookup */}
               <div className="space-y-2 rounded-xl border border-border p-3">
                 <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Customer</p>
+                <div>
+                  <div className="relative">
+                    <User className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                    <Input
+                      type="tel"
+                      placeholder="Customer phone (optional)"
+                      value={customerPhone}
+                      onChange={(e) => setCustomerPhone(e.target.value)}
+                      className="pl-9 text-sm"
+                    />
+                  </div>
+                  <div className="min-h-[28px]">
+                    {lookingUpCust && <p className="mt-1 text-xs text-slate-400">Looking up customer...</p>}
+                    {!lookingUpCust && lookedUpCust && (
+                      <div className="mt-1.5 rounded-lg bg-green-100 px-2.5 py-1 text-xs font-semibold text-green-700">
+                        {lookedUpCust.orderCount} order{lookedUpCust.orderCount !== 1 ? 's' : ''} placed
+                      </div>
+                    )}
+                    {isLoyaltyEligible && (
+                      <div className="mt-1.5 rounded-lg bg-amber-100 px-2.5 py-1.5 text-xs font-semibold text-amber-700">
+                        Loyalty customer — {lookedUpCust!.orderCount} orders placed
+                      </div>
+                    )}
+                    {!lookingUpCust && customerPhone.trim() && !lookedUpCust && (
+                      <p className="mt-1 text-xs text-amber-600">New customer</p>
+                    )}
+                  </div>
+                </div>
                 <div className="relative">
                   <User className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                   <Input
                     placeholder="Customer name (optional)"
                     value={customerName}
                     onChange={(e) => setCustomerName(e.target.value)}
-                    className="pl-9 text-sm"
-                  />
-                </div>
-                <div className="relative">
-                  <User className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                  <Input
-                    placeholder="Customer phone (optional)"
-                    value={customerPhone}
-                    onChange={(e) => setCustomerPhone(e.target.value)}
-                    className="pl-9 text-sm"
-                    inputMode="tel"
+                    className={`pl-9 text-sm ${lookedUpCust ? 'bg-slate-50 text-slate-500' : ''}`}
+                    readOnly={!!lookedUpCust}
                   />
                 </div>
               </div>

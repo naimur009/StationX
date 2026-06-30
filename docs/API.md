@@ -420,17 +420,54 @@ Base path: `/categories`. **Permission module key:** `categories`. Standard soft
 
 ## 18. Customers
 
-Base path: `/customers`. **Permission module key:** `customers`. Standard soft-delete CRUD.
+Base path: `/customers`. **Permission module key:** `customers`. Standard CRUD with **hard delete**.
 
 | Method | Path | Action | Description |
 |---|---|---|---|
 | GET | `/customers?search=` | `view` | List/search by name or phone (text index, `DATABASE.md` §4) |
 | GET | `/customers/:id` | `view` | Detail — `?includeOrders=true` populates recent `Order` history via `customerId` |
 | POST | `/customers` | `create` | Create |
-| PUT | `/customers/:id` | `edit` | Edit |
-| DELETE | `/customers/:id` | `delete` | Soft delete |
+| PUT | `/customers/:id` | `edit` | Edit — previous field values are automatically pushed to the customer's `history` array |
+| DELETE | `/customers/:id` | `delete` | **Hard delete** — permanently removes the customer document |
+
+**Response includes `orderCount`** — the total number of POS orders placed by this customer. This field is maintained automatically by the POS order-creation flow; it is not manually editable.
+
+```json
+// GET /customers/:id response
+{
+  "data": {
+    "id": "...",
+    "name": "John Doe",
+    "phone": "+8801712345678",
+    "email": "john@example.com",
+    "address": "123 Main Street, Dhaka",
+    "orderCount": 5,
+    "createdAt": "2026-06-01T10:00:00.000Z",
+    "updatedAt": "2026-06-20T14:30:00.000Z"
+  }
+}
+```
+
+```json
+// GET /customers/:id?includeOrders=true response — additional `orders` array
+{
+  "data": {
+    "id": "...",
+    "name": "John Doe",
+    ...
+    "orderCount": 5,
+    "orders": [
+      { "id": "...", "total": 540, "status": "completed", "createdAt": "2026-06-20T14:30:00.000Z" },
+      { "id": "...", "total": 320, "status": "completed", "createdAt": "2026-06-15T12:00:00.000Z" }
+    ],
+    ...
+  }
+}
+```
 
 > **Cross-module note:** a cashier attaching a customer to a sale during POS checkout calls this module's `GET`/`POST`, gated by the *Customers* permission — not a `pos`-scoped duplicate. A staff member without `customers:create` can still complete a walk-in order (`customerId: null`); they just can't attach/register a new customer inline.
+>
+> **Phone is the primary customer identifier.** When a POS order is created (`POST /pos/orders`) with `customerPhone` filled in, the server looks up by phone. If found, the customer's name is updated (if provided, old name pushed to `history`) and `orderCount` is incremented — no name-matching required. If not found, a new customer is created with `orderCount: 1`. This ensures customer records stay current without manual data-entry overhead.
 
 ---
 

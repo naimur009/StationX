@@ -266,10 +266,12 @@ import {
 } from '../src/modules/orders/orders.service';
 import Order from '../src/models/Order';
 import Product from '../src/models/Product';
+import Category from '../src/models/Category';
 import ActivityLog from '../src/models/ActivityLog';
 
 vi.mock('../src/models/Order');
 vi.mock('../src/models/Product');
+vi.mock('../src/models/Category');
 vi.mock('../src/models/ActivityLog');
 vi.mock('../src/config/socket', () => ({
   getIO: () => ({ emit: vi.fn() }),
@@ -336,6 +338,18 @@ describe('renderBillHtml', () => {
     expect(html).toContain('CASH');
     expect(html).toContain('Table 5');
     expect(html).toContain('Thank you!');
+  });
+
+  it('includes tax row when taxAmount > 0', () => {
+    const html = renderBillHtml(sampleOrder as never);
+    expect(html).toContain('Tax');
+    expect(html).toContain('\u09F32.50');
+  });
+
+  it('omits tax row when taxAmount is 0', () => {
+    const noTax = { ...sampleOrder, taxAmount: 0 };
+    const html = renderBillHtml(noTax as never);
+    expect(html).not.toContain('>Tax<');
   });
 
   it('includes discount row when discountAmount > 0', () => {
@@ -551,8 +565,12 @@ describe('updateOrder', () => {
   it('updates items and recalculates totals', async () => {
     vi.mocked(Order.findById).mockResolvedValueOnce({ ...mockExistingOrder } as never);
     vi.mocked(Product.find).mockResolvedValueOnce([
-      { _id: { toString: () => 'pid-1' }, name: 'Pasta', price: 12 },
-      { _id: { toString: () => 'pid-2' }, name: 'Juice', price: 3 },
+      { _id: { toString: () => 'pid-1' }, name: 'Pasta', price: 12, categoryId: { toString: () => 'cat-1' } },
+      { _id: { toString: () => 'pid-2' }, name: 'Juice', price: 3, categoryId: { toString: () => 'cat-2' } },
+    ] as never);
+    vi.mocked(Category.find).mockResolvedValueOnce([
+      { _id: { toString: () => 'cat-1' }, taxRate: 5 },
+      { _id: { toString: () => 'cat-2' }, taxRate: 5 },
     ] as never);
     vi.mocked(Order.findByIdAndUpdate).mockResolvedValueOnce({ ...mockExistingOrder } as never);
     vi.mocked(Order.findById).mockReturnValue({
@@ -568,6 +586,7 @@ describe('updateOrder', () => {
     });
 
     expect(Product.find).toHaveBeenCalled();
+    expect(Category.find).toHaveBeenCalled();
     expect(Order.findByIdAndUpdate).toHaveBeenCalled();
     expect(result.data).toBeDefined();
   });
@@ -575,7 +594,10 @@ describe('updateOrder', () => {
   it('allows item editing on completed orders', async () => {
     vi.mocked(Order.findById).mockResolvedValueOnce({ ...mockExistingOrder, status: 'completed' } as never);
     vi.mocked(Product.find).mockResolvedValueOnce([
-      { _id: { toString: () => 'pid-1' }, name: 'Product 1', price: 10 },
+      { _id: { toString: () => 'pid-1' }, name: 'Product 1', price: 10, categoryId: { toString: () => 'cat-1' } },
+    ] as never);
+    vi.mocked(Category.find).mockResolvedValueOnce([
+      { _id: { toString: () => 'cat-1' }, taxRate: 5 },
     ] as never);
     vi.mocked(Order.findByIdAndUpdate).mockResolvedValueOnce({ ...mockExistingOrder } as never);
     vi.mocked(Order.findById).mockReturnValue({
@@ -588,6 +610,7 @@ describe('updateOrder', () => {
     });
 
     expect(Product.find).toHaveBeenCalled();
+    expect(Category.find).toHaveBeenCalled();
     expect(Order.findByIdAndUpdate).toHaveBeenCalled();
     expect(result.data).toBeDefined();
   });

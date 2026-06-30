@@ -41,6 +41,7 @@ export const updateSettingsSchema = z
     taxId: z.string().optional(),
     businessHours: z.array(businessHoursSchema).optional(),
     taxConfig: taxConfigSchema.optional(),
+    loyaltyOrderThreshold: z.number().int().min(0).optional(),
   })
   .strict();
 

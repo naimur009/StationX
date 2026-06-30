@@ -69,11 +69,15 @@ export function useSaveOrFindCustomer() {
 }
 
 export function useCreateOrder() {
+  const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (data: Record<string, unknown>) =>
       apiClient<{ data: { orderNumber: string } }>('/pos/orders', {
         method: 'POST',
         body: JSON.stringify(data),
       }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['customers'] });
+    },
   });
 }

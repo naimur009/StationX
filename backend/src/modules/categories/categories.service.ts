@@ -11,6 +11,7 @@ import type {
 interface CategoryResponse {
   id: string;
   name: string;
+  taxRate: number;
   isActive: boolean;
   productCount: number;
   createdAt: Date;
@@ -22,6 +23,7 @@ async function categoryResponse(cat: ICategory): Promise<CategoryResponse> {
   return {
     id: cat._id.toString(),
     name: cat.name,
+    taxRate: cat.taxRate,
     isActive: cat.isActive,
     productCount,
     createdAt: cat.createdAt,
@@ -70,6 +72,7 @@ export async function listCategories(query: ListCategoriesDto) {
   const data: CategoryResponse[] = categories.map((cat) => ({
     id: cat._id.toString(),
     name: cat.name,
+    taxRate: cat.taxRate,
     isActive: cat.isActive,
     productCount: countMap.get(cat._id.toString()) ?? 0,
     createdAt: cat.createdAt,
@@ -100,6 +103,7 @@ export async function createCategory(dto: CreateCategoryDto) {
 
   const category = await Category.create({
     name: dto.name,
+    taxRate: dto.taxRate ?? 5,
     isActive: true,
   });
 
@@ -123,6 +127,7 @@ export async function updateCategory(id: string, dto: UpdateCategoryDto) {
   const updates: Record<string, unknown> = {};
   if (dto.name !== undefined) updates.name = dto.name;
   if (dto.isActive !== undefined) updates.isActive = dto.isActive;
+  if (dto.taxRate !== undefined) updates.taxRate = dto.taxRate;
 
   const updated = await Category.findByIdAndUpdate(
     id,

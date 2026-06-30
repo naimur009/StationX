@@ -5,6 +5,7 @@ import BusinessInfoSection from '@/features/settings/components/BusinessInfoSect
 import TaxSection from '@/features/settings/components/TaxSection';
 import BusinessHoursSection from '@/features/settings/components/BusinessHoursSection';
 import LogoSettingsSection from '@/features/settings/components/LogoSettingsSection';
+import LoyaltyDiscountSection from '@/features/settings/components/LoyaltyDiscountSection';
 
 export default function SettingsPage() {
   return (
@@ -18,6 +19,7 @@ export default function SettingsPage() {
         <BusinessInfoSection />
         <TaxSection />
         <BusinessHoursSection />
+        <LoyaltyDiscountSection />
         <LogoSettingsSection />
       </div>
     </PermissionGate>

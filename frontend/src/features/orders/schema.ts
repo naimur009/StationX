@@ -24,6 +24,7 @@ export const updateOrderSchema = z.object({
   customerId: z.string().nullable().optional(),
   items: z.array(updateOrderItemSchema).min(1).optional(),
   payment: updatePaymentSchema.optional(),
+  discountPercent: z.number().min(0).max(100).optional(),
 });
 
 export const updateStatusSchema = z.object({

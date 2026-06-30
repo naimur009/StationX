@@ -57,3 +57,9 @@ export const logoSchema = z.object({
 });
 
 export type LogoFormData = z.input<typeof logoSchema>;
+
+export const loyaltyDiscountSchema = z.object({
+  loyaltyOrderThreshold: z.coerce.number().int().min(0),
+});
+
+export type LoyaltyDiscountFormData = z.input<typeof loyaltyDiscountSchema>;

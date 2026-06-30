@@ -111,7 +111,7 @@ export function useUpdateOrder() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (data: { id: string; tableNumber?: string; customerId?: string | null; items?: OrderItemUpdate[]; payment?: { method?: string } }) => {
+    mutationFn: (data: { id: string; tableNumber?: string; customerId?: string | null; items?: OrderItemUpdate[]; payment?: { method?: string }; discountPercent?: number }) => {
       const { id, ...body } = data;
       return apiClient<{ data: OrderDetail }>(`/orders/${id}`, {
         method: 'PUT',

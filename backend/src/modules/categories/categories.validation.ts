@@ -2,11 +2,13 @@ import { z } from 'zod';
 
 export const createCategorySchema = z.object({
   name: z.string().min(1, 'Name is required').max(100).trim(),
+  taxRate: z.number().min(0).max(100).optional(),
 }).strict();
 
 export const updateCategorySchema = z.object({
   name: z.string().min(1, 'Name is required').max(100).trim().optional(),
   isActive: z.boolean().optional(),
+  taxRate: z.number().min(0).max(100).optional(),
 }).strict();
 
 export const listCategoriesSchema = z.object({

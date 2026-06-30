@@ -1,4 +1,5 @@
 import Customer, { ICustomer } from '../../models/Customer';
+import Order from '../../models/Order';
 import { createError } from '../../middleware/errorHandler';
 import { escapeRegex } from '../../lib/escapeRegex';
 import type {
@@ -21,7 +22,7 @@ interface CustomerResponse {
   phone: string;
   email?: string;
   address?: string;
-  isActive: boolean;
+  orderCount: number;
   orders?: CustomerOrderSummary[];
   createdAt: Date;
   updatedAt: Date;
@@ -34,7 +35,7 @@ function toCustomerResponse(c: ICustomer): CustomerResponse {
     phone: c.phone,
     email: c.email,
     address: c.address,
-    isActive: c.isActive,
+    orderCount: c.orderCount,
     createdAt: c.createdAt,
     updatedAt: c.updatedAt,
   };
@@ -42,12 +43,6 @@ function toCustomerResponse(c: ICustomer): CustomerResponse {
 
 export async function listCustomers(query: ListCustomersDto) {
   const filter: Record<string, unknown> = {};
-
-  if (query.isActive === 'true') {
-    filter.isActive = true;
-  } else if (query.isActive === 'false') {
-    filter.isActive = false;
-  }
 
   if (query.search) {
     const escaped = escapeRegex(query.search);
@@ -82,8 +77,18 @@ export async function getCustomerById(id: string, includeOrders = false) {
   const response = toCustomerResponse(customer);
 
   if (includeOrders) {
-    // TODO: Populate recent Order history once Order model exists (Task 11)
-    response.orders = [];
+    const orders = await Order.find({ customerId: id })
+      .sort({ createdAt: -1 })
+      .limit(20)
+      .select('orderNumber grandTotal status createdAt')
+      .lean();
+
+    response.orders = orders.map((o) => ({
+      id: o._id.toString(),
+      total: o.grandTotal,
+      status: o.status,
+      createdAt: o.createdAt,
+    }));
   }
 
   return response;
@@ -130,16 +135,34 @@ export async function updateCustomer(id: string, dto: UpdateCustomerDto) {
     throw createError(404, 'NOT_FOUND', 'Customer not found');
   }
 
+  const historyEntries: Array<{ field: string; oldValue: string; newValue: string; changedAt: Date }> = [];
   const updates: Record<string, unknown> = {};
-  if (dto.name !== undefined) updates.name = dto.name;
-  if (dto.phone !== undefined) updates.phone = dto.phone;
-  if (dto.email !== undefined) updates.email = dto.email || undefined;
-  if (dto.address !== undefined) updates.address = dto.address || undefined;
-  if (dto.isActive !== undefined) updates.isActive = dto.isActive;
+
+  if (dto.name !== undefined && dto.name !== customer.name) {
+    historyEntries.push({ field: 'name', oldValue: customer.name, newValue: dto.name, changedAt: new Date() });
+    updates.name = dto.name;
+  }
+  if (dto.phone !== undefined && dto.phone !== customer.phone) {
+    historyEntries.push({ field: 'phone', oldValue: customer.phone, newValue: dto.phone, changedAt: new Date() });
+    updates.phone = dto.phone;
+  }
+  if (dto.email !== undefined && dto.email !== (customer.email || '')) {
+    historyEntries.push({ field: 'email', oldValue: customer.email || '', newValue: dto.email || '', changedAt: new Date() });
+    updates.email = dto.email || undefined;
+  }
+  if (dto.address !== undefined && dto.address !== (customer.address || '')) {
+    historyEntries.push({ field: 'address', oldValue: customer.address || '', newValue: dto.address || '', changedAt: new Date() });
+    updates.address = dto.address || undefined;
+  }
+
+  const updateOp: Record<string, unknown> = { $set: updates };
+  if (historyEntries.length > 0) {
+    updateOp.$push = { history: { $each: historyEntries } };
+  }
 
   const updated = await Customer.findByIdAndUpdate(
     id,
-    { $set: updates },
+    updateOp,
     { new: true, runValidators: true }
   );
 
@@ -151,11 +174,7 @@ export async function updateCustomer(id: string, dto: UpdateCustomerDto) {
 }
 
 export async function deleteCustomer(id: string) {
-  const customer = await Customer.findByIdAndUpdate(
-    id,
-    { $set: { isActive: false } },
-    { new: true }
-  );
+  const customer = await Customer.findByIdAndDelete(id);
 
   if (!customer) {
     throw createError(404, 'NOT_FOUND', 'Customer not found');

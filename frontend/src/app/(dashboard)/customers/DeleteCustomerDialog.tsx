@@ -5,7 +5,6 @@ import { useDeleteCustomer, type CustomerResponse } from '@/features/customers/a
 import { Dialog } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { AppError } from '@/lib/utils';
-import { Badge } from '@/components/ui/badge';
 
 interface DeleteCustomerDialogProps {
   customer: CustomerResponse | null;
@@ -27,7 +26,7 @@ export default function DeleteCustomerDialog({ customer, onClose }: DeleteCustom
       if (err instanceof AppError) {
         setError(err.message);
       } else {
-        setError('Failed to deactivate customer');
+        setError('Failed to delete customer');
       }
     }
   }
@@ -43,7 +42,7 @@ export default function DeleteCustomerDialog({ customer, onClose }: DeleteCustom
     <Dialog
       open={!!customer}
       onClose={handleClose}
-      title="Deactivate Customer"
+      title="Delete Customer"
       size="sm"
       footer={
         <>
@@ -57,7 +56,7 @@ export default function DeleteCustomerDialog({ customer, onClose }: DeleteCustom
             onClick={handleConfirm}
             disabled={deleteCustomer.isPending}
           >
-            {deleteCustomer.isPending ? 'Deactivating\u2026' : 'Deactivate'}
+            {deleteCustomer.isPending ? 'Deleting\u2026' : 'Delete'}
           </Button>
         </>
       }
@@ -70,24 +69,19 @@ export default function DeleteCustomerDialog({ customer, onClose }: DeleteCustom
         )}
 
         <p className="text-sm text-slate-600">
-          Are you sure you want to deactivate{' '}
+          Are you sure you want to delete{' '}
           <span className="font-semibold text-slate-800">{customer.name}</span>?
         </p>
 
         <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
           <div className="flex items-center justify-between">
-            <div className="min-w-0 flex-1">
-              <span className="font-medium text-slate-800">{customer.name}</span>
-              <span className="ml-2 text-slate-400">{customer.phone}</span>
-            </div>
-            <Badge variant={customer.isActive ? 'green' : 'slate'}>
-              {customer.isActive ? 'Active' : 'Inactive'}
-            </Badge>
+            <span className="font-medium text-slate-800">{customer.name}</span>
+            <span className="text-slate-400">{customer.phone}</span>
           </div>
         </div>
 
-        <p className="text-xs text-slate-400">
-          This will soft-delete this customer. Their order history will be preserved.
+        <p className="text-xs text-red-500">
+          This will permanently delete this customer and their data. This action cannot be undone.
         </p>
       </div>
     </Dialog>

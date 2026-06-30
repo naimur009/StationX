@@ -25,9 +25,11 @@ Then read these docs relevant to the feature being modified:
 
 ## Feature to Modify
 
-**Module:** <module-name>
+**Module:** <category>
 **What to change:**
-<Describe the modification in detail — what works now, what needs to change, and why.>
+add Tax on the category, items under this categories should have tax. make sure tax is calculated on the items. also make changes in the order, when i add an item to the order, it should have the tax added to it. and in order details page, the tax should be displayed separately. for now tax rate will be 5 percent.
+
+
 
 ## Scope Boundaries
 

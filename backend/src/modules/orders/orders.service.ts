@@ -1,6 +1,7 @@
 import mongoose from 'mongoose';
 import Order from '../../models/Order';
 import Product from '../../models/Product';
+import Category from '../../models/Category';
 import Coupon from '../../models/Coupon';
 import ActivityLog from '../../models/ActivityLog';
 import { createError } from '../../middleware/errorHandler';
@@ -189,6 +190,7 @@ export function renderBillHtml(order: Record<string, unknown>): string {
   <tfoot>
     <tr><td colspan="3" style="text-align: right">Subtotal</td><td style="text-align: right">${formatBdt(order.subtotal as number)}</td></tr>
     ${(order.discountAmount as number) > 0 ? `<tr><td colspan="3" style="text-align: right">Discount</td><td style="text-align: right">-${formatBdt(order.discountAmount as number)}</td></tr>` : ''}
+    ${(order.taxAmount as number) > 0 ? `<tr><td colspan="3" style="text-align: right">Tax</td><td style="text-align: right">${formatBdt(order.taxAmount as number)}</td></tr>` : ''}
     <tr class="total-row"><td colspan="3" style="text-align: right">Grand Total</td><td style="text-align: right">${formatBdt(order.grandTotal as number)}</td></tr>
   </tfoot>
 </table>
@@ -319,22 +321,55 @@ export async function updateOrder(id: string, dto: UpdateOrderDto) {
     const subtotal = round2(newItems.reduce((sum, i) => sum + i.lineTotal, 0));
     updates.subtotal = subtotal;
 
-    let discountAmount = 0;
-    if (order.couponId) {
-      const coupon = await Coupon.findById(order.couponId);
-      if (coupon && coupon.isEnabled && coupon.validUntil > new Date()) {
-        const rawDiscount = coupon.discountType === 'percentage'
-          ? round2(subtotal * (coupon.value / 100))
-          : round2(coupon.value);
-        discountAmount = coupon.maxDiscountAmount != null
-          ? Math.min(rawDiscount, coupon.maxDiscountAmount)
-          : rawDiscount;
+    const categoryIds = [...new Set(products.map((p) => p.categoryId?.toString()).filter(Boolean))] as string[];
+    const categories = categoryIds.length > 0 ? await Category.find({ _id: { $in: categoryIds } }) : [];
+    const categoryTaxMap = new Map(categories.map((c) => [c._id.toString(), c.taxRate]));
+    const taxAmount = round2(
+      newItems.reduce((sum, item, idx) => {
+        const product = products[idx];
+        const catId = product.categoryId?.toString();
+        const taxRate = catId ? (categoryTaxMap.get(catId) ?? 0) : 0;
+        return sum + round2(item.lineTotal * (taxRate / 100));
+      }, 0)
+    );
+    updates.taxAmount = taxAmount;
+
+    if (dto.discountPercent === undefined) {
+      let discountAmount = 0;
+      if (order.couponId) {
+        const coupon = await Coupon.findById(order.couponId);
+        if (coupon && coupon.isEnabled && coupon.validUntil > new Date()) {
+          const rawDiscount = coupon.discountType === 'percentage'
+            ? round2(subtotal * (coupon.value / 100))
+            : round2(coupon.value);
+          discountAmount = coupon.maxDiscountAmount != null
+            ? Math.min(rawDiscount, coupon.maxDiscountAmount)
+            : rawDiscount;
+        }
+      } else if (order.discountPercent && order.discountPercent > 0) {
+        discountAmount = round2(subtotal * (order.discountPercent / 100));
       }
+      updates.discountAmount = discountAmount;
+      const newGrandTotal = round2(subtotal - discountAmount + taxAmount);
+      updates.grandTotal = newGrandTotal;
+    } else {
+      const discountAmount = round2(subtotal * (dto.discountPercent! / 100));
+      updates.discountPercent = dto.discountPercent!;
+      updates.discountAmount = discountAmount;
+      updates.couponId = null;
+      const newGrandTotal = round2(subtotal - discountAmount + taxAmount);
+      updates.grandTotal = newGrandTotal;
     }
+  }
+
+  if (dto.discountPercent !== undefined && !dto.items) {
+    const baseSubtotal = order.subtotal;
+    const discountAmount = round2(baseSubtotal * (dto.discountPercent / 100));
+    updates.discountPercent = dto.discountPercent;
     updates.discountAmount = discountAmount;
+    updates.couponId = null;
     updates.taxAmount = 0;
-    const newGrandTotal = round2(subtotal - discountAmount);
-    updates.grandTotal = newGrandTotal;
+    updates.grandTotal = round2(baseSubtotal - discountAmount);
   }
 
   if (dto.payment) {

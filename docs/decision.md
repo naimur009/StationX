@@ -30,6 +30,47 @@
 **Doc(s) updated:** `API.md §5` (removed "also used for first-time account setup"), `API.md §6` (replaced reset-flow note with admin-sets-password explanation), `API.md §25.4` (marked resolved), `AI_rules.md §13.4` (marked resolved)
 **Reasoning:** Option B is simpler, removes email-provider dependency, gives admin immediate certainty the account is usable. Returning 200 for inactive users allows the client to decide rendering.
 
+### [6] Customer Phone-First Matching, Auto-Refresh & Hard Delete — 2026-06-30
+
+**Open item resolved:** `DATABASE.md` §3.6 (Customer — soft-delete vs hard-delete), `PRD.md` §17 (Customers — "should be linked to their order history")
+
+**Decision:**
+1. **Phone is the primary customer identifier.** POS order creation matches solely by `customerPhone`. If a phone match is found, the customer record is updated (name changed if provided, `orderCount` incremented) — no name-matching required. If no match, a new customer is created.
+2. **Hard delete** — `DELETE /customers/:id` permanently removes the document (`findByIdAndDelete`). The `isActive` field remains on the model for informational use but is not returned in API responses.
+3. **Auto-refresh** — React Query's `['customers']` key is invalidated after POS order creation, so the customer list auto-refreshes without manual page reload.
+4. **`isActive` removed from API response** — The response no longer includes `isActive`. Displayed fields are: name, phone, orderCount.
+
+**Doc(s) updated:**
+- `DATABASE.md` §3.6 (updated notes — hard delete, phone-primary matching)
+- `API.md` §18 (response shapes — removed `isActive`, hard delete docs)
+- `TEST_CASES.md` §14 (updated CUST-H-06–H-08, added CUST-CROSS-04)
+- `backend/src/modules/pos/pos.service.ts` (simplified customer matching)
+- `backend/src/modules/customers/customers.service.ts` (hard delete, removed isActive from response)
+- `frontend/src/features/customers/api.ts` (removed isActive from response type)
+- `frontend/src/features/customers/components/CustomerList.tsx` (removed isActive filter, Status column, changed Deactivate to Delete)
+- `frontend/src/app/(dashboard)/customers/DeleteCustomerDialog.tsx` (hard delete confirmation)
+- `frontend/src/features/pos/api.ts` (auto-refresh customers after order)
+
+**Reasoning:** Phone is the most practical unique identifier for restaurant customers (many share names, few share phones). Hard delete matches the user's operational preference — admins want to permanently remove customers, not just deactivate them. Auto-refresh removes a friction point where staff had to manually refresh the customers page after placing an order.
+
+### [5] Customer Auto-Creation & History — 2026-06-30
+
+**Open item resolved:** `PRD.md` §17 (Customers — "should be linked to their order history"), `DATABASE.md` §3.6 (Customer — previously no `orderCount`/`history` fields)
+
+**Decision:** POS order creation auto-creates or updates `Customer` documents when `customerName`/`customerPhone` are provided. If a customer with that phone already exists, their `orderCount` is incremented and their name is updated (with the old name pushed to `history`). The `updateCustomer` endpoint also pushes changed field values to `history`. The customer's `orderCount` field tracks total orders placed. `GET /customers/:id?includeOrders=true` populates actual orders from the `Order` collection.
+
+**Doc(s) updated:**
+- `DATABASE.md` §3.6 (added `orderCount` and `history` fields)
+- `API.md` §18 (updated response shapes, added customer-auto-creation documentation)
+- `TEST_CASES.md` §14 (added CUST-H-07–CUST-H-11, CUST-CROSS-03, CUST-E-02)
+- `backend/src/models/Customer.ts` (ICustomer interface + schema)
+- `backend/src/modules/customers/customers.service.ts` (response, update, getCustomerById)
+- `backend/src/modules/pos/pos.service.ts` (createOrder)
+- `frontend/src/features/customers/api.ts` (CustomerResponse)
+- `frontend/src/features/customers/components/CustomerList.tsx` (orderCount column)
+
+**Reasoning:** Automatic customer creation during POS checkout reduces friction for cashiers — they don't need to toggle to a separate Customers module to register a walk-in. History tracking ensures data changes are auditable (who changed what, when) without relying on the ActivityLog module, since customer field changes (name, phone) are informational rather than transactional. `orderCount` gives a quick at-a-glance measure of customer engagement without an aggregation query.
+
 ### [4] Settings — 2026-06-22
 
 **Open items resolved:** `DATABASE.md §8.2`, `API.md §25.5`, `AI_rules.md §13.5`

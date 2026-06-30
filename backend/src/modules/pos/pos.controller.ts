@@ -47,6 +47,24 @@ export async function handleCheckCoupon(
   }
 }
 
+export async function handleLookupCustomer(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const { phone } = req.query as { phone: string };
+    if (!phone) {
+      res.status(400).json({ error: { code: 'VALIDATION_ERROR', message: 'Phone is required' } });
+      return;
+    }
+    const result = await posService.lookupByPhone(phone);
+    res.status(200).json({ data: result });
+  } catch (error) {
+    next(error);
+  }
+}
+
 export async function handleSaveOrFindCustomer(
   req: AuthenticatedRequest,
   res: Response,

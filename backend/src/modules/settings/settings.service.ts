@@ -24,6 +24,7 @@ export async function updateSettings(dto: UpdateSettingsDto) {
     'taxId',
     'businessHours',
     'taxConfig',
+    'loyaltyOrderThreshold',
   ];
 
   for (const field of allowedFields) {

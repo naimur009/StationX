@@ -1,4 +1,5 @@
 import Product from '../../models/Product';
+import Category from '../../models/Category';
 import Coupon from '../../models/Coupon';
 import Customer from '../../models/Customer';
 import User from '../../models/User';
@@ -60,6 +61,17 @@ export async function getCouponDiscount(code: string) {
     throw createError(404, 'COUPON_NOT_FOUND', 'Invalid or expired coupon code');
   }
   return { type: coupon.discountType, value: coupon.value, couponId: coupon._id.toString() };
+}
+
+export async function lookupByPhone(phone: string) {
+  const customer = await Customer.findOne({ phone });
+  if (!customer) return null;
+  return {
+    id: customer._id.toString(),
+    name: customer.name,
+    phone: customer.phone,
+    orderCount: customer.orderCount,
+  };
 }
 
 export async function saveOrFindCustomer(dto: CreateCustomerDto) {
@@ -131,8 +143,46 @@ export async function createOrder(dto: CreateOrderDto, userId: string) {
     discountAmount = round2(discountAmount + manualDiscountAmount);
   }
 
-  const taxAmount = 0;
-  const grandTotal = round2(computedSubtotal - discountAmount + taxAmount);
+  const categoryIds = [...new Set(products.map((p) => p.categoryId?.toString()).filter(Boolean))] as string[];
+  const categories = categoryIds.length > 0 ? await Category.find({ _id: { $in: categoryIds } }) : [];
+  const categoryTaxMap = new Map(categories.map((c) => [c._id.toString(), c.taxRate]));
+  const totalTaxAmount = round2(
+    items.reduce((sum, item, idx) => {
+      const product = productMap.get(itemDtos[idx].productId)!;
+      const catId = product.categoryId?.toString();
+      const taxRate = catId ? (categoryTaxMap.get(catId) ?? 0) : 0;
+      return sum + round2(item.lineTotal * (taxRate / 100));
+    }, 0)
+  );
+  const grandTotal = round2(computedSubtotal - discountAmount + totalTaxAmount);
+
+  let resolvedCustomerId = rest.customerId || null;
+  if (!resolvedCustomerId && rest.customerPhone) {
+    const existing = await Customer.findOne({ phone: rest.customerPhone });
+    if (existing) {
+      const historyEntries: Array<{ field: string; oldValue: string; newValue: string; changedAt: Date }> = [];
+      if (rest.customerName && existing.name !== rest.customerName) {
+        historyEntries.push({ field: 'name', oldValue: existing.name, newValue: rest.customerName, changedAt: new Date() });
+      }
+      const update: Record<string, unknown> = { $inc: { orderCount: 1 } };
+      if (rest.customerName) {
+        (update as Record<string, unknown>).$set = { name: rest.customerName };
+      }
+      if (historyEntries.length > 0) {
+        (update as Record<string, unknown>).$push = { history: { $each: historyEntries } };
+      }
+      await Customer.findByIdAndUpdate(existing._id, update);
+      resolvedCustomerId = existing._id.toString();
+    } else {
+      const customer = await Customer.create({
+        name: rest.customerName || rest.customerPhone,
+        phone: rest.customerPhone,
+        orderCount: 1,
+        isActive: true,
+      });
+      resolvedCustomerId = customer._id.toString();
+    }
+  }
 
   let cashTendered: number | undefined;
   let changeAmount: number | undefined;
@@ -152,7 +202,7 @@ export async function createOrder(dto: CreateOrderDto, userId: string) {
         orderNumber: on,
         orderType: rest.orderType || 'dine-in',
         tableNumber: rest.tableNumber,
-        customerId: rest.customerId || null,
+        customerId: resolvedCustomerId,
         customerName: rest.customerName,
         customerPhone: rest.customerPhone,
         servedBy: rest.servedBy || null,
@@ -160,7 +210,7 @@ export async function createOrder(dto: CreateOrderDto, userId: string) {
         couponId: couponId ?? undefined,
         discountPercent: rest.discountPercent || 0,
         discountAmount,
-        taxAmount,
+        taxAmount: totalTaxAmount,
         subtotal: computedSubtotal,
         grandTotal,
         cashTendered,
@@ -174,6 +224,10 @@ export async function createOrder(dto: CreateOrderDto, userId: string) {
       }],
       { session }
     );
+
+    if (couponId) {
+      await Coupon.findByIdAndUpdate(couponId, { $inc: { usageCount: 1 } }, { session });
+    }
 
     await ActivityLog.create(
       [{

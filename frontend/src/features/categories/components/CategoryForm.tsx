@@ -38,29 +38,29 @@ export default function CategoryForm({ open, category, onClose }: CategoryFormPr
     handleSubmit,
     formState: { errors },
     reset,
-  } = useForm<{ name: string }>({
+  } = useForm({
     resolver: zodResolver(schema),
   });
 
   useEffect(() => {
     if (open) {
       if (category) {
-        reset({ name: category.name });
+        reset({ name: category.name, taxRate: category.taxRate });
       } else {
-        reset({ name: '' });
+        reset({ name: '', taxRate: 5 });
       }
       setError(null);
     }
   }, [open, category, reset]);
 
-  async function onSubmit(data: { name: string }) {
+  async function onSubmit(data: { name: string; taxRate: number }) {
     setError(null);
 
     try {
       if (isEdit && category) {
-        await updateCategory.mutateAsync({ id: category.id, name: data.name });
+        await updateCategory.mutateAsync({ id: category.id, name: data.name, taxRate: data.taxRate });
       } else {
-        await createCategory.mutateAsync({ name: data.name });
+        await createCategory.mutateAsync({ name: data.name, taxRate: data.taxRate });
       }
       reset();
       onClose();
@@ -130,6 +130,25 @@ export default function CategoryForm({ open, category, onClose }: CategoryFormPr
             {...register('name')}
           />
           {errors.name && <p className="mt-1 text-xs text-red-500">{errors.name.message}</p>}
+        </div>
+        <div>
+          <label htmlFor="category-taxRate" className="mb-1.5 block text-sm font-medium text-slate-700">
+            Tax Rate (%)
+          </label>
+          <input
+            id="category-taxRate"
+            type="number"
+            inputMode="decimal"
+            step="0.01"
+            min="0"
+            max="100"
+            placeholder="e.g. 5"
+            className={`w-full rounded-xl border bg-white px-3.5 py-2.5 text-sm text-slate-800 placeholder-slate-400 ring-ring focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-ring ${
+              errors.taxRate ? 'border-red-400' : 'border-slate-300'
+            }`}
+            {...register('taxRate', { valueAsNumber: true })}
+          />
+          {errors.taxRate && <p className="mt-1 text-xs text-red-500">{errors.taxRate.message}</p>}
         </div>
       </form>
     </Dialog>
