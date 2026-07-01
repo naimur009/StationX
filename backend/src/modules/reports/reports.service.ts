@@ -1,7 +1,7 @@
 import { Types } from 'mongoose';
 import Order from '../../models/Order';
 import Expense from '../../models/Expense';
-import Attendance from '../../models/Attendance';
+
 import Settings from '../../models/Settings';
 import { createError } from '../../middleware/errorHandler';
 import { renderPdf } from '../../lib/pdf';
@@ -10,7 +10,6 @@ import {
   salesAggregation,
   incomeAggregation,
   expenseAggregation,
-  attendanceAggregation,
   REPORT_TYPES,
   type ReportType,
 } from './reports.helper';
@@ -134,49 +133,6 @@ export async function getReport(type: string, query: ReportQueryDto) {
         byVendor: data.byVendor || [],
         byPaymentMethod: arrayToObject(data.byPaymentMethod || [], ['count', 'total']),
         dailyBreakdown: data.dailyBreakdown || [],
-      };
-      break;
-    }
-
-    case 'attendance': {
-      const pipeline = attendanceAggregation(dateRange.from, dateRange.to);
-      const aggResult = await Attendance.aggregate(pipeline);
-      const data = aggResult[0] || { summary: [], byStaff: [], dailyTrend: [] };
-
-      const summaryRow = data.summary[0] || {};
-      const totalStaff = data.byStaff.length;
-      const totalWorkingDays = data.dailyTrend.length;
-      const totalPossible = totalStaff * totalWorkingDays;
-
-      result = {
-        range: {
-          from: dateRange.from.toISOString().split('T')[0],
-          to: new Date(dateRange.to.getTime() - 86400000).toISOString().split('T')[0],
-        },
-        summary: {
-          totalRecords: summaryRow.totalRecords || 0,
-          totalStaff,
-          workingDays: totalWorkingDays,
-          present: summaryRow.present || 0,
-          absent: summaryRow.absent || 0,
-          late: summaryRow.late || 0,
-          halfDay: summaryRow.halfDay || 0,
-          overallAttendanceRate:
-            totalPossible > 0
-              ? Math.round((((summaryRow.present || 0) + (summaryRow.late || 0) + (summaryRow.halfDay || 0)) / totalPossible) * 1000) / 10
-              : 0,
-        },
-        byStaff: (data.byStaff || []).map(
-          (item: { userId: Types.ObjectId; name: string; role: string; present: number; absent: number; late: number; halfDay: number; totalHours: number }) => ({
-            ...item,
-            userId: item.userId.toString(),
-            attendanceRate:
-              totalWorkingDays > 0
-                ? Math.round(((item.present || 0) / totalWorkingDays) * 1000) / 10
-                : 0,
-          })
-        ),
-        dailyTrend: data.dailyTrend || [],
       };
       break;
     }

@@ -7,7 +7,7 @@ export interface UserResponse {
   id: string;
   name: string;
   email: string;
-  role: 'admin' | 'manager' | 'employee';
+  role: 'admin' | 'manager' | 'employee' | 'chief';
   permissions: { module: string; actions: string[] }[];
   isActive: boolean;
   lastLoginAt: string | null;
@@ -57,7 +57,6 @@ export function useCreateUser() {
 
   return useMutation({
     mutationFn: (data: {
-      name: string;
       email: string;
       password: string;
       role: string;
@@ -80,13 +79,12 @@ export function useUpdateUser() {
   return useMutation({
     mutationFn: (data: {
       id: string;
-      name: string;
       email: string;
       role?: string;
     }) =>
       apiClient<{ data: UserResponse }>(`/users/${data.id}`, {
         method: 'PUT',
-        body: JSON.stringify({ name: data.name, email: data.email, ...(data.role ? { role: data.role } : {}) }),
+        body: JSON.stringify({ email: data.email, ...(data.role ? { role: data.role } : {}) }),
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['users'] });
@@ -151,6 +149,22 @@ export function usePermanentDeleteUser() {
     mutationFn: (id: string) =>
       apiClient<{ data: { success: boolean } }>(`/users/${id}/permanent`, {
         method: 'DELETE',
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['users'] });
+      queryClient.invalidateQueries({ queryKey: ['users', 'detail'] });
+    },
+  });
+}
+
+export function useChangePassword() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (data: { id: string; prevPassword: string; newPassword: string }) =>
+      apiClient<{ data: { success: boolean } }>(`/users/${data.id}/password`, {
+        method: 'PATCH',
+        body: JSON.stringify({ prevPassword: data.prevPassword, newPassword: data.newPassword }),
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['users'] });

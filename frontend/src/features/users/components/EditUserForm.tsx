@@ -33,11 +33,10 @@ export default function EditUserForm({ user, onClose }: EditUserFormProps) {
   useEffect(() => {
     if (user) {
       const formData: UpdateUserFormData = {
-        name: user.name,
         email: user.email,
       };
       if (user.role !== 'admin') {
-        formData.role = user.role as 'manager' | 'employee';
+        formData.role = user.role as 'manager' | 'employee' | 'chief';
       }
       reset(formData);
       setPermissions(user.permissions);
@@ -49,8 +48,7 @@ export default function EditUserForm({ user, onClose }: EditUserFormProps) {
     if (!user) return;
     setError(null);
 
-    const updatePayload: { name: string; email: string; role?: string } = {
-      name: data.name,
+    const updatePayload: { email: string; role?: string } = {
       email: data.email,
     };
     if (data.role) {
@@ -121,21 +119,6 @@ export default function EditUserForm({ user, onClose }: EditUserFormProps) {
 
       <form id="edit-user-form" onSubmit={handleSubmit(onSubmit)} className="space-y-5">
         <div>
-          <label htmlFor="edit-name" className="mb-1.5 block text-sm font-medium text-slate-700">
-            Name
-          </label>
-          <input
-            id="edit-name"
-            type="text"
-            className={`w-full rounded-xl border bg-white px-3.5 py-2.5 text-sm text-slate-800 placeholder-slate-400 ring-ring focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-ring ${
-              errors.name ? 'border-red-400' : 'border-slate-300'
-            }`}
-            {...register('name')}
-          />
-          {errors.name && <p className="mt-1 text-xs text-red-500">{errors.name.message}</p>}
-        </div>
-
-        <div>
           <label htmlFor="edit-email" className="mb-1.5 block text-sm font-medium text-slate-700">
             Email
           </label>
@@ -164,6 +147,7 @@ export default function EditUserForm({ user, onClose }: EditUserFormProps) {
           >
             <option value="manager">Manager</option>
             <option value="employee">Employee</option>
+            <option value="chief">Chief</option>
             {user.role === 'admin' && <option value="admin">Admin</option>}
           </select>
           {user.role === 'admin' && (
@@ -182,10 +166,6 @@ export default function EditUserForm({ user, onClose }: EditUserFormProps) {
           <p className="mt-1.5 text-xs text-slate-400">
             Grant module-level permissions for this user. Admin accounts bypass all permission checks.
           </p>
-        </div>
-
-        <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs text-slate-500">
-          Passwords cannot be changed through this form. Use the Forgot Password flow or create a new account.
         </div>
       </form>
     </Dialog>

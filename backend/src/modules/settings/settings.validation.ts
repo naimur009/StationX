@@ -27,9 +27,9 @@ const logoSchema = z
     message: 'Logo must include at least url or publicId',
   });
 
-const taxConfigSchema = z.object({
-  mode: z.enum(['none', 'flat', 'itemized']),
-  rate: z.number().min(0).max(100),
+const vatInfoSchema = z.object({
+  bin: z.string().optional().default(''),
+  mushak: z.string().optional().default(''),
 });
 
 export const updateSettingsSchema = z
@@ -38,9 +38,8 @@ export const updateSettingsSchema = z
     address: z.string().max(500).optional(),
     logo: logoSchema.optional(),
     contactNumber: z.string().optional(),
-    taxId: z.string().optional(),
     businessHours: z.array(businessHoursSchema).optional(),
-    taxConfig: taxConfigSchema.optional(),
+    vatInfo: vatInfoSchema.optional(),
     loyaltyOrderThreshold: z.number().int().min(0).optional(),
   })
   .strict();

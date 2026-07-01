@@ -7,7 +7,6 @@ export interface IVendor extends Document {
   email?: string;
   address?: string;
   itemsSupplied: string[];
-  isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -20,13 +19,11 @@ const vendorSchema = new Schema<IVendor>(
     email: { type: String, trim: true, lowercase: true },
     address: { type: String, trim: true },
     itemsSupplied: { type: [String], default: [] },
-    isActive: { type: Boolean, default: true },
   },
   { timestamps: true, toJSON: { versionKey: false } }
 );
 
 vendorSchema.index({ name: 1 });
-vendorSchema.index({ isActive: 1 });
 
 const Vendor = mongoose.model<IVendor>('Vendor', vendorSchema);
 

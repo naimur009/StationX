@@ -25,7 +25,7 @@ export default function ExpenseForm({ open, expense, onClose }: ExpenseFormProps
   const isEdit = !!expense;
   const schema = isEdit ? updateExpenseSchema : createExpenseSchema;
 
-  const { data: vendorsData } = useVendorsList({ page: 1, limit: 100, isActive: '' });
+  const { data: vendorsData } = useVendorsList({ page: 1, limit: 100 });
   const { data: usersData } = useUsersList({ page: 1, limit: 100, includeInactive: 'true' });
 
   const vendors = vendorsData?.data ?? [];
@@ -79,7 +79,7 @@ export default function ExpenseForm({ open, expense, onClose }: ExpenseFormProps
       } else {
         reset({
           amount: 0,
-          date: '',
+          date: new Date().toISOString().split('T')[0],
           description: '',
           category: '',
           vendorId: '',
@@ -229,7 +229,7 @@ export default function ExpenseForm({ open, expense, onClose }: ExpenseFormProps
 
         <div>
           <label htmlFor="expense-description" className="mb-1.5 block text-sm font-medium text-slate-700">
-            Description <span className="text-red-500">*</span>
+            Description
           </label>
           <textarea
             id="expense-description"

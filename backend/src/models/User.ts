@@ -6,10 +6,10 @@ export interface IUserPermission {
 }
 
 export interface IUser extends Document {
-  name: string;
+  name?: string;
   email: string;
   passwordHash: string;
-  role: 'admin' | 'manager' | 'employee';
+  role: 'admin' | 'manager' | 'employee' | 'chief';
   permissions: IUserPermission[];
   isActive: boolean;
   lastLoginAt?: Date;
@@ -27,7 +27,7 @@ const userPermissionSchema = new Schema<IUserPermission>(
 
 const userSchema = new Schema<IUser>(
   {
-    name: { type: String, required: true },
+    name: { type: String },
     email: {
       type: String,
       required: true,
@@ -39,8 +39,9 @@ const userSchema = new Schema<IUser>(
     role: {
       type: String,
       required: true,
-      enum: ['admin', 'manager', 'employee'],
+      enum: ['admin', 'manager', 'employee', 'chief'],
     },
+
     permissions: {
       type: [userPermissionSchema],
       default: [],

@@ -14,8 +14,8 @@
 |---|---|
 | Primary key | MongoDB default `_id: ObjectId` on every collection |
 | Timestamps | `{ timestamps: true }` (Mongoose) → `createdAt`, `updatedAt` on every collection except `ActivityLog`, which is append-only and omits `updatedAt` |
-| Soft delete | `isActive: Boolean (default: true)` on **User, Customer, Vendor, Category, Product** — entities referenced by historical records (Order, Expense, ActivityLog). Matches `ARCHITECTURE.md` §7. |
-| Hard delete | **Coupon, Task** — no downstream historical references, may be physically removed |
+| Soft delete | `isActive: Boolean (default: true)` on **User, Customer, Category, Product** — entities referenced by historical records (Order, Expense, ActivityLog). Matches `ARCHITECTURE.md` §7. Vendor uses hard delete. |
+| Hard delete | **Coupon, Task, Salary** — no downstream historical references, may be physically removed. Salary deletion is blocked at the service layer if advances exist. |
 | Reference naming | `<entity>Id` (e.g. `customerId`, `vendorId`), type `ObjectId` with `ref: '<Collection>'` |
 | Money fields | Stored as `Number`, decimal currency value (e.g. `199.50`), **not** integer minor units (paise/cents). **Assumption, flag if wrong:** the PRD doesn't specify multi-currency, so minor-unit storage isn't required for v1; all monetary math is rounded to 2 decimal places at the application layer (Zod `.multipleOf(0.01)`) before persisting, to satisfy the NFR "no rounding/discount errors." |
 | Enums | Stored as lowercase string literals, validated by Mongoose `enum` **and** mirrored in a shared Zod schema (per future `AI_RULES.md`) so frontend/backend never drift |
@@ -42,6 +42,8 @@ Coupon ──< Order (couponId, optional)
 
 Vendor ──< Expense (vendorId, optional)
 
+User ──< Salary (employeeId)
+
 Order ── embeds OrderItem[]
 Order ── customerId → Customer (optional, walk-ins omit it)
 Order ── createdBy → User
@@ -65,6 +67,9 @@ Authentication identity + embedded permission grants (per `ARCHITECTURE.md` §6,
 | `email` | String | ✓ | unique, lowercase, trimmed |
 | `passwordHash` | String | ✓ | bcrypt, cost 12; never returned in API responses |
 | `role` | String enum `admin \| manager \| employee` | ✓ | Admin bypasses granular permission checks (§6) |
+| `phone` | String | — | Contact number, used in employee management |
+| `address` | String | — | Physical address, used in employee management |
+| `baseSalary` | Number | — | Default monthly salary rate for employee records; distinct from per-month `baseSalary` in the Salary collection (§3.12) |
 | `permissions` | Array of `{ module: String, actions: [String enum `view\|create\|edit\|delete`] }` | — | Ignored/ irrelevant for `admin` role; default-deny if a module is absent for manager/employee |
 | `isActive` | Boolean | ✓ (default `true`) | soft-delete / deactivate |
 | `lastLoginAt` | Date | — | updated on successful login |
@@ -175,8 +180,6 @@ Not explicitly modeled in `ARCHITECTURE.md` §5's collection list, but required 
 | `email` | String | — | |
 | `address` | String | — | |
 | `itemsSupplied` | [String] | — | free-text tags, not a Product reference (per `ARCHITECTURE.md` §1, vendor↔product linkage is explicitly v2) |
-| `isActive` | Boolean | ✓ (default `true`) | soft delete |
-
 **Indexes:** `name`.
 
 ---
@@ -271,7 +274,32 @@ Internal helper collection (not in `ARCHITECTURE.md` §5's diagram — small, st
 
 ---
 
-### 3.12 Expense
+### 3.12 Salary
+
+Monthly salary records for employees, with advance tracking. `baseSalary` is fixed — derived from the referenced Employee record, not user-entered. When a salary is created, the `paidAmount` is stored as the first advance entry.
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| `employeeId` | ObjectId → User | ✓ | The employee whose salary this is |
+| `baseSalary` | Number | ✓ | Monthly base salary amount |
+| `month` | Number | ✓ | 1–12 |
+| `year` | Number | ✓ | e.g. 2026 |
+| `advances` | Array of `SalaryAdvance` | — | Partial salary payments made during the month |
+| `status` | String enum `active \| paid \| cancelled` | ✓ (default `active`) | `paid` when total advances = base salary |
+
+**Embedded `SalaryAdvance`:** `{ amount: Number, date: Date, note?: String, createdBy: ObjectId → User }`
+
+**Computed fields (not stored):** `totalPaid` (sum of advance amounts), `remainingBalance` (baseSalary - totalPaid).
+
+**Indexes:** unique compound `{ employeeId: 1, month: 1, year: 1 }`, `{ month: 1, year: 1 }`, `{ status: 1 }`.
+
+> **Guard:**
+> - A salary record with `status !== 'active'` cannot receive new advances.
+> - An advance that would exceed `remainingBalance` is rejected.
+> - A salary record with existing advances cannot be hard-deleted.
+> - `status: 'cancelled'` is only allowed when `advances` is empty.
+
+### 3.13 Expense
 
 | Field | Type | Required | Notes |
 |---|---|---|---|
@@ -289,7 +317,7 @@ Internal helper collection (not in `ARCHITECTURE.md` §5's diagram — small, st
 
 ---
 
-### 3.13 ActivityLog
+### 3.14 ActivityLog
 
 Append-only audit trail, written by the global `activityLogger` middleware (`ARCHITECTURE.md` §4) on every mutating request.
 
@@ -311,7 +339,7 @@ No `updatedAt` — log entries are immutable once written.
 
 ---
 
-### 3.14 Settings
+### 3.15 Settings
 
 Singleton — exactly one document for the whole restaurant (single-tenant per `ARCHITECTURE.md` §1).
 
@@ -321,10 +349,8 @@ Singleton — exactly one document for the whole restaurant (single-tenant per `
 | `address` | String | — | |
 | `logo` | `{ url: String, publicId: String }` | — | |
 | `contactNumber` | String | — | |
-| `taxId` | String | — | GST/VAT registration number — exact format depends on country (open item, carried from `ARCHITECTURE.md` §14) |
-| ~~`currency`~~ | ~~String~~ | ~~✓ (default `'BDT'`)~~ | ~~ISO 4217 code — removed, hardcoded to BDT~~ |
 | `businessHours` | `[{ day: String, open: String, close: String }]` | — | |
-| `taxConfig` | `{ mode: enum(none\|flat\|itemized), rate: Number }` | ✓ | drives `Order.taxAmount` calculation in POS; `itemized` (per-category tax rates) deferred unless confirmed (see §9) |
+| `vatInfo` | `{ bin: String, mushak: String }` | — | VAT registration details — BIN (Business Identification Number) and Mushak number |
 
 **Enforcing singleton:** fixed, well-known `_id` (e.g. the string `'restaurant-settings'`) so `upsert` always targets the same document — simpler and more explicit than an app-level "only one document" check.
 
@@ -344,10 +370,11 @@ Singleton — exactly one document for the whole restaurant (single-tenant per `
 | Order | `orderNumber` (unique), `{status, createdAt}`, `customerId`, `createdBy`, `items.productId` | listing, date-range reports, top-sellers |
 | Task | `{assignedTo, status}`, `priority`, `deadline` | assignee views, filters |
 | Attendance | `{userId, date}` (unique) | one record/day, history queries |
+| Salary | `{employeeId, month, year}` (unique), `{month, year}`, `{status}` | per-employee monthly records, reports |
 | Expense | `date`, `category`, `vendorId` | reports, filters |
 | ActivityLog | `{actor, createdAt}`, `{module, createdAt}` | audit views |
 
-All `isActive`-bearing collections additionally get an index on `isActive` where it's a common list-filter predicate (Product, Customer, Vendor) — omitted above where the field is rarely filtered on its own (User, Category already covered by other compound use).
+All `isActive`-bearing collections additionally get an index on `isActive` where it's a common list-filter predicate (Product, Customer) — omitted above where the field is rarely filtered on its own (User, Category already covered by other compound use).
 
 ---
 
@@ -357,7 +384,7 @@ All `isActive`-bearing collections additionally get an index on `isActive` where
 2. **Coupon usage race condition:** two POS terminals applying the same near-limit coupon simultaneously is resolved by the atomic `$inc` happening *inside* the transaction in step 1, combined with a service-layer check (`usageCount < usageLimit`) re-validated within the same transaction before commit — not checked-then-acted-on as two separate operations.
 3. **Snapshot pricing** (3.8): protects historical financial accuracy against later Product price edits — the single most important rule in this schema, called out again here because it touches both Reports and Income accuracy (NFR: "no rounding/discount errors").
 4. **Cancelled orders excluded from revenue:** every aggregation pipeline (Dashboard metrics, Income, Sales Report) must filter `status: { $ne: 'cancelled' }` — this is a query-discipline rule, not a schema constraint, and should be centralized in one shared aggregation helper rather than repeated per endpoint to avoid one module forgetting it.
-5. **Referential soft-delete:** Product/Customer/Vendor/Category soft-deletes never cascade-delete or null-out the foreign key on existing Orders/Expenses — old documents keep pointing at the (now-inactive) referenced document so historical detail views and reports remain fully reconstructable.
+5. **Referential soft-delete:** Product/Customer/Category soft-deletes never cascade-delete or null-out the foreign key on existing Orders/Expenses — old documents keep pointing at the (now-inactive) referenced document so historical detail views and reports remain fully reconstructable. Vendor hard-deletes naturally null-populate references (Mongoose `.populate()` returns `null` for deleted refs); existing Expense data remains intact via the `paidTo` snapshot.
 6. **Attendance uniqueness:** the `{userId, date}` unique index is the actual guard against duplicate check-ins (not just service-layer logic), so it holds even under a retried/duplicated request.
 
 ---

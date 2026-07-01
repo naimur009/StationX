@@ -20,11 +20,12 @@ export const businessInfoSchema = z.object({
 
 export type BusinessInfoFormData = z.input<typeof businessInfoSchema>;
 
-export const taxSchema = z.object({
-  taxId: z.string().optional().default(''),
+export const vatInfoSchema = z.object({
+  bin: z.string().optional().default(''),
+  mushak: z.string().optional().default(''),
 });
 
-export type TaxFormData = z.input<typeof taxSchema>;
+export type VatInfoFormData = z.input<typeof vatInfoSchema>;
 
 export const businessHoursSchema = z.object({
   hours: z.array(

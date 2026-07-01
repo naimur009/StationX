@@ -19,6 +19,7 @@ export const MODULE_ACTIONS: Record<string, readonly string[]> = {
   categories: ['view', 'create', 'edit', 'delete'],
   customers: ['view', 'create', 'edit', 'delete'],
   users: ['view', 'create', 'edit', 'delete'],
+  employees: ['view', 'create', 'edit', 'delete'],
   settings: ['view', 'edit'],
   reports: ['view', 'create'],
   ['activity-log']: ['view'],

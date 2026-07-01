@@ -130,12 +130,19 @@ export default function TaskCard({ task, onEdit, onDelete }: TaskCardProps) {
       </div>
 
       <div className="mt-4 flex flex-wrap items-center gap-3 text-xs text-slate-500">
-        <div className="flex items-center gap-1.5">
-          <div className="flex h-5 w-5 items-center justify-center rounded-full bg-blue-100 text-[10px] font-semibold text-blue-700">
-            {getInitials(task.assignedTo.name)}
+        {task.assignedTo ? (
+          <div className="flex items-center gap-1.5">
+            <div className="flex h-5 w-5 items-center justify-center rounded-full bg-blue-100 text-[10px] font-semibold text-blue-700">
+              {getInitials(task.assignedTo.name)}
+            </div>
+            <span className="truncate max-w-[100px]">{task.assignedTo.name}</span>
           </div>
-          <span className="truncate max-w-[100px]">{task.assignedTo.name}</span>
-        </div>
+        ) : (
+          <div className="flex items-center gap-1.5">
+            <User className="h-3.5 w-3.5 text-slate-400" />
+            <span className="text-slate-400">Unassigned</span>
+          </div>
+        )}
         <div className={`flex items-center gap-1.5 ${overdue ? 'text-red-500 font-medium' : ''}`}>
           <Calendar className="h-3.5 w-3.5" />
           <span>{formatDate(task.deadline)}</span>

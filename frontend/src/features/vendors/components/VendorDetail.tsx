@@ -4,10 +4,9 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Building2, Phone, Mail, MapPin, User, Calendar } from 'lucide-react';
 import { useVendor, useDeleteVendor, type VendorResponse } from '../api';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import PermissionGate from '@/components/shared/PermissionGate';
 import { Dialog } from '@/components/ui/dialog';
+import PermissionGate from '@/components/shared/PermissionGate';
 import { AppError } from '@/lib/utils';
 
 interface VendorDetailProps {
@@ -25,7 +24,7 @@ export default function VendorDetail({ vendorId, onEdit }: VendorDetailProps) {
 
   const vendor = data?.data;
 
-  async function handleDeactivate() {
+  async function handleDelete() {
     if (!vendor) return;
     setDeleteError(null);
 
@@ -37,7 +36,7 @@ export default function VendorDetail({ vendorId, onEdit }: VendorDetailProps) {
       if (err instanceof AppError) {
         setDeleteError(err.message);
       } else {
-        setDeleteError('Failed to deactivate vendor');
+        setDeleteError('Failed to delete vendor');
       }
     }
   }
@@ -104,13 +103,6 @@ export default function VendorDetail({ vendorId, onEdit }: VendorDetailProps) {
             </div>
             <div>
               <h1 className="text-xl font-bold text-slate-800 sm:text-2xl">{vendor.name}</h1>
-              <div className="mt-1.5 flex items-center gap-2">
-                {vendor.isActive ? (
-                  <Badge variant="green">Active</Badge>
-                ) : (
-                  <Badge variant="slate">Deactivated</Badge>
-                )}
-              </div>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -120,18 +112,16 @@ export default function VendorDetail({ vendorId, onEdit }: VendorDetailProps) {
               </Button>
             </PermissionGate>
             <PermissionGate module="vendors" action="delete">
-              {vendor.isActive && (
-                <Button
-                  variant="warning"
-                  size="md"
-                  onClick={() => {
-                    setDeleteError(null);
-                    setDeleteOpen(true);
-                  }}
-                >
-                  Deactivate
-                </Button>
-              )}
+              <Button
+                variant="destructive"
+                size="md"
+                onClick={() => {
+                  setDeleteError(null);
+                  setDeleteOpen(true);
+                }}
+              >
+                Delete
+              </Button>
             </PermissionGate>
           </div>
         </div>
@@ -214,11 +204,11 @@ export default function VendorDetail({ vendorId, onEdit }: VendorDetailProps) {
         </div>
       </div>
 
-      {/* Deactivate confirmation dialog */}
+      {/* Delete confirmation dialog */}
       <Dialog
         open={deleteOpen}
         onClose={() => { setDeleteOpen(false); setDeleteError(null); }}
-        title="Deactivate Vendor"
+        title="Delete Vendor"
         size="sm"
         footer={
           <>
@@ -234,10 +224,10 @@ export default function VendorDetail({ vendorId, onEdit }: VendorDetailProps) {
               type="button"
               variant="destructive"
               size="md"
-              onClick={handleDeactivate}
+              onClick={handleDelete}
               disabled={deleteVendor.isPending}
             >
-              {deleteVendor.isPending ? 'Deactivating\u2026' : 'Deactivate'}
+              {deleteVendor.isPending ? 'Deleting\u2026' : 'Delete'}
             </Button>
           </>
         }
@@ -249,7 +239,8 @@ export default function VendorDetail({ vendorId, onEdit }: VendorDetailProps) {
             </div>
           )}
           <p className="text-sm text-slate-600">
-            Are you sure you want to deactivate <span className="font-semibold text-slate-800">{vendor.name}</span>? This vendor will be excluded from active dropdowns but will remain linked to existing expense records.
+            Are you sure you want to permanently delete{' '}
+            <span className="font-semibold text-slate-800">{vendor.name}</span>? This action cannot be undone.
           </p>
         </div>
       </Dialog>

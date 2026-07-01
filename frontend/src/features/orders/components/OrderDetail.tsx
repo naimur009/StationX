@@ -281,13 +281,15 @@ export default function OrderDetailView({ order }: OrderDetailViewProps) {
               <span className="text-green-600">-{formatBdt(order.discountAmount)}</span>
             </div>
           )}
-          <div className="flex justify-between text-sm">
-            <span className="text-slate-500">Tax</span>
-            <span className="text-slate-800">{formatBdt(order.taxAmount)}</span>
-          </div>
+          {order.taxAmount > 0 && (
+            <div className="flex justify-between text-sm">
+              <span className="text-slate-500">VAT</span>
+              <span className="text-slate-800">{formatBdt(order.taxAmount)}</span>
+            </div>
+          )}
           <div className="flex justify-between border-t border-slate-200 pt-2 text-base font-bold">
             <span className="text-slate-800">Grand Total</span>
-            <span className="text-slate-800">{formatBdt(order.grandTotal)}</span>
+            <span className="text-slate-800">{formatBdt(order.subtotal - order.discountAmount)}</span>
           </div>
         </div>
       </div>

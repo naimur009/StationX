@@ -215,7 +215,7 @@ export default function OrderEditForm({ order, open, onClose, onSaved }: OrderEd
               )}
               {taxAmount > 0 && (
                 <div className="flex justify-between text-sm">
-                  <span className="text-slate-500">Tax ({taxRate}%)</span>
+                  <span className="text-slate-500">VAT ({taxRate}%)</span>
                   <span className="text-slate-600">{formatBdt(taxAmount)}</span>
                 </div>
               )}

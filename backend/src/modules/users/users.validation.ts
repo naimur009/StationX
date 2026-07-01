@@ -1,14 +1,14 @@
 import { z } from 'zod';
 import { MODULE_ACTIONS } from '../../shared/constants';
-import { emailField, passwordSchema } from '../../shared/validation';
+import { emailField } from '../../shared/validation';
 
 const moduleKeys = Object.keys(MODULE_ACTIONS) as [string, ...string[]];
 
 export const createUserSchema = z.object({
-  name: z.string().min(1, 'Name is required').max(100),
+  name: z.string().min(1).max(100).optional(),
   email: emailField,
-  password: passwordSchema,
-  role: z.enum(['manager', 'employee']),
+  password: z.string().min(8, 'Password must be at least 8 characters'),
+  role: z.enum(['manager', 'employee', 'chief']),
   permissions: z
     .array(
       z.object({
@@ -31,7 +31,7 @@ export const createUserSchema = z.object({
 export const updateUserSchema = z.object({
   name: z.string().min(1).max(100).optional(),
   email: emailField.optional(),
-  role: z.enum(['manager', 'employee']).optional(),
+  role: z.enum(['manager', 'employee', 'chief']).optional(),
 }).strict();
 
 export const deactivateUserSchema = z.object({}).strict();
@@ -57,10 +57,15 @@ export const updatePermissionsSchema = z.object({
     ),
 }).strict();
 
+export const changePasswordSchema = z.object({
+  prevPassword: z.string().min(1, 'Current password is required'),
+  newPassword: z.string().min(8, 'New password must be at least 8 characters'),
+}).strict();
+
 export const listUsersSchema = z.object({
   page: z.coerce.number().int().positive().default(1),
   limit: z.coerce.number().int().positive().max(100).default(20),
-  role: z.enum(['admin', 'manager', 'employee']).optional(),
+  role: z.enum(['admin', 'manager', 'employee', 'chief']).optional(),
   includeInactive: z
     .enum(['true', 'false'])
     .optional(),
@@ -71,3 +76,4 @@ export type CreateUserDto = z.infer<typeof createUserSchema>;
 export type UpdateUserDto = z.infer<typeof updateUserSchema>;
 export type ListUsersDto = z.infer<typeof listUsersSchema>;
 export type UpdatePermissionsDto = z.infer<typeof updatePermissionsSchema>;
+export type ChangePasswordDto = z.infer<typeof changePasswordSchema>;

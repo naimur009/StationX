@@ -2,15 +2,34 @@
 
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { Dialog } from '@/components/ui/dialog';
 import PermissionGate from '@/components/shared/PermissionGate';
 import TaskList from '@/features/tasks/components/TaskList';
 import TaskForm from '@/features/tasks/components/TaskForm';
-import type { TaskResponse } from '@/features/tasks/api';
+import { useDeleteTask, type TaskResponse } from '@/features/tasks/api';
+import { AppError } from '@/lib/utils';
 
 export default function TasksPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [editTask, setEditTask] = useState<TaskResponse | null>(null);
   const [deleteTask, setDeleteTask] = useState<TaskResponse | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const deleteMutation = useDeleteTask();
+
+  async function handleDeleteConfirm() {
+    if (!deleteTask) return;
+    setDeleteError(null);
+    try {
+      await deleteMutation.mutateAsync(deleteTask.id);
+      setDeleteTask(null);
+    } catch (err) {
+      if (err instanceof AppError) {
+        setDeleteError(err.message);
+      } else {
+        setDeleteError('Failed to delete task');
+      }
+    }
+  }
 
   return (
     <PermissionGate module="tasks" action="view">
@@ -44,6 +63,45 @@ export default function TasksPage() {
           task={editTask}
           onClose={() => setEditTask(null)}
         />
+
+        <Dialog
+          open={!!deleteTask}
+          onClose={() => { setDeleteTask(null); setDeleteError(null); }}
+          title="Delete Task"
+          size="sm"
+          footer={
+            <>
+              <Button
+                type="button"
+                variant="ghost"
+                size="md"
+                onClick={() => { setDeleteTask(null); setDeleteError(null); }}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                variant="destructive"
+                size="md"
+                disabled={deleteMutation.isPending}
+                onClick={handleDeleteConfirm}
+              >
+                {deleteMutation.isPending ? 'Deleting\u2026' : 'Delete'}
+              </Button>
+            </>
+          }
+        >
+          {deleteError && (
+            <div className="mb-4 rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700">
+              {deleteError}
+            </div>
+          )}
+          <p className="text-sm text-slate-600">
+            Are you sure you want to permanently delete task{' '}
+            <span className="font-semibold text-slate-800">&ldquo;{deleteTask?.title}&rdquo;</span>?
+            This cannot be undone.
+          </p>
+        </Dialog>
       </div>
     </PermissionGate>
   );

@@ -16,7 +16,6 @@ export const updateVendorSchema = z.object({
   email: z.string().max(100).email('Invalid email').optional().or(z.literal('')),
   address: z.string().max(500).optional(),
   itemsSupplied: z.array(z.string().max(100)).max(50).optional(),
-  isActive: z.boolean().optional(),
 });
 
 export type CreateVendorFormData = z.infer<typeof createVendorSchema>;

@@ -21,9 +21,8 @@ export async function updateSettings(dto: UpdateSettingsDto) {
     'address',
     'logo',
     'contactNumber',
-    'taxId',
     'businessHours',
-    'taxConfig',
+    'vatInfo',
     'loyaltyOrderThreshold',
   ];
 

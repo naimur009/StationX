@@ -385,7 +385,7 @@ These apply to **every** module below; listed once here and referenced by ID rat
 | EXP-V-03 | Validation | `paymentMethod: split` | `400 VALIDATION_ERROR` — `split` is not in the Expense payment-method enum (only Order supports split) |
 | EXP-H-03 | Happy | `GET /expenses?range=&category=&vendorId=` | Correctly filtered |
 | EXP-H-04 | Happy | `DELETE /expenses/:id` | Hard delete succeeds (no `isActive` field per `DATABASE.md` §3.12) |
-| EXP-E-01 | Edge | `vendorId` references a soft-deleted (`isActive: false`) vendor | Expense creation still succeeds — historical reference preserved regardless of vendor's current active state |
+| EXP-E-01 | Edge | `vendorId` references a hard-deleted (removed) vendor | Expense creation fails with `404 VENDOR_NOT_FOUND` — vendor must exist to be referenced; historical expenses retain `paidTo` snapshot |
 | EXP-AUTH-01 | Security | User lacks `expenses:create` | `403 FORBIDDEN` |
 
 ---
@@ -395,10 +395,9 @@ These apply to **every** module below; listed once here and referenced by ID rat
 | ID | Type | Case | Expected |
 |---|---|---|---|
 | VEN-H-01 | Happy | `POST /vendors` minimal valid (`name` only) | `201` |
-| VEN-H-02 | Happy | `GET /vendors?search=&isActive=` | Correctly filtered |
-| VEN-H-03 | Happy | `DELETE /vendors/:id` | Soft delete (`isActive: false`), document not removed |
-| VEN-E-01 | Edge | Soft-deleted vendor still referenced by an existing `Expense` | `Expense.vendorId` reference remains intact and resolvable; vendor excluded from active dropdowns only |
-| VEN-H-04 | Happy | `PUT /vendors/:id` setting `isActive: true` on a previously soft-deleted vendor | Re-activation succeeds via normal edit, no separate restore endpoint needed |
+| VEN-H-02 | Happy | `GET /vendors?search=` | Correctly filtered |
+| VEN-H-03 | Happy | `DELETE /vendors/:id` | Hard delete — document removed from database, returns `{ success: true }` |
+| VEN-E-01 | Edge | Delete a vendor that is referenced by existing `Expense` records | Deletion succeeds; `Expense.vendorId` populates as `null`; `paidTo` snapshot preserves payee name for historical reporting |
 
 ---
 
@@ -484,9 +483,9 @@ These apply to **every** module below; listed once here and referenced by ID rat
 | ID | Type | Case | Expected |
 |---|---|---|---|
 | SET-H-01 | Happy | `GET /settings` | Returns the singleton document |
-| SET-H-02 | Happy | `PUT /settings` with only `{ taxConfig: {...} }` | Merges into existing document — other fields (`logo`, `businessHours`, etc.) remain untouched |
-| SET-S-01 | Security | `PUT /settings` with a stale/empty `logo` field sent alongside an unrelated Tax-tab save | Existing `logo` is **not** nulled out — confirms merge semantics, not full replace (`API.md` §20) |
-| SET-V-01 | Validation | `taxConfig.mode` outside `none|flat|itemized` | `400 VALIDATION_ERROR` |
+| SET-H-02 | Happy | `PUT /settings` with only `{ vatInfo: {...} }` | Merges into existing document — other fields (`logo`, `businessHours`, etc.) remain untouched |
+| SET-S-01 | Security | `PUT /settings` with a stale/empty `logo` field sent alongside an unrelated VAT-tab save | Existing `logo` is **not** nulled out — confirms merge semantics, not full replace (`API.md` §20) |
+| SET-V-01 | Validation | `vatInfo` with extra fields | Stripped by Zod `.strict()` — only `bin` and `mushak` are accepted |
 | SET-E-01 | Edge | Multiple concurrent `PUT /settings` calls from different admins editing different sections simultaneously | Confirm last-write-wins per field via merge, not a full-document overwrite race — verify no section's edit is lost if two saves overlap |
 | SET-AUTH-01 | Security | Non-admin without `settings:edit` | `403 FORBIDDEN` |
 | SET-H-03 | Happy | Settings document always resolves to the same fixed `_id` | Repeated `GET`/`PUT` always target one document — never accidentally creates a second Settings document |
@@ -523,7 +522,55 @@ These apply to **every** module below; listed once here and referenced by ID rat
 
 ---
 
-## 19. Shared Uploads
+## 19. Salaries
+
+| ID | Type | Case | Expected |
+|---|---|---|---|
+| SAL-H-01 | Happy | `POST /salaries` valid with `paidAmount` | `201`, salary record created with `baseSalary` from Employee record, first advance created from `paidAmount` |
+| SAL-V-01 | Validation | Missing `employeeId` | `400 VALIDATION_ERROR` |
+| SAL-V-02 | Validation | Negative `paidAmount` | `400 VALIDATION_ERROR` |
+| SAL-V-03 | Validation | `month` outside 1–12 | `400 VALIDATION_ERROR` |
+| SAL-E-01 | Error | Duplicate `{employeeId, month, year}` | `409 SALARY_ALREADY_EXISTS` |
+| SAL-E-02 | Error | `employeeId` references nonexistent user | `404 USER_NOT_FOUND` |
+| SAL-H-01b | Happy | `POST /salaries` with `paidAmount` equal to Employee's baseSalary | `201`, status auto-set to `paid`, one advance created |
+| SAL-H-02 | Happy | `PATCH /salaries/:id/advance` within remaining balance | `200`, advance added, `totalPaid` and `remainingBalance` updated |
+| SAL-H-03 | Happy | `PATCH /salaries/:id/advance` that equals remaining balance | `200`, advance added, status auto-set to `paid` |
+| SAL-V-04 | Validation | `PATCH /salaries/:id/advance` with negative amount | `400 VALIDATION_ERROR` |
+| SAL-E-03 | Error | Advance exceeds remaining balance | `400 EXCEEDS_SALARY` |
+| SAL-E-04 | Error | Advance on a `paid`/`cancelled` salary record | `400 INVALID_SALARY_STATUS` |
+| SAL-H-04 | Happy | `PATCH /salaries/:id/status` → `paid` | `200`, status updated |
+| SAL-H-05 | Happy | `PATCH /salaries/:id/status` → `cancelled` (only when no advances) | `200`, status updated |
+| SAL-E-05 | Error | Cancel salary record with advances | `400 HAS_ADVANCES` |
+| SAL-H-06 | Happy | `DELETE /salaries/:id` with no advances | `200`, record deleted |
+| SAL-E-06 | Error | `DELETE /salaries/:id` with advances | `409 SALARY_HAS_ADVANCES` |
+| SAL-H-07 | Happy | `GET /salaries?month=&year=` | Correctly filtered list |
+| SAL-H-08 | Happy | `GET /salaries/:id` | Detail with advance history |
+
+## 20. Employees
+
+| ID | Type | Case | Expected |
+|---|---|---|---|
+| EMP-H-01 | Happy | `POST /employees` with all fields (name, phone, email, address, baseSalary, password) | `201`, employee created as User with role `employee` |
+| EMP-H-02 | Happy | `POST /employees` with only required fields (name, phone, password) | `201`, auto-generated placeholder email |
+| EMP-V-01 | Validation | Missing `name` | `400 VALIDATION_ERROR` |
+| EMP-V-02 | Validation | Missing `phone` | `400 VALIDATION_ERROR` |
+| EMP-V-03 | Validation | Missing `password` | `400 VALIDATION_ERROR` |
+| EMP-V-04 | Validation | Duplicate `email` | `409 EMAIL_EXISTS` |
+| EMP-H-03 | Happy | `GET /employees` default | Returns only active employees with role `employee`/`manager`, paginated |
+| EMP-H-04 | Happy | `GET /employees?search=` | Matches by name or email |
+| EMP-H-05 | Happy | `GET /employees/:id` | Returns full employee detail with phone, address, baseSalary |
+| EMP-E-01 | Error | `GET /employees/:id` with nonexistent ID | `404 NOT_FOUND` |
+| EMP-H-06 | Happy | `PUT /employees/:id` updating name, phone, address | `200`, fields updated |
+| EMP-H-07 | Happy | `PUT /employees/:id` updating baseSalary | `200`, new salary saved |
+| EMP-H-08 | Happy | `DELETE /employees/:id` | `200`, User document removed |
+| EMP-E-02 | Error | `DELETE /employees/:id` on nonexistent employee | `404 NOT_FOUND` |
+| EMP-AUTH-01 | Security | User lacks `employees:view` | `403 FORBIDDEN` |
+| EMP-INT-01 | Integration | Employee created via `/employees` appears in Salaries employee dropdown | List includes the new employee |
+| EMP-INT-02 | Integration | Employee's `baseSalary` is pre-filled in SalaryForm create dialog | The `baseSalary` from the employee record is available as a default when creating monthly salary records |
+
+---
+
+## 21. Shared Uploads
 
 ### `POST /uploads/image`
 
@@ -538,7 +585,7 @@ These apply to **every** module below; listed once here and referenced by ID rat
 
 ---
 
-## 20. Cross-Module Data Integrity Tests
+## 22. Cross-Module Data Integrity Tests
 
 These verify rules that span multiple collections/modules and are easy to silently break during iterative feature development.
 
@@ -551,11 +598,11 @@ These verify rules that span multiple collections/modules and are easy to silent
 | XMOD-05 | Integrity | Full financial trace: create an Order with a coupon → check Dashboard, Income, and Reports all reflect it identically for the same range | All three modules' numbers must agree — they share the same aggregation helper and cancelled-exclusion rule |
 | XMOD-06 | Integrity | Cancel a `completed` order after it was already counted in a previously-viewed Dashboard snapshot | New Dashboard fetch (post-cancel) excludes it; verify `dashboard:metricsInvalidate` actually triggers a refetch on the open Dashboard tab |
 | XMOD-07 | Integrity | Multi-document transaction failure simulation during order creation (e.g. forced DB disconnect mid-transaction) | No partial state: no Order without ActivityLog, no Coupon usageCount increment without an Order, no orderNumber consumed without an Order existing |
-| XMOD-08 | Integrity | Vendor soft-deleted, then a Report (Expense report) for a period including expenses from that vendor is generated | Report still shows the vendor's name/expenses correctly — soft-delete doesn't break historical reporting |
+| XMOD-08 | Integrity | Vendor hard-deleted, then a Report (Expense report) for a period including expenses from that vendor is generated | Report still shows the expense data correctly via `paidTo` snapshot — expense `vendorId` populates as `null` but the payee name is preserved independently |
 
 ---
 
-## 21. Open Items Requiring Sign-Off Before Full Coverage
+## 23. Open Items Requiring Sign-Off Before Full Coverage
 
 These test areas can't be fully specified yet because the underlying behavior is itself an open item in `API.md`/`DATABASE.md`. Listed here so they aren't silently skipped — each should convert into real test cases once the linked decision is made.
 

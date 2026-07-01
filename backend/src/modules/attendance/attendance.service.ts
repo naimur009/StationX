@@ -58,13 +58,20 @@ interface BatchResult {
   errors: Array<{ userId: string; code: string; message: string }>;
 }
 
+function formatLocalDate(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
 function toResponse(record: IAttendance): AttendanceResponse {
   const user = record.user as unknown as PopulatedUser;
   const markedBy = record.markedBy as unknown as PopulatedMarker;
   return {
     id: record._id.toString(),
     user,
-    date: record.date instanceof Date ? record.date.toISOString() : String(record.date),
+    date: record.date instanceof Date ? formatLocalDate(record.date) : String(record.date),
     status: record.status,
     checkInAt: record.checkInAt instanceof Date ? record.checkInAt.toISOString() : null,
     checkOutAt: record.checkOutAt instanceof Date ? record.checkOutAt.toISOString() : null,

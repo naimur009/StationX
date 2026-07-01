@@ -347,6 +347,53 @@ Base path: `/attendance`. **Permission module key:** `attendance`. No `delete` a
 
 ---
 
+## 13.5 Employees
+
+Base path: `/employees`. **Permission module key:** `employees`.
+
+Manages restaurant staff records. Employees are users with role `employee` or `manager`. Each employee record includes contact information and a default base salary used as a preset when creating monthly salary records in the Salaries sub-feature (§14.1).
+
+| Method | Path | Action | Description |
+|---|---|---|---|
+| GET | `/employees?search=&page=&limit=` | `view` | List employees (filters to `employee`/`manager` roles, active only by default) |
+| GET | `/employees/:id` | `view` | Single employee detail |
+| POST | `/employees` | `create` | Create employee account (creates a User with role `employee`) |
+| PUT | `/employees/:id` | `edit` | Update employee info |
+| DELETE | `/employees/:id` | `delete` | Hard-delete employee (removes the User document) |
+
+```json
+// POST /employees request
+{ "name": "John Doe", "phone": "+8801712345678", "email": "john@restaurant.com",
+  "address": "123 Main Street, Dhaka", "baseSalary": 10000, "password": "Secret123" }
+```
+
+```json
+// GET /employees response
+{
+  "data": [
+    {
+      "id": "...",
+      "name": "John Doe",
+      "phone": "+8801712345678",
+      "email": "john@restaurant.com",
+      "address": "123 Main Street, Dhaka",
+      "baseSalary": 10000,
+      "role": "employee",
+      "isActive": true,
+      "createdAt": "2026-07-01T10:00:00.000Z",
+      "updatedAt": "2026-07-01T10:00:00.000Z"
+    }
+  ],
+  "meta": { "total": 1, "page": 1, "limit": 20 }
+}
+```
+
+> **Email is optional.** When creating an employee without an email, a placeholder (`{phone}@employee.local`) is generated automatically to satisfy the User model's email requirement.
+>
+> **Base salary** is a per-employee default rate, distinct from per-month `baseSalary` tracked in the Salary collection (§14.1). When creating a monthly salary record, this value can be used as a pre-fill.
+
+---
+
 ## 14. Expenses
 
 Base path: `/expenses`. **Permission module key:** `expenses`. **Hard-deletable** — `Expense` has no `isActive` field in `DATABASE.md` §3.12, so unlike Vendors/Products/etc. it falls outside the five-collection soft-delete list in §1's conventions table.
@@ -366,6 +413,53 @@ Base path: `/expenses`. **Permission module key:** `expenses`. **Hard-deletable*
   "paymentMethod": "cash" }
 ```
 
+### 14.1 Salaries (Sub-feature of Expenses)
+
+Manages employee monthly salary records with advance tracking. `baseSalary` is fixed per employee (from the Employee record, not user-entered). When creating a salary record, `paidAmount` is entered instead — it creates the first advance automatically. `remainingBalance` = `baseSalary` - sum of all advances. Uses the same `expenses` permission module key.
+
+| Method | Path | Action | Description |
+|---|---|---|---|
+| GET | `/salaries?month=&year=&employeeId=&status=` | `expenses:view` | List salary records |
+| GET | `/salaries/:id` | `expenses:view` | Detail with advance history |
+| POST | `/salaries` | `expenses:create` | Create a monthly salary record |
+| PATCH | `/salaries/:id/advance` | `expenses:edit` | Add an advance (partial salary payment) |
+| PATCH | `/salaries/:id/status` | `expenses:edit` | Update status (`active` → `paid` or `cancelled`) |
+| DELETE | `/salaries/:id` | `expenses:delete` | Delete — blocked if advances exist |
+
+```json
+// POST /salaries request
+{ "employeeId": "...", "paidAmount": 8000, "month": 6, "year": 2026 }
+```
+
+> `baseSalary` is no longer accepted in the request body. It is derived from the employee's `baseSalary` field on the Employee record at creation time. The `paidAmount` (default 0) creates the first advance entry automatically. `remainingBalance` = `baseSalary` - sum of advances.
+
+```json
+// PATCH /salaries/:id/advance request
+{ "amount": 4000, "date": "2026-06-10", "note": "First advance" }
+```
+
+```json
+// GET /salaries response
+{
+  "data": [
+    {
+      "id": "...",
+      "employeeId": { "_id": "...", "name": "John", "email": "john@restaurant.com" },
+      "baseSalary": 10000,
+      "month": 6,
+      "year": 2026,
+      "advances": [
+        { "_id": "...", "amount": 4000, "date": "2026-06-10", "note": "First advance", "createdBy": { "_id": "...", "name": "Admin" } }
+      ],
+      "totalPaid": 4000,
+      "remainingBalance": 6000,
+      "status": "active"
+    }
+  ],
+  "meta": { "total": 1, "page": 1, "limit": 20 }
+}
+```
+
 ---
 
 ## 15. Vendors
@@ -374,11 +468,11 @@ Base path: `/vendors`. **Permission module key:** `vendors`. Standard soft-delet
 
 | Method | Path | Action | Description |
 |---|---|---|---|
-| GET | `/vendors?search=&isActive=` | `view` | List |
+| GET | `/vendors?search=` | `view` | List |
 | GET | `/vendors/:id` | `view` | Detail |
 | POST | `/vendors` | `create` | Create |
 | PUT | `/vendors/:id` | `edit` | Edit |
-| DELETE | `/vendors/:id` | `delete` | Soft delete (`isActive: false`) |
+| DELETE | `/vendors/:id` | `delete` | Hard delete — document removed from database |
 
 ---
 
@@ -498,7 +592,7 @@ Base path: `/settings`. **Permission module key:** `settings`. Singleton (fixed 
 | GET | `/settings` | `view` | Returns the one document |
 | PUT | `/settings` | `edit` | Partial-merge update — see below |
 
-**`PUT` here behaves like a merge, not a full replace:** the Settings UI is naturally split into sections (Business Info, Tax, Business Hours, Logo), and requiring the frontend to resend the entire document on every section save would be both wasteful and risky (a stale `logo` object in a Tax-tab form could accidentally null it out). The server merges the submitted fields into the singleton document rather than replacing it wholesale. Flagged here as a deliberate departure from strict REST `PUT` semantics, consistent with this document being where such calls get made explicit.
+**`PUT` here behaves like a merge, not a full replace:** the Settings UI is naturally split into sections (Business Info, VAT Information, Business Hours, Logo), and requiring the frontend to resend the entire document on every section save would be both wasteful and risky (a stale `logo` object in a VAT-tab form could accidentally null it out). The server merges the submitted fields into the singleton document rather than replacing it wholesale. Flagged here as a deliberate departure from strict REST `PUT` semantics, consistent with this document being where such calls get made explicit.
 
 ---
 
@@ -591,6 +685,11 @@ Single namespace, all authenticated dashboard clients join one shared room — n
 | 409 | `ORDER_NOT_DELETABLE` | See §10 open item |
 | 409 | `PRODUCT_UNAVAILABLE` | A submitted product went inactive mid-checkout |
 | 409 | `PRODUCT_IN_USE` | Hard-delete of product blocked because it is referenced by one or more orders |
+| 409 | `SALARY_ALREADY_EXISTS` | Salary record for this employee/month/year already exists |
+| 409 | `SALARY_HAS_ADVANCES` | Cannot delete a salary record that has advances |
+| 400 | `INVALID_SALARY_STATUS` | Can only add advances to active salary records |
+| 400 | `EXCEEDS_SALARY` | Advance amount would exceed remaining balance |
+| 400 | `HAS_ADVANCES` | Cannot cancel a salary record with advances |
 | 423 | `ACCOUNT_DEACTIVATED` | Login attempt on a deactivated user (`isActive: false`) |
 | 429 | `RATE_LIMITED` | Hit on `/auth/login`, `/auth/refresh`, `/auth/forgot-password`, `/auth/reset-password` per `ARCHITECTURE.md` §12 |
 | 500 | `INTERNAL_ERROR` | Unhandled — never exposes stack traces or raw DB errors to the client |
@@ -615,6 +714,7 @@ The authoritative list referenced loosely by `DATABASE.md` §3.1 ("≤18 modules
 | `categories` | `view`, `create`, `edit`, `delete` | |
 | `customers` | `view`, `create`, `edit`, `delete` | |
 | `users` | `view`, `create`, `edit`, `delete` | Realistically admin-only, but permission-gated like everything else, not hardcoded to role |
+| `employees` | `view`, `create`, `edit`, `delete` | Manages employee-specific data (name, phone, base salary, etc.) |
 | `settings` | `view`, `edit` | |
 | `reports` | `view`, `create` | `create` gates PDF export, see §19 |
 | `uploads` | `create` | Utility — gates `POST /uploads/image` endpoint |

@@ -18,7 +18,7 @@ const expenseSchema = new Schema<IExpense>(
   {
     amount: { type: Number, required: true, min: 0 },
     date: { type: Date, required: true },
-    description: { type: String, required: true, trim: true, maxlength: 500 },
+    description: { type: String, trim: true, maxlength: 500 },
     category: { type: String, required: true, trim: true, maxlength: 100 },
     vendorId: { type: Schema.Types.ObjectId, ref: 'Vendor' },
     paidBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },

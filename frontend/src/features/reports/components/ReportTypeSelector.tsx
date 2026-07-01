@@ -1,13 +1,12 @@
 'use client';
 
-import { TrendingUp, DollarSign, Wallet, CalendarCheck, type LucideIcon } from 'lucide-react';
+import { TrendingUp, DollarSign, Wallet, type LucideIcon } from 'lucide-react';
 import { REPORT_TYPES, REPORT_TYPE_LABELS, type ReportType } from '../schema';
 
 const TYPE_ICONS: Record<ReportType, LucideIcon> = {
   sales: TrendingUp,
   income: DollarSign,
   expense: Wallet,
-  attendance: CalendarCheck,
 };
 
 interface ReportTypeSelectorProps {

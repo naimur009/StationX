@@ -11,7 +11,6 @@ export interface VendorResponse {
   email?: string;
   address?: string;
   itemsSupplied: string[];
-  isActive: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -24,7 +23,6 @@ interface VendorsListResponse {
 interface VendorsListParams {
   page?: number;
   limit?: number;
-  isActive?: string;
   search?: string;
 }
 
@@ -32,7 +30,6 @@ export function useVendorsList(params: VendorsListParams) {
   const searchParams = new URLSearchParams();
   if (params.page) searchParams.set('page', String(params.page));
   if (params.limit) searchParams.set('limit', String(params.limit));
-  if (params.isActive) searchParams.set('isActive', params.isActive);
   if (params.search) searchParams.set('search', params.search);
 
   const qs = searchParams.toString();
@@ -85,7 +82,6 @@ export function useUpdateVendor() {
       email?: string;
       address?: string;
       itemsSupplied?: string[];
-      isActive?: boolean;
     }) => {
       const { id, ...body } = data;
       return apiClient<{ data: VendorResponse }>(`/vendors/${id}`, {

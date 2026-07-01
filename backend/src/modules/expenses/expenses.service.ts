@@ -4,6 +4,7 @@ import Vendor from '../../models/Vendor';
 import User from '../../models/User';
 import { createError } from '../../middleware/errorHandler';
 import { escapeRegex } from '../../lib/escapeRegex';
+import { normalizeDateRange } from '../../lib/date-range';
 import type {
   CreateExpenseDto,
   UpdateExpenseDto,
@@ -41,60 +42,6 @@ interface ExpenseData {
   updatedAt: Date;
 }
 
-function startOfDay(date: Date): Date {
-  const d = new Date(date);
-  d.setHours(0, 0, 0, 0);
-  return d;
-}
-
-function endOfDay(date: Date): Date {
-  const d = new Date(date);
-  d.setHours(23, 59, 59, 999);
-  return d;
-}
-
-function startOfWeek(date: Date): Date {
-  const d = new Date(date);
-  const day = d.getDay();
-  const diff = d.getDate() - day + (day === 0 ? -6 : 1);
-  d.setDate(diff);
-  d.setHours(0, 0, 0, 0);
-  return d;
-}
-
-function startOfMonth(date: Date): Date {
-  const d = new Date(date);
-  d.setDate(1);
-  d.setHours(0, 0, 0, 0);
-  return d;
-}
-
-function computeDateRange(
-  range?: string,
-  from?: string,
-  to?: string
-): Record<string, Date> | undefined {
-  if (!range) return undefined;
-
-  const now = new Date();
-
-  switch (range) {
-    case 'today':
-      return { $gte: startOfDay(now), $lte: endOfDay(now) };
-    case 'week':
-      return { $gte: startOfWeek(now), $lte: endOfDay(now) };
-    case 'month':
-      return { $gte: startOfMonth(now), $lte: endOfDay(now) };
-    case 'custom':
-      if (from && to) {
-        return { $gte: new Date(from), $lte: endOfDay(new Date(to)) };
-      }
-      return undefined;
-    default:
-      return undefined;
-  }
-}
-
 function toData(expense: Record<string, unknown>): ExpenseData {
   return {
     id: String(expense._id),
@@ -114,10 +61,10 @@ function toData(expense: Record<string, unknown>): ExpenseData {
 
 export async function listExpenses(query: ListExpensesQuery) {
   const filter: Record<string, unknown> = {};
-  const dateFilter = computeDateRange(query.range, query.from, query.to);
 
-  if (dateFilter) {
-    filter.date = dateFilter;
+  if (query.range) {
+    const dateRange = normalizeDateRange(query.range, query.from, query.to);
+    filter.date = { $gte: dateRange.from, $lte: dateRange.to };
   }
 
   if (query.category) {

@@ -208,67 +208,6 @@ function renderExpenseReport(data: Record<string, unknown>): string {
   return html;
 }
 
-function renderAttendanceReport(data: Record<string, unknown>): string {
-  const summary = data.summary as Record<string, number> | undefined;
-  const byStaff = data.byStaff as Array<Record<string, unknown>> | undefined;
-  const dailyTrend = data.dailyTrend as Array<Record<string, unknown>> | undefined;
-  const range = data.range as { from: string; to: string } | undefined;
-
-  let html = `
-    <h2 style="font-size: 18px; font-weight: 700; color: #0f172a; margin: 0 0 4px 0;">Attendance Report</h2>
-    <p style="font-size: 12px; color: #64748b; margin: 0 0 16px 0;">${range?.from || 'N/A'} — ${range?.to || 'N/A'}</p>
-
-    <div style="display: flex; gap: 16px; margin-bottom: 24px; flex-wrap: wrap;">
-      <div style="flex: 1; min-width: 100px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 12px 16px;">
-        <p style="font-size: 11px; color: #64748b; margin: 0 0 4px 0;">Present</p>
-        <p style="font-size: 20px; font-weight: 700; color: #16a34a; margin: 0;">${summary?.present ?? 0}</p>
-      </div>
-      <div style="flex: 1; min-width: 100px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 12px 16px;">
-        <p style="font-size: 11px; color: #64748b; margin: 0 0 4px 0;">Absent</p>
-        <p style="font-size: 20px; font-weight: 700; color: #dc2626; margin: 0;">${summary?.absent ?? 0}</p>
-      </div>
-      <div style="flex: 1; min-width: 100px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 12px 16px;">
-        <p style="font-size: 11px; color: #64748b; margin: 0 0 4px 0;">Late</p>
-        <p style="font-size: 20px; font-weight: 700; color: #d97706; margin: 0;">${summary?.late ?? 0}</p>
-      </div>
-      <div style="flex: 1; min-width: 100px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 12px 16px;">
-        <p style="font-size: 11px; color: #64748b; margin: 0 0 4px 0;">Half-Day</p>
-        <p style="font-size: 20px; font-weight: 700; color: #2563eb; margin: 0;">${summary?.halfDay ?? 0}</p>
-      </div>
-      <div style="flex: 1; min-width: 100px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 12px 16px;">
-        <p style="font-size: 11px; color: #64748b; margin: 0 0 4px 0;">Attendance Rate</p>
-        <p style="font-size: 20px; font-weight: 700; color: #64748b; margin: 0;">${summary?.overallAttendanceRate ?? 0}%</p>
-      </div>
-    </div>`;
-
-  if (byStaff && byStaff.length > 0) {
-    html += '<h3 style="font-size: 14px; font-weight: 600; color: #0f172a; margin: 0 0 8px 0;">By Staff</h3>';
-    html += renderTable(byStaff, [
-      { key: 'name', label: 'Name' },
-      { key: 'role', label: 'Role' },
-      { key: 'present', label: 'Present' },
-      { key: 'absent', label: 'Absent' },
-      { key: 'late', label: 'Late' },
-      { key: 'halfDay', label: 'Half-Day' },
-      { key: 'totalHours', label: 'Hours', format: (v) => `${v ?? 0}h` },
-      { key: 'attendanceRate', label: 'Rate', format: (v) => `${v ?? 0}%` },
-    ]);
-  }
-
-  if (dailyTrend && dailyTrend.length > 0) {
-    html += '<h3 style="font-size: 14px; font-weight: 600; color: #0f172a; margin: 0 0 8px 0;">Daily Trend</h3>';
-    html += renderTable(dailyTrend, [
-      { key: 'date', label: 'Date' },
-      { key: 'present', label: 'Present' },
-      { key: 'absent', label: 'Absent' },
-      { key: 'late', label: 'Late' },
-      { key: 'halfDay', label: 'Half-Day' },
-    ]);
-  }
-
-  return html;
-}
-
 export function renderReportToHtml(
   type: string,
   data: Record<string, unknown>,
@@ -278,7 +217,6 @@ export function renderReportToHtml(
     sales: renderSalesReport,
     income: renderIncomeReport,
     expense: renderExpenseReport,
-    attendance: renderAttendanceReport,
   };
 
   const renderer = reportRenderers[type];

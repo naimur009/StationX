@@ -41,7 +41,7 @@ export default function BillPreview() {
       )}
 
       <div className="flex justify-between text-slate-600">
-        <span>Tax (VAT)</span>
+        <span>VAT</span>
         <span>BDT {taxAmount.toFixed(2)}</span>
       </div>
 

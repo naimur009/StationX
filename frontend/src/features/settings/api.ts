@@ -17,9 +17,8 @@ export interface SettingsResponse {
   address: string;
   logo: { url: string; publicId: string };
   contactNumber: string;
-  taxId: string;
+  vatInfo: { bin: string; mushak: string };
   businessHours: BusinessHourEntry[];
-  taxConfig: { mode: string; rate: number };
   loyaltyOrderThreshold: number;
   createdAt: string;
   updatedAt: string;
@@ -30,9 +29,8 @@ interface SettingsUpdateData {
   address?: string;
   logo?: { url?: string; publicId?: string };
   contactNumber?: string;
-  taxId?: string;
   businessHours?: BusinessHourEntry[];
-  taxConfig?: { mode: string; rate: number };
+  vatInfo?: { bin?: string; mushak?: string };
   loyaltyOrderThreshold?: number;
 }
 

@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Search, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useTasksList, useTask, type TaskResponse } from '../api';
 import TaskCard from './TaskCard';
-import { useUsersList, type UserResponse } from '../../users/api';
+import { useEmployeesList } from '../../employees/api';
 
 interface TaskListProps {
   onEdit: (task: TaskResponse) => void;
@@ -43,7 +43,7 @@ export default function TaskList({ onEdit, onDelete }: TaskListProps) {
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const mountedRef = useRef(true);
 
-  const { data: usersData } = useUsersList({ limit: 100 });
+  const { data: employeesData } = useEmployeesList({ limit: 100 });
 
   useEffect(() => {
     mountedRef.current = true;
@@ -71,7 +71,7 @@ export default function TaskList({ onEdit, onDelete }: TaskListProps) {
     sort,
   });
 
-  const activeUsers = (usersData?.data || []).filter((u) => u.isActive);
+  const employees = employeesData?.data || [];
 
   const taskCounts = {
     pending: 0,
@@ -162,8 +162,8 @@ export default function TaskList({ onEdit, onDelete }: TaskListProps) {
             className="rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-sm text-slate-700 ring-ring focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-ring min-w-[140px]"
           >
             <option value="">All Assignees</option>
-            {activeUsers.map((user) => (
-              <option key={user.id} value={user.id}>{user.name}</option>
+            {employees.map((employee) => (
+              <option key={employee.id} value={employee.id}>{employee.name}</option>
             ))}
           </select>
 

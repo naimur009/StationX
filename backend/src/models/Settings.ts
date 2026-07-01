@@ -11,9 +11,9 @@ export interface ILogo {
   publicId: string;
 }
 
-export interface ITaxConfig {
-  mode: 'none' | 'flat' | 'itemized';
-  rate: number;
+export interface IVatInfo {
+  bin: string;
+  mushak: string;
 }
 
 export interface ISettings {
@@ -22,9 +22,8 @@ export interface ISettings {
   address: string;
   logo: ILogo;
   contactNumber: string;
-  taxId: string;
+  vatInfo: IVatInfo;
   businessHours: IBusinessHours[];
-  taxConfig: ITaxConfig;
   loyaltyOrderThreshold: number;
   createdAt?: Date;
   updatedAt?: Date;
@@ -51,15 +50,10 @@ const logoSchema = new Schema<ILogo>(
   { _id: false }
 );
 
-const taxConfigSchema = new Schema<ITaxConfig>(
+const vatInfoSchema = new Schema<IVatInfo>(
   {
-    mode: {
-      type: String,
-      required: true,
-      enum: ['none', 'flat', 'itemized'],
-      default: 'none',
-    },
-    rate: { type: Number, required: true, default: 0 },
+    bin: { type: String, default: '' },
+    mushak: { type: String, default: '' },
   },
   { _id: false }
 );
@@ -71,7 +65,10 @@ const settingsSchema = new Schema(
     address: { type: String, default: '' },
     logo: { type: logoSchema, default: () => ({ url: '', publicId: '' }) },
     contactNumber: { type: String, default: '' },
-    taxId: { type: String, default: '' },
+    vatInfo: {
+      type: vatInfoSchema,
+      default: () => ({ bin: '', mushak: '' }),
+    },
     businessHours: {
       type: [businessHoursSchema],
       default: () => [
@@ -83,10 +80,6 @@ const settingsSchema = new Schema(
         { day: 'saturday', open: '09:00', close: '22:00' },
         { day: 'sunday', open: '09:00', close: '22:00' },
       ],
-    },
-    taxConfig: {
-      type: taxConfigSchema,
-      default: () => ({ mode: 'none', rate: 0 }),
     },
     loyaltyOrderThreshold: { type: Number, default: 0 },
   },
@@ -111,9 +104,8 @@ export const DEFAULT_SETTINGS: ISettings = {
   address: '',
   logo: { url: '', publicId: '' },
   contactNumber: '',
-  taxId: '',
+  vatInfo: { bin: '', mushak: '' },
   businessHours: DEFAULT_BUSINESS_HOURS,
-  taxConfig: { mode: 'none', rate: 0 },
   loyaltyOrderThreshold: 0,
 };
 

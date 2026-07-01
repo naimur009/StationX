@@ -5,11 +5,13 @@ import { Button } from '@/components/ui/button';
 import PermissionGate from '@/components/shared/PermissionGate';
 import VendorList from '@/features/vendors/components/VendorList';
 import VendorForm from '@/features/vendors/components/VendorForm';
+import DeleteVendorDialog from './DeleteVendorDialog';
 import type { VendorResponse } from '@/features/vendors/api';
 
 export default function VendorsPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [editVendor, setEditVendor] = useState<VendorResponse | null>(null);
+  const [deleteVendor, setDeleteVendor] = useState<VendorResponse | null>(null);
 
   return (
     <PermissionGate module="vendors" action="view">
@@ -30,7 +32,7 @@ export default function VendorsPage() {
 
         <VendorList
           onEdit={(vendor) => setEditVendor(vendor)}
-          onDelete={(vendor) => setEditVendor(vendor)}
+          onDelete={(vendor) => setDeleteVendor(vendor)}
         />
 
         <VendorForm
@@ -42,6 +44,10 @@ export default function VendorsPage() {
           open={!!editVendor}
           vendor={editVendor}
           onClose={() => setEditVendor(null)}
+        />
+        <DeleteVendorDialog
+          vendor={deleteVendor}
+          onClose={() => setDeleteVendor(null)}
         />
       </div>
     </PermissionGate>

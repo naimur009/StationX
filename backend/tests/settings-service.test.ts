@@ -68,8 +68,7 @@ describe('settingsService', () => {
     it('handles multiple fields in one update', async () => {
       const updateData = {
         restaurantName: 'StationX',
-        currency: 'USD',
-        taxId: 'TAX123',
+        vatInfo: { bin: '001234567-0101', mushak: '123456789-101' },
       };
       vi.mocked(Settings.findByIdAndUpdate).mockResolvedValueOnce({ ...DEFAULT_SETTINGS, ...updateData } as never);
 
@@ -108,11 +107,6 @@ describe('updateSettingsSchema validation', () => {
     expect(result.success).toBe(false);
   });
 
-  it('rejects invalid currency code', () => {
-    const result = updateSettingsSchema.safeParse({ currency: 'TOOLONG' });
-    expect(result.success).toBe(false);
-  });
-
   it('rejects invalid time format in businessHours', () => {
     const result = updateSettingsSchema.safeParse({
       businessHours: [{ day: 'monday', open: 'not-a-time', close: '22:00' }],
@@ -134,17 +128,17 @@ describe('updateSettingsSchema validation', () => {
     expect(result.success).toBe(false);
   });
 
-  it('rejects tax rate outside 0-100', () => {
+  it('accepts vatInfo with bin and mushak', () => {
     const result = updateSettingsSchema.safeParse({
-      taxConfig: { mode: 'flat', rate: 150 },
+      vatInfo: { bin: '001234567-0101', mushak: '123456789-101' },
     });
-    expect(result.success).toBe(false);
+    expect(result.success).toBe(true);
   });
 
-  it('rejects invalid taxConfig mode', () => {
+  it('accepts vatInfo with empty strings (defaults)', () => {
     const result = updateSettingsSchema.safeParse({
-      taxConfig: { mode: 'invalid', rate: 10 },
+      vatInfo: { bin: '', mushak: '' },
     });
-    expect(result.success).toBe(false);
+    expect(result.success).toBe(true);
   });
 });

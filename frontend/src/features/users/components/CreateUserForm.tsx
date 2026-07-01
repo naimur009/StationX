@@ -86,38 +86,20 @@ export default function CreateUserForm({ open, onClose }: CreateUserFormProps) {
       )}
 
       <form id="create-user-form" onSubmit={handleSubmit(onSubmit)} className="space-y-5">
-        <div className="grid gap-5 sm:grid-cols-2">
-          <div>
-            <label htmlFor="create-name" className="mb-1.5 block text-sm font-medium text-slate-700">
-              Name
-            </label>
-            <input
-              id="create-name"
-              type="text"
-              placeholder="John Doe"
-              className={`w-full rounded-xl border bg-white px-3.5 py-2.5 text-sm text-slate-800 placeholder-slate-400 ring-ring focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-ring ${
-                errors.name ? 'border-red-400' : 'border-slate-300'
-              }`}
-              {...register('name')}
-            />
-            {errors.name && <p className="mt-1 text-xs text-red-500">{errors.name.message}</p>}
-          </div>
-
-          <div>
-            <label htmlFor="create-email" className="mb-1.5 block text-sm font-medium text-slate-700">
-              Email
-            </label>
-            <input
-              id="create-email"
-              type="email"
-              placeholder="john@restaurant.com"
-              className={`w-full rounded-xl border bg-white px-3.5 py-2.5 text-sm text-slate-800 placeholder-slate-400 ring-ring focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-ring ${
-                errors.email ? 'border-red-400' : 'border-slate-300'
-              }`}
-              {...register('email')}
-            />
-            {errors.email && <p className="mt-1 text-xs text-red-500">{errors.email.message}</p>}
-          </div>
+        <div>
+          <label htmlFor="create-email" className="mb-1.5 block text-sm font-medium text-slate-700">
+            Email
+          </label>
+          <input
+            id="create-email"
+            type="email"
+            placeholder="user@restaurant.com"
+            className={`w-full rounded-xl border bg-white px-3.5 py-2.5 text-sm text-slate-800 placeholder-slate-400 ring-ring focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-ring ${
+              errors.email ? 'border-red-400' : 'border-slate-300'
+            }`}
+            {...register('email')}
+          />
+          {errors.email && <p className="mt-1 text-xs text-red-500">{errors.email.message}</p>}
         </div>
 
         <div>
@@ -127,7 +109,7 @@ export default function CreateUserForm({ open, onClose }: CreateUserFormProps) {
           <input
             id="create-password"
             type="password"
-            placeholder="At least 8 chars, upper, lower, digit"
+            placeholder="At least 8 characters"
             className={`w-full rounded-xl border bg-white px-3.5 py-2.5 text-sm text-slate-800 placeholder-slate-400 ring-ring focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-ring ${
               errors.password ? 'border-red-400' : 'border-slate-300'
             }`}
@@ -150,6 +132,7 @@ export default function CreateUserForm({ open, onClose }: CreateUserFormProps) {
             <option value="">Select a role</option>
             <option value="manager">Manager</option>
             <option value="employee">Employee</option>
+            <option value="chief">Chief</option>
           </select>
           {errors.role && <p className="mt-1 text-xs text-red-500">{errors.role.message}</p>}
         </div>

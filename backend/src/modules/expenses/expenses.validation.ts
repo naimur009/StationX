@@ -5,7 +5,7 @@ const objectIdRegex = /^[0-9a-fA-F]{24}$/;
 export const createExpenseSchema = z.object({
   amount: z.number().positive('Amount must be positive').multipleOf(0.01, 'Amount must have at most 2 decimal places'),
   date: z.coerce.date({ required_error: 'Date is required' }),
-  description: z.string().min(1, 'Description is required').max(500).trim(),
+  description: z.string().max(500).trim().optional(),
   category: z.string().min(1, 'Category is required').max(100).trim(),
   vendorId: z.string().regex(objectIdRegex, 'Invalid vendor ID format').optional(),
   paidBy: z.string().regex(objectIdRegex, 'Invalid paidBy ID format'),
@@ -16,7 +16,7 @@ export const createExpenseSchema = z.object({
 export const updateExpenseSchema = z.object({
   amount: z.number().positive('Amount must be positive').multipleOf(0.01).optional(),
   date: z.coerce.date().optional(),
-  description: z.string().min(1, 'Description is required').max(500).trim().optional(),
+  description: z.string().max(500).trim().optional(),
   category: z.string().min(1, 'Category is required').max(100).trim().optional(),
   vendorId: z.string().regex(objectIdRegex, 'Invalid vendor ID format').optional().nullable(),
   paidBy: z.string().regex(objectIdRegex, 'Invalid paidBy ID format').optional(),

@@ -16,13 +16,11 @@ export const updateVendorSchema = z.object({
   email: z.string().max(100).email('Invalid email').trim().optional(),
   address: z.string().max(500).trim().optional(),
   itemsSupplied: z.array(z.string().max(100).trim()).max(50).optional(),
-  isActive: z.boolean().optional(),
 }).strict();
 
 export const listVendorsSchema = z.object({
   page: z.coerce.number().int().positive('Page must be a positive number').max(1000, 'Page number must not exceed 1000').default(1),
   limit: z.coerce.number().int().positive('Limit must be a positive number').max(100, 'Limit must not exceed 100').default(20),
-  isActive: z.enum(['true', 'false']).optional(),
   search: z.string().max(100).optional(),
 }).strict();
 

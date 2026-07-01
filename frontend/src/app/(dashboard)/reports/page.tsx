@@ -9,10 +9,9 @@ import ExportButton from '@/features/reports/components/ExportButton';
 import SalesReportView from '@/features/reports/components/SalesReportView';
 import IncomeReportView from '@/features/reports/components/IncomeReportView';
 import ExpenseReportView from '@/features/reports/components/ExpenseReportView';
-import AttendanceReportView from '@/features/reports/components/AttendanceReportView';
 import { useReport } from '@/features/reports/api';
 import type { ReportType } from '@/features/reports/schema';
-import type { SalesReport, IncomeReport, ExpenseReport, AttendanceReport } from '@/features/reports/api';
+import type { SalesReport, IncomeReport, ExpenseReport } from '@/features/reports/api';
 
 export default function ReportsPage() {
   const [selectedType, setSelectedType] = useState<ReportType>('sales');
@@ -80,8 +79,6 @@ export default function ReportsPage() {
         return <IncomeReportView data={data.data as IncomeReport} />;
       case 'expense':
         return <ExpenseReportView data={data.data as ExpenseReport} />;
-      case 'attendance':
-        return <AttendanceReportView data={data.data as AttendanceReport} />;
     }
   }
 

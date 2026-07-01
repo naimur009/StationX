@@ -3,12 +3,12 @@
 import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Loader2 } from 'lucide-react';
+import { Loader2, FileText } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { AppError } from '@/lib/utils';
-import { taxSchema, type TaxFormData } from '../schema';
+import { vatInfoSchema, type VatInfoFormData } from '../schema';
 import { useSettings, useUpdateSettings } from '../api';
 import PermissionGate from '@/components/shared/PermissionGate';
 
@@ -22,32 +22,33 @@ export default function TaxSection() {
     register,
     handleSubmit,
     reset,
-  } = useForm<TaxFormData>({
-    resolver: zodResolver(taxSchema),
+  } = useForm<VatInfoFormData>({
+    resolver: zodResolver(vatInfoSchema),
     defaultValues: {
-      taxId: '',
+      bin: '',
+      mushak: '',
     },
   });
 
   useEffect(() => {
     if (settingsData?.data) {
       reset({
-        taxId: settingsData.data.taxId || '',
+        bin: settingsData.data.vatInfo?.bin || '',
+        mushak: settingsData.data.vatInfo?.mushak || '',
       });
     }
   }, [settingsData, reset]);
 
-  async function onSubmit(data: TaxFormData) {
+  async function onSubmit(data: VatInfoFormData) {
     setStatus('saving');
     try {
       await updateMutation.mutateAsync({
-        taxId: data.taxId,
-        taxConfig: { mode: 'none', rate: 0 },
+        vatInfo: { bin: data.bin, mushak: data.mushak },
       });
       setStatus('saved');
       setTimeout(() => setStatus('idle'), 3000);
     } catch (err) {
-      console.error('[Settings] Tax save failed:', err);
+      console.error('[Settings] VAT save failed:', err);
       setErrorMessage(err instanceof AppError ? err.message : 'Failed to save — try again');
       setStatus('error');
       setTimeout(() => {
@@ -61,8 +62,8 @@ export default function TaxSection() {
     return (
       <Card>
         <CardHeader>
-          <CardTitle>Tax Configuration</CardTitle>
-          <CardDescription>Tax configuration settings</CardDescription>
+          <CardTitle>VAT Information</CardTitle>
+          <CardDescription>VAT registration details</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="h-4 w-48 animate-pulse rounded-xl bg-slate-200" />
@@ -74,26 +75,28 @@ export default function TaxSection() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Tax Configuration</CardTitle>
-        <CardDescription>Tax configuration settings</CardDescription>
+        <div className="flex items-center gap-2">
+          <FileText className="h-5 w-5 text-slate-500" />
+          <div>
+            <CardTitle>VAT Information</CardTitle>
+            <CardDescription>Manage your VAT registration details</CardDescription>
+          </div>
+        </div>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <div className="space-y-1.5">
-            <label htmlFor="taxId" className="text-sm font-medium text-slate-700">
-              Tax / GST ID
+            <label htmlFor="bin" className="text-sm font-medium text-slate-700">
+              BIN <span className="text-xs text-slate-400">(Business Identification Number)</span>
             </label>
-            <Input id="taxId" {...register('taxId')} placeholder="Optional" />
+            <Input id="bin" {...register('bin')} placeholder="e.g. 001234567-0101" />
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-sm font-medium text-slate-700">Tax Mode</label>
-            <div className="rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-sm text-slate-500">
-              No Tax (v1)
-            </div>
-            <p className="text-xs text-slate-400">
-              Tax calculation is not available in this version.
-            </p>
+            <label htmlFor="mushak" className="text-sm font-medium text-slate-700">
+              Mushak <span className="text-xs text-slate-400">(Mushak Number)</span>
+            </label>
+            <Input id="mushak" {...register('mushak')} placeholder="e.g. 123456789-101" />
           </div>
 
           <div className="flex items-center gap-3">

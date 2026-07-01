@@ -7,12 +7,13 @@ import type {
   UpdateUserDto,
   ListUsersDto,
   UpdatePermissionsDto,
+  ChangePasswordDto,
 } from './users.validation';
 
 const escapeRegex = (str: string): string =>
   str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-const SALT_ROUNDS = 12;
+const SALT_ROUNDS = 10;
 
 interface UserResponse {
   id: string;
@@ -29,7 +30,7 @@ interface UserResponse {
 function toUserResponse(user: IUser): UserResponse {
   return {
     id: user._id.toString(),
-    name: user.name,
+    name: user.name ?? '',
     email: user.email,
     role: user.role,
     permissions: user.permissions,
@@ -117,6 +118,7 @@ export async function updateUser(id: string, dto: UpdateUserDto, actorId: string
   if (dto.name !== undefined) updates.name = dto.name;
   if (dto.email !== undefined) updates.email = dto.email;
   if (dto.role !== undefined) updates.role = dto.role;
+
 
   const user = await User.findByIdAndUpdate(id, { $set: updates }, { new: true, runValidators: true });
 
@@ -246,6 +248,28 @@ export async function permanentDeleteUser(id: string, actorId: string) {
   }
 
   await User.findByIdAndDelete(id);
+
+  return { success: true };
+}
+
+export async function changeUserPassword(
+  id: string,
+  dto: ChangePasswordDto
+): Promise<{ success: boolean }> {
+  const user = await User.findById(id).select('+passwordHash');
+
+  if (!user) {
+    throw createError(404, 'NOT_FOUND', 'User not found');
+  }
+
+  const isValid = await bcrypt.compare(dto.prevPassword, user.passwordHash);
+  if (!isValid) {
+    throw createError(400, 'INVALID_PASSWORD', 'Current password is incorrect');
+  }
+
+  const newHash = await bcrypt.hash(dto.newPassword, SALT_ROUNDS);
+  user.passwordHash = newHash;
+  await user.save();
 
   return { success: true };
 }

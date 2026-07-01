@@ -72,7 +72,7 @@ const orderSchema = new Schema<IOrder>(
     customerId: { type: Schema.Types.ObjectId, ref: 'Customer', required: false, default: null },
     customerName: { type: String, required: false },
     customerPhone: { type: String, required: false },
-    servedBy: { type: Schema.Types.ObjectId, ref: 'User', required: false, default: null },
+    servedBy: { type: Schema.Types.ObjectId, ref: 'Employee', required: false, default: null },
     items: { type: [orderItemSchema], required: true, validate: [(v: IOrderItem[]) => v.length > 0, 'Order must have at least one item'] },
     couponId: { type: Schema.Types.ObjectId, ref: 'Coupon', required: false, default: null },
     discountPercent: { type: Number, required: true, default: 0 },

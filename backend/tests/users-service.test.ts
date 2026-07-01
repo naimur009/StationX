@@ -19,7 +19,7 @@ describe('userService', () => {
 
       try {
         await userService.createUser(
-          { name: 'Test', email: 'test@test.com', password: 'StrongPass1', role: 'manager', permissions: [] },
+          { email: 'test@test.com', password: 'StrongPass1', role: 'manager', permissions: [] },
           'actor-id'
         );
         expect.unreachable('Expected error to be thrown');
@@ -46,11 +46,11 @@ describe('userService', () => {
       } as never);
 
       const result = await userService.createUser(
-        { name: 'Test', email: 'test@test.com', password: 'StrongPass1', role: 'manager', permissions: [] },
+        { email: 'test@test.com', password: 'StrongPass1', role: 'manager', permissions: [] },
         'actor-id'
       );
 
-      expect(bcrypt.hash).toHaveBeenCalledWith('StrongPass1', 12);
+      expect(bcrypt.hash).toHaveBeenCalledWith('StrongPass1', 10);
       expect(result).toHaveProperty('id', 'new-id');
       expect(result).toHaveProperty('email', 'test@test.com');
     });
@@ -152,6 +152,45 @@ describe('userService', () => {
       );
 
       expect(result).toBeDefined();
+    });
+  });
+
+  describe('changeUserPassword', () => {
+    it('rejects when current password is incorrect', async () => {
+      vi.mocked(bcrypt.compare).mockResolvedValueOnce(false as never);
+      vi.mocked(User.findById).mockReturnValueOnce({
+        select: vi.fn().mockResolvedValueOnce({
+          _id: 'user-id',
+          passwordHash: 'stored-hash',
+        }),
+      } as never);
+
+      try {
+        await userService.changeUserPassword('user-id', { prevPassword: 'wrong', newPassword: 'NewPass123' });
+        expect.unreachable('Expected error to be thrown');
+      } catch (err: unknown) {
+        const appErr = err as { code?: string; message?: string };
+        expect(appErr.code).toBe('INVALID_PASSWORD');
+      }
+    });
+
+    it('updates password when current password is correct', async () => {
+      const saveMock = vi.fn().mockResolvedValueOnce({} as never);
+      vi.mocked(bcrypt.compare).mockResolvedValueOnce(true as never);
+      vi.mocked(bcrypt.hash).mockResolvedValueOnce('new-hash' as never);
+      vi.mocked(User.findById).mockReturnValueOnce({
+        select: vi.fn().mockResolvedValueOnce({
+          _id: 'user-id',
+          passwordHash: 'stored-hash',
+          save: saveMock,
+        }),
+      } as never);
+
+      const result = await userService.changeUserPassword('user-id', { prevPassword: 'correct', newPassword: 'NewPass123' });
+
+      expect(bcrypt.hash).toHaveBeenCalledWith('NewPass123', 10);
+      expect(saveMock).toHaveBeenCalled();
+      expect(result).toEqual({ success: true });
     });
   });
 });

@@ -15,7 +15,6 @@ interface VendorResponse {
   email?: string;
   address?: string;
   itemsSupplied: string[];
-  isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -29,7 +28,6 @@ function toResponse(vendor: IVendor): VendorResponse {
     email: vendor.email,
     address: vendor.address,
     itemsSupplied: vendor.itemsSupplied,
-    isActive: vendor.isActive,
     createdAt: vendor.createdAt,
     updatedAt: vendor.updatedAt,
   };
@@ -37,12 +35,6 @@ function toResponse(vendor: IVendor): VendorResponse {
 
 export async function listVendors(query: ListVendorsDto) {
   const filter: Record<string, unknown> = {};
-
-  if (query.isActive === 'true') {
-    filter.isActive = true;
-  } else if (query.isActive === 'false') {
-    filter.isActive = false;
-  }
 
   if (query.search) {
     filter.name = { $regex: escapeRegex(query.search), $options: 'i' };
@@ -63,7 +55,6 @@ export async function listVendors(query: ListVendorsDto) {
     email: vendor.email,
     address: vendor.address,
     itemsSupplied: vendor.itemsSupplied ?? [],
-    isActive: vendor.isActive,
     createdAt: vendor.createdAt,
     updatedAt: vendor.updatedAt,
   }));
@@ -104,11 +95,7 @@ export async function updateVendor(id: string, dto: UpdateVendorDto) {
 }
 
 export async function deleteVendor(id: string) {
-  const vendor = await Vendor.findByIdAndUpdate(
-    id,
-    { $set: { isActive: false } },
-    { new: true }
-  );
+  const vendor = await Vendor.findByIdAndDelete(id);
 
   if (!vendor) {
     throw createError(404, 'NOT_FOUND', 'Vendor not found');

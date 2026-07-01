@@ -237,7 +237,7 @@ export default function PosPage() {
                   <option value="">Who served?</option>
                   {employees.map((emp) => (
                     <option key={emp.id} value={emp.id}>
-                      {emp.name} ({emp.role})
+                      {emp.name}
                     </option>
                   ))}
                 </select>
@@ -360,10 +360,6 @@ export default function PosPage() {
                     <span>-BDT {manualDiscountAmount.toFixed(2)}</span>
                   </div>
                 )}
-                <div className="flex justify-between text-slate-600">
-                  <span>Tax</span>
-                  <span>BDT 0.00</span>
-                </div>
                 <div className="flex justify-between border-t border-border pt-1 text-sm font-bold text-slate-800">
                   <span>Total</span>
                   <span>BDT {grandTotal.toFixed(2)}</span>
@@ -430,10 +426,6 @@ export default function PosPage() {
                   <span>-BDT {manualDiscountAmount.toFixed(2)}</span>
                 </div>
               )}
-              <div className="flex justify-between text-slate-600">
-                <span>Tax (VAT)</span>
-                <span>BDT 0.00</span>
-              </div>
               {tendered > 0 && (
                 <div className="flex justify-between text-slate-600">
                   <span>Cash Tendered</span>

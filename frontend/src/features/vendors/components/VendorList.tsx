@@ -3,11 +3,9 @@
 import { useState, useEffect, useRef } from 'react';
 import { Search, ChevronLeft, ChevronRight, Eye, Edit3, Trash2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { useVendorsList, useUpdateVendor, type VendorResponse } from '../api';
-import { Badge } from '@/components/ui/badge';
+import { useVendorsList, type VendorResponse } from '../api';
 import { Button } from '@/components/ui/button';
 import PermissionGate from '@/components/shared/PermissionGate';
-import { AppError } from '@/lib/utils';
 
 interface VendorListProps {
   onEdit: (vendor: VendorResponse) => void;
@@ -18,12 +16,8 @@ export default function VendorList({ onEdit, onDelete }: VendorListProps) {
   const router = useRouter();
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState('active');
   const [page, setPage] = useState(1);
-  const [error, setError] = useState<string | null>(null);
   const mountedRef = useRef(true);
-
-  const updateVendor = useUpdateVendor();
 
   useEffect(() => {
     mountedRef.current = true;
@@ -38,30 +32,15 @@ export default function VendorList({ onEdit, onDelete }: VendorListProps) {
     };
   }, [search]);
 
-  const isActiveParam = statusFilter === 'all' ? undefined : (statusFilter === 'active' ? 'true' : 'false');
-
   const { data, isLoading, isError } = useVendorsList({
     page,
     limit: 20,
-    isActive: isActiveParam,
     search: debouncedSearch || undefined,
   });
 
   useEffect(() => {
     setPage(1);
-  }, [statusFilter, debouncedSearch]);
-
-  async function handleReactivate(vendor: VendorResponse) {
-    try {
-      await updateVendor.mutateAsync({ id: vendor.id, isActive: true });
-    } catch (err) {
-      if (err instanceof AppError) {
-        setError(err.message);
-      } else {
-        setError('Failed to reactivate vendor');
-      }
-    }
-  }
+  }, [debouncedSearch]);
 
   function handlePageChange(newPage: number) {
     if (newPage < 1 || (data && newPage > Math.ceil(data.meta.total / data.meta.limit))) return;
@@ -76,15 +55,6 @@ export default function VendorList({ onEdit, onDelete }: VendorListProps) {
 
   return (
     <div className="space-y-4">
-      {error && (
-        <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700">
-          {error}
-          <button className="ml-2 font-medium underline" onClick={() => setError(null)}>
-            Dismiss
-          </button>
-        </div>
-      )}
-
       <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-3">
         <div className="relative flex-1 min-w-[200px]">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
@@ -96,16 +66,6 @@ export default function VendorList({ onEdit, onDelete }: VendorListProps) {
             className="w-full rounded-xl border border-slate-300 bg-white py-2.5 pl-10 pr-3.5 text-sm text-slate-800 placeholder-slate-400 ring-ring focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-ring"
           />
         </div>
-
-        <select
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-          className="rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-700 ring-ring focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-ring"
-        >
-          <option value="all">All</option>
-          <option value="active">Active</option>
-          <option value="inactive">Deactivated</option>
-        </select>
       </div>
 
       {isLoading ? (
@@ -127,9 +87,7 @@ export default function VendorList({ onEdit, onDelete }: VendorListProps) {
             {data?.data.map((vendor) => (
               <div
                 key={vendor.id}
-                className={`rounded-2xl border border-slate-200 bg-white p-4 shadow-sm ${
-                  !vendor.isActive ? 'opacity-60' : ''
-                }`}
+                className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
               >
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0 flex-1">
@@ -141,13 +99,6 @@ export default function VendorList({ onEdit, onDelete }: VendorListProps) {
                     </button>
                     {vendor.contactPerson && (
                       <p className="truncate text-sm text-slate-500">{vendor.contactPerson}</p>
-                    )}
-                  </div>
-                  <div className="shrink-0">
-                    {vendor.isActive ? (
-                      <span className="inline-block size-1.5 rounded-full bg-green-500" title="Active" />
-                    ) : (
-                      <Badge variant="slate">Deactivated</Badge>
                     )}
                   </div>
                 </div>
@@ -183,24 +134,12 @@ export default function VendorList({ onEdit, onDelete }: VendorListProps) {
                       <Edit3 className="h-4 w-4" />
                     </button>
                   </PermissionGate>
-                  {vendor.isActive ? (
-                    <PermissionGate module="vendors" action="delete">
-                      <Button variant="warning" size="xs" onClick={() => onDelete(vendor)}>
-                        Deactivate
-                      </Button>
-                    </PermissionGate>
-                  ) : (
-                    <PermissionGate module="vendors" action="edit">
-                      <Button
-                        variant="primary"
-                        size="xs"
-                        onClick={() => handleReactivate(vendor)}
-                        disabled={updateVendor.isPending}
-                      >
-                        Reactivate
-                      </Button>
-                    </PermissionGate>
-                  )}
+                  <PermissionGate module="vendors" action="delete">
+                    <Button variant="destructive" size="xs" onClick={() => onDelete(vendor)}>
+                      <Trash2 className="mr-1 h-3.5 w-3.5" />
+                      Delete
+                    </Button>
+                  </PermissionGate>
                 </div>
               </div>
             ))}
@@ -216,7 +155,6 @@ export default function VendorList({ onEdit, onDelete }: VendorListProps) {
                   <th className="px-4 py-3">Phone</th>
                   <th className="px-4 py-3">Email</th>
                   <th className="px-4 py-3">Items Supplied</th>
-                  <th className="px-4 py-3">Status</th>
                   <th className="px-4 py-3 text-right">Actions</th>
                 </tr>
               </thead>
@@ -224,9 +162,7 @@ export default function VendorList({ onEdit, onDelete }: VendorListProps) {
                 {data?.data.map((vendor) => (
                   <tr
                     key={vendor.id}
-                    className={`transition-colors hover:bg-slate-50 ${
-                      !vendor.isActive ? 'opacity-60' : ''
-                    }`}
+                    className="transition-colors hover:bg-slate-50"
                   >
                     <td className="px-4 py-3">
                       <button
@@ -267,13 +203,6 @@ export default function VendorList({ onEdit, onDelete }: VendorListProps) {
                       </div>
                     </td>
                     <td className="px-4 py-3">
-                      {vendor.isActive ? (
-                        <span className="inline-block size-1.5 rounded-full bg-green-500" title="Active" />
-                      ) : (
-                        <Badge variant="slate">Deactivated</Badge>
-                      )}
-                    </td>
-                    <td className="px-4 py-3">
                       <div className="flex items-center justify-end gap-2">
                         <button
                           onClick={() => goToDetail(vendor)}
@@ -291,24 +220,12 @@ export default function VendorList({ onEdit, onDelete }: VendorListProps) {
                             <Edit3 className="h-4 w-4" />
                           </button>
                         </PermissionGate>
-                        {vendor.isActive ? (
-                          <PermissionGate module="vendors" action="delete">
-                            <Button variant="warning" size="xs" onClick={() => onDelete(vendor)}>
-                              Deactivate
-                            </Button>
-                          </PermissionGate>
-                        ) : (
-                          <PermissionGate module="vendors" action="edit">
-                            <Button
-                              variant="primary"
-                              size="xs"
-                              onClick={() => handleReactivate(vendor)}
-                              disabled={updateVendor.isPending}
-                            >
-                              Reactivate
-                            </Button>
-                          </PermissionGate>
-                        )}
+                        <PermissionGate module="vendors" action="delete">
+                          <Button variant="destructive" size="xs" onClick={() => onDelete(vendor)}>
+                            <Trash2 className="mr-1 h-3.5 w-3.5" />
+                            Delete
+                          </Button>
+                        </PermissionGate>
                       </div>
                     </td>
                   </tr>

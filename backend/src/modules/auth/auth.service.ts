@@ -1,6 +1,6 @@
 import bcrypt from 'bcrypt';
 import crypto from 'crypto';
-import User from '../../models/User';
+import User, { IUser } from '../../models/User';
 import PasswordResetToken from '../../models/PasswordResetToken';
 import ActivityLog from '../../models/ActivityLog';
 import {
@@ -26,6 +26,16 @@ interface LoginResult {
     email: string;
     role: string;
     permissions: { module: string; actions: string[] }[];
+  };
+}
+
+function toUserLogin(user: IUser) {
+  return {
+    id: user._id.toString(),
+    name: user.name ?? '',
+    email: user.email,
+    role: user.role,
+    permissions: user.permissions,
   };
 }
 
@@ -86,13 +96,7 @@ export async function login(
   return {
     accessToken,
     refreshToken,
-    user: {
-      id: user._id.toString(),
-      name: user.name,
-      email: user.email,
-      role: user.role,
-      permissions: user.permissions,
-    },
+    user: toUserLogin(user),
   };
 }
 
@@ -218,11 +222,5 @@ export async function getMe(userId: string) {
     throw createError(401, 'UNAUTHORIZED', 'Account is deactivated');
   }
 
-  return {
-    id: user._id.toString(),
-    name: user.name,
-    email: user.email,
-    role: user.role,
-    permissions: user.permissions,
-  };
+  return toUserLogin(user);
 }

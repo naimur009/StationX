@@ -106,45 +106,7 @@ export interface ExpenseReport {
   dailyBreakdown: DailyExpenseEntry[];
 }
 
-export interface AttendanceSummary {
-  totalRecords: number;
-  totalStaff: number;
-  workingDays: number;
-  present: number;
-  absent: number;
-  late: number;
-  halfDay: number;
-  overallAttendanceRate: number;
-}
-
-export interface StaffAttendanceEntry {
-  userId: string;
-  name: string;
-  role: string;
-  present: number;
-  absent: number;
-  late: number;
-  halfDay: number;
-  totalHours: number;
-  attendanceRate: number;
-}
-
-export interface DailyAttendanceEntry {
-  date: string;
-  present: number;
-  absent: number;
-  late: number;
-  halfDay: number;
-}
-
-export interface AttendanceReport {
-  range: ReportRange;
-  summary: AttendanceSummary;
-  byStaff: StaffAttendanceEntry[];
-  dailyTrend: DailyAttendanceEntry[];
-}
-
-export type ReportData = SalesReport | IncomeReport | ExpenseReport | AttendanceReport;
+export type ReportData = SalesReport | IncomeReport | ExpenseReport;
 
 // ---- Hooks ----
 

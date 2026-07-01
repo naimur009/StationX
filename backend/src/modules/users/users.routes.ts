@@ -10,6 +10,7 @@ import {
   reactivateUserSchema,
   updatePermissionsSchema,
   listUsersSchema,
+  changePasswordSchema,
 } from './users.validation';
 import {
   handleListUsers,
@@ -20,6 +21,7 @@ import {
   handleReactivateUser,
   handlePermanentDeleteUser,
   handleUpdatePermissions,
+  handleChangePassword,
 } from './users.controller';
 
 const objectIdParam = z.object({ id: z.string().min(1) });
@@ -33,6 +35,7 @@ router.put('/users/:id', authenticate, authorize('users', 'edit'), validate(upda
 router.patch('/users/:id/deactivate', authenticate, authorize('users', 'delete'), validate(deactivateUserSchema), handleDeactivateUser);
 router.patch('/users/:id/activate', authenticate, authorize('users', 'edit'), validate(reactivateUserSchema), handleReactivateUser);
 router.patch('/users/:id/permissions', authenticate, authorize('users', 'edit'), validate(updatePermissionsSchema), handleUpdatePermissions);
+router.patch('/users/:id/password', authenticate, authorize('users', 'edit'), validate(changePasswordSchema), handleChangePassword);
 router.delete('/users/:id', authenticate, authorize('users', 'delete'), validate(deactivateUserSchema), handleDeactivateUser);
 router.delete('/users/:id/permanent', authenticate, authorize('users', 'delete'), validate(objectIdParam, 'params'), handlePermanentDeleteUser);
 

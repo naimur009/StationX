@@ -2,7 +2,7 @@ import Product from '../../models/Product';
 import Category from '../../models/Category';
 import Coupon from '../../models/Coupon';
 import Customer from '../../models/Customer';
-import User from '../../models/User';
+import Employee from '../../models/Employee';
 import Order from '../../models/Order';
 import ActivityLog from '../../models/ActivityLog';
 import { withTransaction } from '../../lib/transaction';
@@ -29,14 +29,13 @@ function getDiscountInfo(coupon: ICoupon, subtotal: number): { discountAmount: n
 }
 
 export async function getEmployees() {
-  const users = await User.find({ role: { $in: ['manager', 'employee'] }, isActive: true })
-    .select('name role')
+  const employees = await Employee.find()
+    .select('name')
     .sort({ name: 1 });
 
-  return users.map((u) => ({
-    id: u._id.toString(),
-    name: u.name,
-    role: u.role,
+  return employees.map((e) => ({
+    id: e._id.toString(),
+    name: e.name,
   }));
 }
 
@@ -154,7 +153,7 @@ export async function createOrder(dto: CreateOrderDto, userId: string) {
       return sum + round2(item.lineTotal * (taxRate / 100));
     }, 0)
   );
-  const grandTotal = round2(computedSubtotal - discountAmount + totalTaxAmount);
+  const grandTotal = round2(computedSubtotal - discountAmount - totalTaxAmount);
 
   let resolvedCustomerId = rest.customerId || null;
   if (!resolvedCustomerId && rest.customerPhone) {

@@ -1,9 +1,9 @@
 import { PipelineStage, Types } from 'mongoose';
 import { buildCancelledExcludedMatch } from '../../lib/aggregation';
 
-export type ReportType = 'sales' | 'income' | 'expense' | 'attendance';
+export type ReportType = 'sales' | 'income' | 'expense';
 
-export const REPORT_TYPES: ReportType[] = ['sales', 'income', 'expense', 'attendance'];
+export const REPORT_TYPES: ReportType[] = ['sales', 'income', 'expense'];
 
 export function salesAggregation(from: Date, to: Date): PipelineStage[] {
   return [
@@ -238,114 +238,4 @@ export function expenseAggregation(from: Date, to: Date): PipelineStage[] {
   ];
 }
 
-export function attendanceAggregation(from: Date, to: Date): PipelineStage[] {
-  return [
-    { $match: { date: { $gte: from, $lte: to } } },
-    {
-      $facet: {
-        summary: [
-          {
-            $group: {
-              _id: null,
-              totalRecords: { $sum: 1 },
-              present: {
-                $sum: { $cond: [{ $eq: ['$status', 'present'] }, 1, 0] },
-              },
-              absent: {
-                $sum: { $cond: [{ $eq: ['$status', 'absent'] }, 1, 0] },
-              },
-              late: {
-                $sum: { $cond: [{ $eq: ['$status', 'late'] }, 1, 0] },
-              },
-              halfDay: {
-                $sum: { $cond: [{ $eq: ['$status', 'half-day'] }, 1, 0] },
-              },
-            },
-          },
-        ],
-        byStaff: [
-          {
-            $group: {
-              _id: '$user',
-              present: {
-                $sum: { $cond: [{ $eq: ['$status', 'present'] }, 1, 0] },
-              },
-              absent: {
-                $sum: { $cond: [{ $eq: ['$status', 'absent'] }, 1, 0] },
-              },
-              late: {
-                $sum: { $cond: [{ $eq: ['$status', 'late'] }, 1, 0] },
-              },
-              halfDay: {
-                $sum: { $cond: [{ $eq: ['$status', 'half-day'] }, 1, 0] },
-              },
-              totalHours: {
-                $sum: {
-                  $cond: [
-                    {
-                      $and: [
-                        { $ne: ['$checkInAt', null] },
-                        { $ne: ['$checkOutAt', null] },
-                      ],
-                    },
-                    {
-                      $divide: [
-                        { $subtract: ['$checkOutAt', '$checkInAt'] },
-                        3600000,
-                      ],
-                    },
-                    0,
-                  ],
-                },
-              },
-            },
-          },
-          {
-            $lookup: {
-              from: 'users',
-              localField: '_id',
-              foreignField: '_id',
-              as: 'user',
-            },
-          },
-          { $unwind: '$user' },
-          {
-            $project: {
-              _id: 0,
-              userId: '$_id',
-              name: '$user.name',
-              role: '$user.role',
-              present: 1,
-              absent: 1,
-              late: 1,
-              halfDay: 1,
-              totalHours: { $round: ['$totalHours', 1] },
-            },
-          },
-          { $sort: { name: 1 } },
-        ],
-        dailyTrend: [
-          {
-            $group: {
-              _id: { $dateToString: { format: '%Y-%m-%d', date: '$date' } },
-              present: {
-                $sum: { $cond: [{ $eq: ['$status', 'present'] }, 1, 0] },
-              },
-              absent: {
-                $sum: { $cond: [{ $eq: ['$status', 'absent'] }, 1, 0] },
-              },
-              late: {
-                $sum: { $cond: [{ $eq: ['$status', 'late'] }, 1, 0] },
-              },
-              halfDay: {
-                $sum: { $cond: [{ $eq: ['$status', 'half-day'] }, 1, 0] },
-              },
-            },
-          },
-          { $project: { _id: 0, date: '$_id', present: 1, absent: 1, late: 1, halfDay: 1 } },
-          { $sort: { date: 1 } },
-        ],
-      },
-    },
-  ];
-}
+

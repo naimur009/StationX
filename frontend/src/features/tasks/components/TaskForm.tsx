@@ -5,7 +5,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useCreateTask, useUpdateTask, type TaskResponse } from '../api';
 import { createTaskSchema, updateTaskSchema } from '../schema';
-import { useUsersList, type UserResponse } from '../../users/api';
+import { useEmployeesList } from '../../employees/api';
 import { Dialog } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { AppError } from '@/lib/utils';
@@ -24,8 +24,8 @@ export default function TaskForm({ open, task, onClose }: TaskFormProps) {
   const isEdit = !!task;
   const schema = isEdit ? updateTaskSchema : createTaskSchema;
 
-  const { data: usersData } = useUsersList({ limit: 100, includeInactive: 'true' });
-  const activeUsers = (usersData?.data || []).filter((u) => u.isActive);
+  const { data: employeesData } = useEmployeesList({ limit: 100 });
+  const employees = employeesData?.data || [];
 
   const {
     register,
@@ -49,7 +49,7 @@ export default function TaskForm({ open, task, onClose }: TaskFormProps) {
         reset({
           title: task.title,
           description: task.description ?? '',
-          assignedTo: task.assignedTo._id,
+          assignedTo: task.assignedTo?._id ?? '',
           priority: task.priority,
           deadline: new Date(task.deadline),
         });
@@ -172,8 +172,8 @@ export default function TaskForm({ open, task, onClose }: TaskFormProps) {
               {...register('assignedTo')}
             >
               <option value="">Select a staff member</option>
-              {activeUsers.map((user) => (
-                <option key={user.id} value={user.id}>{user.name} ({user.role})</option>
+              {employees.map((employee) => (
+                <option key={employee.id} value={employee.id}>{employee.name}</option>
               ))}
             </select>
             {errors.assignedTo && <p className="mt-1 text-xs text-red-500">{errors.assignedTo.message as string}</p>}

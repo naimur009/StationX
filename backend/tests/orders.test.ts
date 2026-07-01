@@ -265,6 +265,7 @@ import {
   getOrderBill,
 } from '../src/modules/orders/orders.service';
 import Order from '../src/models/Order';
+import Settings from '../src/models/Settings';
 import Product from '../src/models/Product';
 import Category from '../src/models/Category';
 import ActivityLog from '../src/models/ActivityLog';
@@ -272,6 +273,7 @@ import ActivityLog from '../src/models/ActivityLog';
 vi.mock('../src/models/Order');
 vi.mock('../src/models/Product');
 vi.mock('../src/models/Category');
+vi.mock('../src/models/Settings');
 vi.mock('../src/models/ActivityLog');
 vi.mock('../src/config/socket', () => ({
   getIO: () => ({ emit: vi.fn() }),
@@ -323,6 +325,8 @@ describe('renderBillHtml', () => {
     discountAmount: 2,
     taxAmount: 2.5,
     grandTotal: 28.5,
+    cashTendered: 500,
+    changeAmount: 471.5,
     payment: { method: 'cash' },
     status: 'completed',
     createdAt: new Date('2026-06-15T12:00:00Z'),
@@ -334,22 +338,24 @@ describe('renderBillHtml', () => {
     expect(html).toContain('Pasta');
     expect(html).toContain('Juice');
     expect(html).toContain('\u09F328.00');
-    expect(html).toContain('\u09F328.50');
+    expect(html).toContain('\u09F326.00');
     expect(html).toContain('CASH');
-    expect(html).toContain('Table 5');
-    expect(html).toContain('Thank you!');
+    expect(html).toContain('Table');
+    expect(html).toContain('5');
+    expect(html).toContain('Thank you, come again!');
   });
 
-  it('includes tax row when taxAmount > 0', () => {
+  it('includes both VAT addition and deduction when taxAmount > 0', () => {
     const html = renderBillHtml(sampleOrder as never);
-    expect(html).toContain('Tax');
+    expect(html).toContain('VAT');
     expect(html).toContain('\u09F32.50');
+    expect(html).toContain('-\u09F32.50');
   });
 
-  it('omits tax row when taxAmount is 0', () => {
+  it('omits VAT row when taxAmount is 0', () => {
     const noTax = { ...sampleOrder, taxAmount: 0 };
     const html = renderBillHtml(noTax as never);
-    expect(html).not.toContain('>Tax<');
+    expect(html).not.toContain('>VAT<');
   });
 
   it('includes discount row when discountAmount > 0', () => {
@@ -384,9 +390,39 @@ describe('renderBillHtml', () => {
   });
 
   it('handles missing payment info gracefully', () => {
-    const noPayment = { ...sampleOrder, payment: undefined };
+    const noPayment = { ...sampleOrder, payment: undefined, cashTendered: undefined, changeAmount: undefined };
     const html = renderBillHtml(noPayment as unknown as never);
-    expect(html).toContain('Thank you!');
+    expect(html).toContain('Thank you, come again!');
+  });
+
+  it('includes cash tendered and change amount', () => {
+    const html = renderBillHtml(sampleOrder as never);
+    expect(html).toContain('Cash Tendered');
+    expect(html).toContain('\u09F3500.00');
+    expect(html).toContain('Returned Amount');
+    expect(html).toContain('\u09F3474.00');
+  });
+
+  it('includes auto-round when display grand total is not round', () => {
+    const nonRound = { ...sampleOrder, subtotal: 28.5, discountAmount: 0, grandTotal: 28.5 };
+    const html = renderBillHtml(nonRound as never);
+    expect(html).toContain('Auto Round');
+    expect(html).toContain('\u09F30.50');
+  });
+
+  it('includes settings data when provided', () => {
+    const settings = {
+      restaurantName: 'Test Cafe',
+      address: '123 Main St',
+      contactNumber: '01700000000',
+      vatInfo: { bin: '123456789', mushak: 'Mushak-6.3' },
+    };
+    const html = renderBillHtml(sampleOrder as never, settings);
+    expect(html).toContain('Test Cafe');
+    expect(html).toContain('123 Main St');
+    expect(html).toContain('01700000000');
+    expect(html).toContain('BIN: 123456789');
+    expect(html).toContain('Mushak-6.3');
   });
 });
 
@@ -751,6 +787,16 @@ describe('updateOrderStatus', () => {
 describe('getOrderBill', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(Settings.findById).mockReturnValue({
+      lean: vi.fn().mockResolvedValue({
+        _id: 'restaurant-settings',
+        restaurantName: 'Test Restaurant',
+        address: '',
+        contactNumber: '',
+        logo: { url: '', publicId: '' },
+        vatInfo: { bin: '', mushak: '' },
+      }),
+    } as never);
   });
 
   it('returns HTML when format is html', async () => {
