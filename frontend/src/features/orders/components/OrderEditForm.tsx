@@ -13,6 +13,7 @@ interface CatalogProduct {
   id: string;
   name: string;
   price: number;
+  taxRate: number;
 }
 
 function round2(n: number): number {
@@ -73,9 +74,12 @@ export default function OrderEditForm({ order, open, onClose, onSaved }: OrderEd
 
   const subtotal = round2(computedItems.reduce((sum, i) => sum + i.lineTotal, 0));
   const discountAmount = discountPercent > 0 ? round2(subtotal * (discountPercent / 100)) : 0;
-  const taxRate = 5;
-  const taxAmount = round2(subtotal * (taxRate / 100));
-  const grandTotal = round2(subtotal - discountAmount + taxAmount);
+  const taxAmount = round2(computedItems.reduce((sum, i) => {
+    const product = productMap.get(i.productId);
+    const taxRate = product?.taxRate ?? 0;
+    return sum + round2(i.lineTotal * (taxRate / 100));
+  }, 0));
+  const grandTotal = round2(subtotal - discountAmount);
 
   const tendered = parseFloat(cashTendered) || 0;
   const changeAmount = paymentMethod === 'cash' && tendered >= grandTotal
@@ -215,7 +219,7 @@ export default function OrderEditForm({ order, open, onClose, onSaved }: OrderEd
               )}
               {taxAmount > 0 && (
                 <div className="flex justify-between text-sm">
-                  <span className="text-slate-500">VAT ({taxRate}%)</span>
+                  <span className="text-slate-500">VAT</span>
                   <span className="text-slate-600">{formatBdt(taxAmount)}</span>
                 </div>
               )}

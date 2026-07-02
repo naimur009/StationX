@@ -1,5 +1,6 @@
 import Product, { IProduct } from '../../models/Product';
 import Category from '../../models/Category';
+import { deleteFromCloudinary } from '../../lib/upload';
 import { createError } from '../../middleware/errorHandler';
 import type {
   CreateProductDto,
@@ -116,6 +117,14 @@ export async function updateProduct(id: string, dto: UpdateProductDto) {
     }
   }
 
+  if (dto.image === null && product.image?.publicId) {
+    deleteFromCloudinary(product.image.publicId).catch(() => {});
+  } else if (dto.image && dto.image.publicId !== product.image?.publicId) {
+    if (product.image?.publicId) {
+      deleteFromCloudinary(product.image.publicId).catch(() => {});
+    }
+  }
+
   const updates: Record<string, unknown> = {};
   if (dto.name !== undefined) updates.name = dto.name;
   if (dto.price !== undefined) updates.price = dto.price;
@@ -170,6 +179,10 @@ export async function permanentDeleteProduct(id: string) {
   //   if (orderCount > 0) {
   //     throw createError(409, 'PRODUCT_IN_USE', 'Cannot delete product referenced by orders');
   //   }
+
+  if (product.image?.publicId) {
+    deleteFromCloudinary(product.image.publicId).catch(() => {});
+  }
 
   await Product.findByIdAndDelete(id);
 

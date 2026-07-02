@@ -41,7 +41,7 @@ export async function getEmployees() {
 
 export async function getCatalog() {
   const products = await Product.find({ isActive: true })
-    .populate('categoryId', 'name')
+    .populate('categoryId', 'name taxRate')
     .sort({ name: 1 });
 
   return products.map((p) => ({
@@ -51,6 +51,7 @@ export async function getCatalog() {
     image: p.image,
     category: p.categoryId ? (p.categoryId as unknown as { _id: string; name: string }).name : null,
     categoryId: p.categoryId ? (p.categoryId as unknown as { _id: string })._id.toString() : null,
+    taxRate: p.categoryId ? (p.categoryId as unknown as { _id: string; taxRate: number }).taxRate ?? 0 : 0,
   }));
 }
 
@@ -153,7 +154,7 @@ export async function createOrder(dto: CreateOrderDto, userId: string) {
       return sum + round2(item.lineTotal * (taxRate / 100));
     }, 0)
   );
-  const grandTotal = round2(computedSubtotal - discountAmount - totalTaxAmount);
+  const grandTotal = round2(computedSubtotal - discountAmount);
 
   let resolvedCustomerId = rest.customerId || null;
   if (!resolvedCustomerId && rest.customerPhone) {
@@ -234,8 +235,8 @@ export async function createOrder(dto: CreateOrderDto, userId: string) {
         module: 'pos',
         action: 'pos.order_created',
         targetId: order[0]._id.toString(),
-        targetType: 'POS',
-        description: `Created order ${on} for BDT ${grandTotal.toFixed(2)}`,
+        targetType: 'Order',
+        description: `Created order ${on} for BDT ${grandTotal.toFixed(2)} — ${paymentMethod}, ${rest.status || 'completed'}`,
       }],
       { session }
     );

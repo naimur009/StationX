@@ -75,7 +75,7 @@ export default function ProductForm({ open, product, onClose }: ProductFormProps
           price: data.price,
           categoryId: data.categoryId,
           description: data.description,
-          image: imageValue || undefined,
+          image: imageValue,
         });
       } else {
         await createProduct.mutateAsync({

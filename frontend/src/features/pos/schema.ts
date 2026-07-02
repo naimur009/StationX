@@ -6,6 +6,7 @@ export interface CartItem {
   price: number;
   quantity: number;
   lineTotal: number;
+  taxRate: number;
 }
 
 export interface CustomerInfo {

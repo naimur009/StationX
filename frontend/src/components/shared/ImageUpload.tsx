@@ -154,7 +154,7 @@ export default function ImageUpload({
             <X className="h-3 w-3" />
           </button>
         </div>
-        <div>
+        <div className="flex items-center gap-3">
           <button
             type="button"
             onClick={() => inputRef.current?.click()}
@@ -162,6 +162,14 @@ export default function ImageUpload({
             disabled={disabled}
           >
             Replace
+          </button>
+          <button
+            type="button"
+            onClick={handleRemove}
+            className="text-sm font-medium text-red-600 hover:text-red-700"
+            disabled={disabled}
+          >
+            Remove
           </button>
         </div>
         <input

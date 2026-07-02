@@ -101,3 +101,7 @@ export async function listActivityLogs(query: ListActivityLogDto): Promise<Activ
     },
   };
 }
+
+export async function clearActivityLog(): Promise<void> {
+  await ActivityLog.deleteMany({});
+}

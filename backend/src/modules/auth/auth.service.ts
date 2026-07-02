@@ -119,15 +119,6 @@ export async function refresh(refreshToken: string): Promise<{ accessToken: stri
     const accessToken = signAccessToken(user._id.toString(), user.role, user.permissions);
     const newRefreshToken = signRefreshToken(user._id.toString());
 
-    ActivityLog.create({
-      actor: user._id,
-      module: 'auth',
-      action: 'token.refresh',
-      description: `Access token refreshed for user "${user.email}"`,
-    }).catch((err) => {
-      console.error('[activityLog] Failed to write token refresh log:', err);
-    });
-
     return { accessToken, refreshToken: newRefreshToken };
   } catch {
     throw createError(401, 'UNAUTHORIZED', 'Invalid or expired refresh token');

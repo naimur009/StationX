@@ -6,7 +6,7 @@ function round2(n: number): number {
 }
 
 interface PosActions {
-  addItem: (product: { productId: string; name: string; price: number }) => void;
+  addItem: (product: { productId: string; name: string; price: number; taxRate: number }) => void;
   removeItem: (productId: string) => void;
   updateQuantity: (productId: string, quantity: number) => void;
   setCoupon: (code: string, discount: number, type: 'flat' | 'percentage') => void;
@@ -54,7 +54,7 @@ export const usePosStore = create<PosState & PosActions>((set) => ({
         };
       }
       return {
-        items: [...state.items, { ...product, quantity: 1, lineTotal: product.price }],
+        items: [...state.items, { ...product, quantity: 1, lineTotal: product.price, taxRate: product.taxRate }],
       };
     }),
   removeItem: (productId) => set((state) => ({ items: state.items.filter((i) => i.productId !== productId) })),

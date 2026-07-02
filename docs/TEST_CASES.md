@@ -502,6 +502,10 @@ These apply to **every** module below; listed once here and referenced by ID rat
 | LOG-S-01 | Security | No `PUT`/`PATCH`/`DELETE` route exists for `/activity-log` at all | Confirm at the route-table level, not just permission-denied — attempting any of these methods should return a routing-level `404`/`405`, not `403` |
 | LOG-S-02 | Security | `description` field is never influenced by raw user-supplied free text from the originating request | Verify by submitting a request with an attempted injection/script string in a free-text field elsewhere (e.g. Task title) and confirming the resulting log description is server-templated, not a pass-through |
 | LOG-AUTH-01 | Security | User has `activity-log:view`, attempts a `POST` anyway | No such route exists — confirm method-not-allowed rather than relying on permission check alone |
+| LOG-CLR-01 | Happy | Admin calls `DELETE /activity-log` | `200`, all activity log entries removed, `{ data: { success: true } }` |
+| LOG-CLR-02 | Security | Non-admin user with `activity-log:view` only calls `DELETE /activity-log` | `403 FORBIDDEN` — `delete` action required |
+| LOG-CLR-03 | Security | Unauthenticated request to `DELETE /activity-log` | `401 UNAUTHORIZED` |
+| LOG-CLR-04 | Edge | `DELETE /activity-log` when logs are already empty | `200`, no error — `deleteMany` with empty filter succeeds |
 
 ---
 

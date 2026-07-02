@@ -143,7 +143,7 @@ modules/<module>/
 
 - The `activityLogger` middleware is global, attached to all mutating routes by default (`ARCHITECTURE.md` §4). A new module's routes inherit this automatically — don't write a module-specific logging call as a substitute, and don't opt a route out of it without a documented reason.
 - `ActivityLog.description` is always generated server-side. Never pass user-supplied free text directly into this field — it exists to be a tamper-resistant audit trail (`DATABASE.md` §3.13).
-- `ActivityLog` has no `PUT`/`DELETE` route, ever. Don't add one, even for an Admin "cleanup" feature — if log retention/pruning becomes a real need, that's a new decision for `ARCHITECTURE.md`, not a quiet addition here.
+- `ActivityLog` has no `PUT`/`PATCH`/`POST` route for individual entries. A single `DELETE /activity-log` endpoint exists to clear all entries, gated by the `activity-log:delete` permission (admin-only in practice). No per-entry delete, no bulk-delete-by-filter, no edit.
 
 ---
 

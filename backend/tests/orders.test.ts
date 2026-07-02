@@ -404,7 +404,7 @@ describe('renderBillHtml', () => {
   });
 
   it('includes auto-round when display grand total is not round', () => {
-    const nonRound = { ...sampleOrder, subtotal: 28.5, discountAmount: 0, grandTotal: 28.5 };
+    const nonRound = { ...sampleOrder, subtotal: 28.5, discountAmount: 0, taxAmount: 0, grandTotal: 28.5 };
     const html = renderBillHtml(nonRound as never);
     expect(html).toContain('Auto Round');
     expect(html).toContain('\u09F30.50');

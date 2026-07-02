@@ -20,7 +20,7 @@ export const MODULE_ACTIONS: Record<string, readonly string[]> = {
   employees: ['view', 'create', 'edit', 'delete'],
   settings: ['view', 'edit'],
   reports: ['view', 'create'],
-  ['activity-log']: ['view'],
+  ['activity-log']: ['view', 'delete'],
   uploads: ['create'],
 } as const;
 

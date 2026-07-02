@@ -1,6 +1,6 @@
 'use client';
 
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api-client';
 import type { ActivityLogFilters, ActivityLogListResponse } from './schema';
 
@@ -19,5 +19,18 @@ export function useActivityLogs(filters: ActivityLogFilters) {
   return useQuery({
     queryKey: ['activity-log', qs],
     queryFn: () => apiClient<ActivityLogListResponse>(`/activity-log?${qs}`),
+  });
+}
+
+export function useClearActivityLog() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () =>
+      apiClient<{ data: { success: boolean } }>('/activity-log', {
+        method: 'DELETE',
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['activity-log'] });
+    },
   });
 }

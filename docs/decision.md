@@ -219,6 +219,18 @@
 **Doc(s) updated:** `DATABASE.md §8.2` (marked resolved), `API.md §25.5` (marked resolved), `AI_rules.md §13.5` (marked resolved)
 **Reasoning:** Tax calculation adds complexity to POS order creation, Settings configuration, and reporting. Deferring it to a future phase reduces v1 scope without breaking schema compatibility — the field is already designed for the full enum.
 
+### [19] Activity Log — Clear All Endpoint — 2026-07-03
+
+**Open item resolved:** `AI_rules.md §11` (ActivityLog has no DELETE route)
+**Decision:** Added a single `DELETE /activity-log` endpoint that clears all entries, gated by the new `activity-log:delete` permission (admin-only in practice). The `activity-log` module's valid actions were updated from `['view']` to `['view', 'delete']` in both backend and frontend constants. The existing `AI_rules.md` rule was updated to allow this specific deletion while still prohibiting per-entry delete/edit.
+**Doc(s) updated:**
+- `AI_rules.md §11` (updated to allow the clear endpoint)
+- `API.md §21` (added DELETE endpoint to route table)
+- `database.md §3.14` (updated integrity rule note)
+- `TEST_CASES.md §17` (added LOG-CLR-01–04)
+- `decision.md` (this entry)
+**Reasoning:** The activity log accumulates entries indefinitely with no pruning mechanism. Adding a clear-all endpoint gives admins a way to purge the log when needed (e.g., before a fresh audit period, or to reclaim storage). The operation is gated by the `delete` action on the `activity-log` module, which realistically only admin accounts will have. The endpoint skips its own activity log write to avoid meta-logging issues.
+
 ### [4b] Settings — VAT Information (BIN & Mushak) — 2026-07-01
 
 **Open item resolved:** N/A — refinement of existing Settings feature.

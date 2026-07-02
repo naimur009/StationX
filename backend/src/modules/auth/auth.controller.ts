@@ -47,6 +47,7 @@ export async function handleRefresh(
   res: Response,
   next: NextFunction
 ): Promise<void> {
+  (req as unknown as Record<string, boolean>).skipActivityLog = true;
   try {
     const refreshToken = req.cookies?.refreshToken;
 

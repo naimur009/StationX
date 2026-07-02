@@ -289,7 +289,7 @@ export default function OrderDetailView({ order }: OrderDetailViewProps) {
           )}
           <div className="flex justify-between border-t border-slate-200 pt-2 text-base font-bold">
             <span className="text-slate-800">Grand Total</span>
-            <span className="text-slate-800">{formatBdt(order.subtotal - order.discountAmount)}</span>
+            <span className="text-slate-800">{formatBdt(order.grandTotal)}</span>
           </div>
         </div>
       </div>

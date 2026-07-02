@@ -1,4 +1,5 @@
 import Settings, { DEFAULT_SETTINGS } from '../../models/Settings';
+import { deleteFromCloudinary } from '../../lib/upload';
 import type { UpdateSettingsDto } from './settings.validation';
 
 const SETTINGS_ID = 'restaurant-settings';
@@ -29,6 +30,16 @@ export async function updateSettings(dto: UpdateSettingsDto) {
   for (const field of allowedFields) {
     if (field in dto) {
       updateData[field] = dto[field as keyof UpdateSettingsDto];
+    }
+  }
+
+  if ('logo' in dto) {
+    const current = await Settings.findById(SETTINGS_ID).lean();
+    const oldPublicId = current?.logo?.publicId;
+    const newPublicId = dto.logo?.publicId;
+
+    if (oldPublicId && oldPublicId !== newPublicId) {
+      deleteFromCloudinary(oldPublicId).catch(() => {});
     }
   }
 

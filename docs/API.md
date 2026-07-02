@@ -603,6 +603,7 @@ Base path: `/activity-log`. **Permission module key:** `activity-log`. **`view` 
 | Method | Path | Action | Description |
 |---|---|---|---|
 | GET | `/activity-log?actor=&module=&action=&search=&from=&to=&page=&limit=` | `view` | Reverse-chronological feed with pagination and filters |
+| DELETE | `/activity-log` | `delete` | Clear all activity log entries (admin-only in practice). Returns `{ data: { success: true } }`. |
 
 #### Query Parameters
 
@@ -642,6 +643,8 @@ Note: Date filtering uses bare `from`/`to` strings (not the `range=today|week|mo
 ```
 
 The `actor` field is populated from the `User` collection (`.populate('actor', 'name role')`). If the referenced user is later deleted, `actor` may be `null`.
+
+> **Only `DELETE` is registered on this collection — `PUT`/`PATCH`/`POST` are never registered.** The single `DELETE` endpoint clears all entries and is gated by `activity-log:delete`, which is realistically only granted to admin accounts.
 
 ---
 

@@ -424,14 +424,14 @@ export async function updateOrder(id: string, dto: UpdateOrderDto) {
         discountAmount = round2(subtotal * (order.discountPercent / 100));
       }
       updates.discountAmount = discountAmount;
-      const newGrandTotal = round2(subtotal - discountAmount - taxAmount);
+      const newGrandTotal = round2(subtotal - discountAmount);
       updates.grandTotal = newGrandTotal;
     } else {
       const discountAmount = round2(subtotal * (dto.discountPercent! / 100));
       updates.discountPercent = dto.discountPercent!;
       updates.discountAmount = discountAmount;
       updates.couponId = null;
-      const newGrandTotal = round2(subtotal - discountAmount - taxAmount);
+      const newGrandTotal = round2(subtotal - discountAmount);
       updates.grandTotal = newGrandTotal;
     }
   }
@@ -442,7 +442,7 @@ export async function updateOrder(id: string, dto: UpdateOrderDto) {
     updates.discountPercent = dto.discountPercent;
     updates.discountAmount = discountAmount;
     updates.couponId = null;
-    updates.taxAmount = 0;
+    updates.taxAmount = order.taxAmount;
     updates.grandTotal = round2(baseSubtotal - discountAmount);
   }
 

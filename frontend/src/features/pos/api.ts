@@ -16,6 +16,7 @@ export interface CatalogProduct {
   image: { url: string; publicId: string } | null;
   category: string | null;
   categoryId: string | null;
+  taxRate: number;
 }
 
 export interface CouponCheckResult {

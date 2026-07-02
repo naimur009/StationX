@@ -18,7 +18,7 @@ export const updateProductSchema = z.object({
   image: z.object({
     url: z.string(),
     publicId: z.string(),
-  }).optional(),
+  }).nullable().optional(),
   description: z.string().max(1000).trim().optional(),
   isActive: z.boolean().optional(),
 }).strict();

@@ -335,7 +335,7 @@ No `updatedAt` — log entries are immutable once written.
 
 **Indexes:** `{ actor: 1, createdAt: -1 }`, `{ module: 1, createdAt: -1 }`, `createdAt: -1` (default reverse-chronological feed).
 
-> **Integrity rule:** no API route ever allows update or delete on this collection — enforced by simply never registering `PUT`/`DELETE` handlers for it (read-only by omission, not just by convention).
+> **Integrity rule:** no API route ever allows update on this collection — enforced by simply never registering `PUT`/`PATCH` handlers for it. A single `DELETE /activity-log` endpoint exists to clear all entries, gated by the `activity-log:delete` permission (admin-only in practice).
 
 ---
 

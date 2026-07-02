@@ -27,7 +27,6 @@ const STATE_TRANSITION_RULES: PathActionRule[] = [
 const AUTH_ACTION_MAP: Record<string, string> = {
   '/auth/login': 'login',
   '/auth/logout': 'logout',
-  '/auth/refresh': 'token.refresh',
   '/auth/forgot-password': 'password.reset_requested',
   '/auth/reset-password': 'password.reset',
 };
@@ -35,14 +34,17 @@ const AUTH_ACTION_MAP: Record<string, string> = {
 const AUTH_DESCRIPTION_MAP: Record<string, string> = {
   'login': 'User logged in',
   'logout': 'User logged out',
-  'token.refresh': 'Access token refreshed',
   'password.reset_requested': 'Password reset requested',
   'password.reset': 'Password was reset',
 };
 
 const RESOURCE_DESCRIPTION_MAP: Record<string, (req: AuthenticatedRequest) => string> = {
   'user.created': (req) => `Created ${(req.body as Record<string, string>).role ?? ''} account "${(req.body as Record<string, string>).email ?? ''}"`,
-  'user.updated': () => 'Updated user profile',
+  'user.updated': (req) => {
+    const body = req.body as Record<string, string>;
+    const changed = Object.keys(body).filter(k => k !== 'id').join(', ');
+    return `Updated user profile${changed ? ` (${changed})` : ''}`;
+  },
   'user.deactivated': () => 'Deactivated user',
   'user.activated': () => 'Reactivated user',
   'user.permissions_updated': () => 'Updated user permissions',
@@ -54,8 +56,84 @@ const RESOURCE_DESCRIPTION_MAP: Record<string, (req: AuthenticatedRequest) => st
     const name = (req.body as Record<string, string>).name ?? '';
     return `Created product "${name}"`;
   },
-  'products.updated': () => 'Updated product',
+  'products.updated': (req) => {
+    const name = (req.body as Record<string, string>).name ?? '';
+    return `Updated product${name ? ` "${name}"` : ''}`;
+  },
   'products.deleted': () => 'Deleted product',
+  'categories.created': (req) => {
+    const name = (req.body as Record<string, string>).name ?? '';
+    return `Created category "${name}"`;
+  },
+  'categories.updated': (req) => {
+    const name = (req.body as Record<string, string>).name ?? '';
+    return `Updated category${name ? ` "${name}"` : ''}`;
+  },
+  'categories.deleted': () => 'Deleted category',
+  'coupons.created': (req) => {
+    const code = (req.body as Record<string, string>).code ?? '';
+    return `Created coupon "${code}"`;
+  },
+  'coupons.updated': () => 'Updated coupon',
+  'coupons.deleted': () => 'Deleted coupon',
+  'coupon.toggled': (req) => {
+    const code = req.params.id ?? '';
+    return `Toggled coupon ${code ? `#${code.slice(-6)}` : ''}`;
+  },
+  'customers.created': (req) => {
+    const name = (req.body as Record<string, string>).name ?? '';
+    return `Created customer "${name}"`;
+  },
+  'customers.updated': () => 'Updated customer',
+  'customers.deleted': () => 'Deleted customer',
+  'vendors.created': (req) => {
+    const name = (req.body as Record<string, string>).name ?? '';
+    return `Created vendor "${name}"`;
+  },
+  'vendors.updated': (req) => {
+    const name = (req.body as Record<string, string>).name ?? '';
+    return `Updated vendor${name ? ` "${name}"` : ''}`;
+  },
+  'vendors.deleted': () => 'Deleted vendor',
+  'expenses.created': (req) => {
+    const body = req.body as Record<string, unknown>;
+    return `Created expense of BDT ${(body.amount as number)?.toFixed(2) ?? '0.00'}${body.paidTo ? ` — ${body.paidTo}` : ''}`;
+  },
+  'expenses.updated': () => 'Updated expense',
+  'expenses.deleted': () => 'Deleted expense',
+  'tasks.created': (req) => {
+    const title = (req.body as Record<string, string>).title ?? '';
+    return `Created task "${title}"`;
+  },
+  'tasks.updated': () => 'Updated task',
+  'tasks.deleted': () => 'Deleted task',
+  'task.status_changed': (req) => {
+    const status = (req.body as Record<string, string>).status ?? '';
+    return `Changed task status to ${status}`;
+  },
+  'attendance.created': (req) => {
+    const status = (req.body as Record<string, string>).status ?? '';
+    return `Marked attendance as ${status}`;
+  },
+  'attendance.updated': () => 'Updated attendance record',
+  'orders.updated': () => 'Updated order',
+  'orders.deleted': () => 'Deleted order',
+  'order.status_changed': (req) => {
+    const status = (req.body as Record<string, string>).status ?? '';
+    return `Changed order status to ${status}${status === 'cancelled' && (req.body as Record<string, string>).cancelReason ? ` (${(req.body as Record<string, string>).cancelReason})` : ''}`;
+  },
+  'employees.created': (req) => {
+    const name = (req.body as Record<string, string>).name ?? '';
+    return `Created employee "${name}"`;
+  },
+  'employees.updated': () => 'Updated employee',
+  'employees.deleted': () => 'Deleted employee',
+  'salaries.created': (req) => {
+    const body = req.body as Record<string, unknown>;
+    return `Created salary record${body.employeeId ? ` for employee` : ''}`;
+  },
+  'salaries.updated': () => 'Updated salary record',
+  'attendance.checked_out': () => 'Checked out attendance',
 };
 
 const TARGET_TYPE_MAP: Record<string, string> = {
@@ -133,7 +211,7 @@ export function activityLogger(
 }
 
 function extractModule(path: string): string {
-  const parts = path.replace('/api/v1/', '').split('/');
+  const parts = path.replace(/^\/api\/v1\//, '').split('/').filter(Boolean);
   return parts[0] || 'unknown';
 }
 
