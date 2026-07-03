@@ -1,22 +1,24 @@
 'use client';
 
 import { useEffect } from 'react';
+import { usePathname } from 'next/navigation';
 import { usePublicSettings } from '@/features/homepage/api';
 
 export default function Favicon() {
+  const pathname = usePathname();
   const { data } = usePublicSettings();
   const logoUrl = data?.data?.logo?.url;
 
   useEffect(() => {
     if (!logoUrl) return;
-    let link = document.querySelector<HTMLLinkElement>('link[rel="icon"]');
-    if (!link) {
-      link = document.createElement('link');
-      link.rel = 'icon';
-      document.head.appendChild(link);
+
+    const link = document.querySelector<HTMLLinkElement>('link[rel="icon"]')
+      || document.querySelector<HTMLLinkElement>('link[rel="shortcut icon"]');
+
+    if (link && link.href !== logoUrl) {
+      link.href = logoUrl;
     }
-    link.href = logoUrl;
-  }, [logoUrl]);
+  }, [logoUrl, pathname]);
 
   return null;
 }
