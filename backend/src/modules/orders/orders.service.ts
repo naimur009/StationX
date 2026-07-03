@@ -176,7 +176,6 @@ export function renderBillHtml(order: Record<string, unknown>, settings?: BillSe
   const createdBy = order.createdBy as { name?: string } | null | undefined;
   const servedBy = order.servedBy as { name?: string } | null | undefined;
 
-  const restaurantName = settings?.restaurantName || '';
   const address = settings?.address || '';
   const contactNumber = settings?.contactNumber || '';
   const logoUrl = settings?.logo?.url || '';
@@ -227,7 +226,7 @@ export function renderBillHtml(order: Record<string, unknown>, settings?: BillSe
 
 <div class="header">
   ${logoUrl ? `<img src="${escapeHtml(logoUrl)}" alt="Logo" />` : ''}
-  <h1>${restaurantName ? escapeHtml(restaurantName) : 'StationX'}</h1>
+
   ${address ? `<p>${escapeHtml(address)}</p>` : ''}
   ${contactNumber ? `<p>Phone# : ${escapeHtml(contactNumber)}</p>` : ''}
   ${bin ? `<p class="bin-line">BIN: ${escapeHtml(bin)}</p>` : ''}

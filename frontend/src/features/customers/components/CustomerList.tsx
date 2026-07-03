@@ -72,8 +72,8 @@ export default function CustomerList({ onEdit, onDelete, onCreate }: CustomerLis
 
       {/* Loading / Error / Empty */}
       {isLoading ? (
-        <div className="rounded-2xl border border-slate-200 bg-white px-4 py-12 text-center text-sm text-slate-400 shadow-sm">
-          Loading customers...
+        <div className="flex items-center justify-center rounded-2xl border border-slate-200 bg-white py-16 shadow-sm">
+          <div className="h-10 w-10 animate-spin rounded-full border-4 spinner-smooth" />
         </div>
       ) : isError ? (
         <div className="rounded-2xl border border-slate-200 bg-white px-4 py-12 text-center text-sm text-red-500 shadow-sm">

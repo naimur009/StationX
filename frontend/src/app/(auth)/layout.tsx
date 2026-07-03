@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useAuthStore } from '@/stores/auth-store';
 import { useMe } from '@/features/auth/api';
@@ -12,47 +12,36 @@ export default function AuthLayout({
 }>) {
   const router = useRouter();
   const pathname = usePathname();
-  const { isAuthenticated, setAuth } = useAuthStore();
-  const { data: meData, isLoading, isError } = useMe();
-  const [authResolved, setAuthResolved] = useState(false);
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const accessToken = useAuthStore((s) => s.accessToken);
+  const setAuth = useAuthStore((s) => s.setAuth);
+  const { data: meData, isLoading } = useMe();
+
+  const sessionUser = meData?.data;
+  const hasToken = isAuthenticated || accessToken != null;
+  const hasSession = hasToken || sessionUser != null;
 
   useEffect(() => {
-    if (meData && meData.data && !isAuthenticated) {
-      const userData = meData.data;
-      const token = useAuthStore.getState().accessToken || '';
-      setAuth(
-        {
-          id: userData.id,
-          name: userData.name,
-          email: userData.email,
-          role: userData.role,
-          permissions: userData.permissions,
-          isActive: userData.isActive,
-        },
-        token,
-      );
+    if (sessionUser) {
+      const token = useAuthStore.getState().accessToken;
+      if (token) {
+        setAuth(sessionUser, token);
+      }
     }
-  }, [meData, isAuthenticated, setAuth]);
+  }, [sessionUser, setAuth]);
 
   useEffect(() => {
-    if (!isLoading || isError) {
-      setAuthResolved(true);
-    }
-  }, [isLoading, isError]);
-
-  useEffect(() => {
-    const isResetPassword = pathname === '/reset-password';
-    if (isAuthenticated && authResolved && !isResetPassword) {
+    if (hasSession && pathname !== '/reset-password') {
       router.replace('/overview');
     }
-  }, [isAuthenticated, authResolved, pathname, router]);
+  }, [hasSession, pathname, router]);
 
-  if (!authResolved || isAuthenticated) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-50">
-        <div className="h-10 w-10 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-      </div>
-    );
+  if (hasSession && pathname !== '/reset-password') {
+    return null;
+  }
+
+  if (isLoading && !hasSession) {
+    return null;
   }
 
   return <>{children}</>;

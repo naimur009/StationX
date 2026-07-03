@@ -79,12 +79,17 @@ export function useUpdateUser() {
   return useMutation({
     mutationFn: (data: {
       id: string;
+      name?: string;
       email: string;
       role?: string;
     }) =>
       apiClient<{ data: UserResponse }>(`/users/${data.id}`, {
         method: 'PUT',
-        body: JSON.stringify({ email: data.email, ...(data.role ? { role: data.role } : {}) }),
+        body: JSON.stringify({
+          ...(data.name !== undefined ? { name: data.name } : {}),
+          email: data.email,
+          ...(data.role ? { role: data.role } : {}),
+        }),
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['users'] });

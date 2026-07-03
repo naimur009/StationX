@@ -55,7 +55,7 @@ export async function apiClient<T>(
 
   const isAuthPage = typeof window !== 'undefined' && ['/login', '/forgot-password', '/reset-password'].includes(window.location.pathname);
 
-  if (!token && !skipAuth && (store.isAuthenticated || (path === '/auth/me' && !isAuthPage))) {
+  if (!token && !skipAuth && (store.isAuthenticated || path === '/auth/me')) {
     token = await refreshAccessToken();
   }
 

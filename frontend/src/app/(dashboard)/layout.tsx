@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from '@/stores/auth-store';
@@ -23,38 +23,42 @@ export default function DashboardLayout({
   const { isAuthenticated, setAuth, clearAuth, user } = useAuthStore();
   const { data: meData, isLoading, isError } = useMe();
   const logoutMutation = useLogout();
+  const [navigating, setNavigating] = useState(false);
+  const navigatingRef = useRef(false);
+  const initializedRef = useRef(false);
   const sidebarCollapsed = useUIStore((state) => state.sidebarCollapsed);
   const setSidebarCollapsed = useUIStore((state) => state.setSidebarCollapsed);
   const mobileDrawerOpen = useUIStore((state) => state.mobileDrawerOpen);
   const closeMobileDrawer = useUIStore((state) => state.closeMobileDrawer);
+  const redirectedRef = useRef(false);
 
   useEffect(() => {
-    if (!isLoading && (isError || (meData && meData.data === null))) {
-      clearAuth();
-      router.replace('/login');
-      return;
-    }
-
-    if (!isLoading && !meData && !isError) {
-      clearAuth();
-      router.replace('/login');
-      return;
+    if (!isLoading && !isAuthenticated) {
+      const isUnauthed = isError || !meData || meData.data === null;
+      if (isUnauthed && !redirectedRef.current) {
+        redirectedRef.current = true;
+        clearAuth();
+        router.replace('/login');
+        return;
+      }
     }
 
     if (meData && meData.data && !isAuthenticated) {
-      const userData = meData.data;
-      const token = useAuthStore.getState().accessToken || '';
-      setAuth(
-        {
-          id: userData.id,
-          name: userData.name,
-          email: userData.email,
-          role: userData.role,
-          permissions: userData.permissions,
-          isActive: userData.isActive,
-        },
-        token
-      );
+      const accessToken = useAuthStore.getState().accessToken;
+      if (accessToken) {
+        const userData = meData.data;
+        setAuth(
+          {
+            id: userData.id,
+            name: userData.name,
+            email: userData.email,
+            role: userData.role,
+            permissions: userData.permissions,
+            isActive: userData.isActive,
+          },
+          accessToken
+        );
+      }
     }
   }, [isAuthenticated, isError, meData, isLoading, setAuth, clearAuth, router]);
 
@@ -85,27 +89,59 @@ export default function DashboardLayout({
     return () => window.removeEventListener('resize', handleResize);
   }, [setSidebarCollapsed]);
 
-  async function handleLogout() {
-    try {
-      await logoutMutation.mutateAsync();
-    } catch {
-      // proceed with local logout regardless
+  const triggerNav = useCallback(() => {
+    if (navigatingRef.current) return;
+    navigatingRef.current = true;
+    setNavigating(true);
+    setTimeout(() => {
+      navigatingRef.current = false;
+      setNavigating(false);
+    }, 400);
+  }, []);
+
+  useEffect(() => {
+    const originalPushState = history.pushState.bind(history);
+    const originalReplaceState = history.replaceState.bind(history);
+
+    history.pushState = (...args) => {
+      originalPushState(...args);
+      if (!initializedRef.current) return;
+      triggerNav();
+    };
+
+    history.replaceState = (...args) => {
+      originalReplaceState(...args);
+      if (!initializedRef.current) return;
+      triggerNav();
+    };
+
+    initializedRef.current = true;
+
+    function handlePopState() {
+      triggerNav();
     }
+    window.addEventListener('popstate', handlePopState);
+
+    return () => {
+      history.pushState = originalPushState;
+      history.replaceState = originalReplaceState;
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, [triggerNav]);
+
+  function handleLogout() {
     clearAuth();
     queryClient.removeQueries({ queryKey: ['auth', 'me'] });
     router.replace('/login');
-  }
-
-  if (isLoading && !isAuthenticated) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-50">
-        <div className="h-10 w-10 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-      </div>
-    );
+    logoutMutation.mutateAsync().catch(() => {});
   }
 
   if (!isAuthenticated) {
-    return null;
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-slate-50">
+        <div className="h-10 w-10 animate-spin rounded-full border-4 spinner-smooth" />
+      </div>
+    );
   }
 
   return (
@@ -122,13 +158,24 @@ export default function DashboardLayout({
         onLogout={handleLogout}
       />
 
+      {navigating && (
+        <div className="fixed top-0 left-0 right-0 z-50 h-0.5 bg-blue-600/20">
+          <div className="h-full bg-blue-600 animate-[nav-bar_0.6s_ease-in-out_forwards]" />
+        </div>
+      )}
+
       <main
         className={cn(
           'flex-1 pt-16 transition-all duration-300',
           sidebarCollapsed ? 'md:pl-16' : 'md:pl-64'
         )}
       >
-        <div className="p-3 sm:p-6 lg:p-8">
+        <div
+          className={cn(
+            'p-3 sm:p-6 lg:p-8 transition-opacity duration-200',
+            navigating ? 'opacity-50' : 'opacity-100'
+          )}
+        >
           <div className="mx-auto max-w-screen-2xl">{children}</div>
         </div>
       </main>

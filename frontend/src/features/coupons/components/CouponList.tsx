@@ -109,8 +109,8 @@ export default function CouponList({ onEdit, onDelete }: CouponListProps) {
       </div>
 
       {isLoading ? (
-        <div className="flex items-center justify-center rounded-2xl border border-slate-200 bg-white py-20 text-sm text-slate-400 shadow-sm">
-          Loading coupons...
+        <div className="flex items-center justify-center rounded-2xl border border-slate-200 bg-white py-16 shadow-sm">
+          <div className="h-10 w-10 animate-spin rounded-full border-4 spinner-smooth" />
         </div>
       ) : isError ? (
         <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-slate-200 bg-white py-20 text-sm shadow-sm">

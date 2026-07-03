@@ -1,13 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useQueryClient } from '@tanstack/react-query';
 import { loginSchema, type LoginInput } from '@/features/auth/schema';
-import { useLogin } from '@/features/auth/api';
+import { useLogin, useMe } from '@/features/auth/api';
 import { useAuthStore } from '@/stores/auth-store';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,9 +16,28 @@ import { AppError } from '@/lib/utils';
 export default function LoginPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
-  const { setAuth } = useAuthStore();
+  const { setAuth, isAuthenticated } = useAuthStore();
   const loginMutation = useLogin();
+  const { data: meData } = useMe();
   const [authError, setAuthError] = useState<string | null>(null);
+
+  const sessionUser = meData?.data;
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      router.replace('/overview');
+    }
+  }, [isAuthenticated, router]);
+
+  useEffect(() => {
+    if (sessionUser) {
+      const token = useAuthStore.getState().accessToken;
+      if (token) {
+        setAuth(sessionUser, token);
+        router.replace('/overview');
+      }
+    }
+  }, [sessionUser, setAuth, router]);
 
   const {
     register,

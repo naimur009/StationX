@@ -418,7 +418,6 @@ describe('renderBillHtml', () => {
       vatInfo: { bin: '123456789', mushak: 'Mushak-6.3' },
     };
     const html = renderBillHtml(sampleOrder as never, settings);
-    expect(html).toContain('Test Cafe');
     expect(html).toContain('123 Main St');
     expect(html).toContain('01700000000');
     expect(html).toContain('BIN: 123456789');
