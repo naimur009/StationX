@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from '@/stores/auth-store';
 import { useUIStore } from '@/stores/ui-store';
@@ -19,6 +19,7 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }>) {
   const router = useRouter();
+  const pathname = usePathname();
   const queryClient = useQueryClient();
   const { isAuthenticated, setAuth, clearAuth, user } = useAuthStore();
   const { data: meData, isLoading, isError } = useMe();
@@ -89,15 +90,38 @@ export default function DashboardLayout({
     return () => window.removeEventListener('resize', handleResize);
   }, [setSidebarCollapsed]);
 
+  const navStartTime = useRef(0);
+
   const triggerNav = useCallback(() => {
     if (navigatingRef.current) return;
     navigatingRef.current = true;
+    navStartTime.current = Date.now();
     setNavigating(true);
-    setTimeout(() => {
+  }, []);
+
+  useEffect(() => {
+    if (!navigating) return;
+    const elapsed = Date.now() - navStartTime.current;
+    const remaining = Math.max(0, 400 - elapsed);
+    const timer = setTimeout(() => {
       navigatingRef.current = false;
       setNavigating(false);
-    }, 400);
-  }, []);
+    }, remaining);
+    return () => clearTimeout(timer);
+  }, [pathname, navigating]);
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      const link = (e.target as HTMLElement).closest('a');
+      if (!link || !link.href) return;
+      const url = new URL(link.href);
+      if (url.origin !== window.location.origin) return;
+      if (url.pathname === window.location.pathname) return;
+      triggerNav();
+    }
+    document.addEventListener('click', handleClick, true);
+    return () => document.removeEventListener('click', handleClick, true);
+  }, [triggerNav]);
 
   useEffect(() => {
     const originalPushState = history.pushState.bind(history);
