@@ -231,6 +231,27 @@
 - `decision.md` (this entry)
 **Reasoning:** The activity log accumulates entries indefinitely with no pruning mechanism. Adding a clear-all endpoint gives admins a way to purge the log when needed (e.g., before a fresh audit period, or to reclaim storage). The operation is gated by the `delete` action on the `activity-log` module, which realistically only admin accounts will have. The endpoint skips its own activity log write to avoid meta-logging issues.
 
+### [20] Home Page (Public) — Live Settings Branding — 2026-07-04
+
+**Open item resolved:** N/A — new feature extending existing Settings module.
+
+**Decision:** Added an unauthenticated `GET /settings/public` endpoint returning only `restaurantName` and `logo`. Created a `usePublicSettings` React Query hook (5 min stale time) and wired it into the homepage. When Settings fields are empty, the frontend falls back to hardcoded `"StationX"` and hides the logo. The logo `<img>` has an `onError` handler to hide on load failure. The public route is registered **before** authenticated routes in `settings.routes.ts` to avoid auth middleware rejection.
+
+**Doc(s) updated:**
+- `API.md` §20 (added public endpoint to route table + explanatory note)
+- `decision.md` (this entry)
+
+**Files changed:**
+- `backend/src/modules/settings/settings.service.ts` — added `getPublicSettings()`
+- `backend/src/modules/settings/settings.controller.ts` — added `handleGetPublicSettings()`
+- `backend/src/modules/settings/settings.routes.ts` — registered public route before auth routes
+- `backend/tests/settings-service.test.ts` — added 3 tests for `getPublicSettings`
+- `frontend/src/features/homepage/api.ts` — *new* file, `usePublicSettings` hook
+- `frontend/src/app/(public)/page.tsx` — consume live settings in navbar/logo/footer
+- `tasks/current_task.md` — cleared (task complete)
+
+**Reasoning:** The existing `GET /settings` is authenticated and returns the full document including sensitive fields (`vatInfo`). A separate public endpoint with a whitelist of exposed fields is safer and self-documenting. The frontend degrades gracefully on API error or empty fields — the page remains fully functional with hardcoded defaults.
+
 ### [4b] Settings — VAT Information (BIN & Mushak) — 2026-07-01
 
 **Open item resolved:** N/A — refinement of existing Settings feature.

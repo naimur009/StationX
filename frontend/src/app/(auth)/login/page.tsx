@@ -120,12 +120,18 @@ export default function LoginPage() {
           </Button>
         </form>
 
-        <div className="mt-6 text-center">
+        <div className="mt-6 space-y-3 text-center">
           <Link
             href="/forgot-password"
-            className="text-sm font-medium text-blue-600 hover:text-blue-700"
+            className="block text-sm font-medium text-blue-600 hover:text-blue-700"
           >
             Forgot your password?
+          </Link>
+          <Link
+            href="/"
+            className="block text-sm font-medium text-slate-500 hover:text-slate-700"
+          >
+            &larr; Back to Home Page
           </Link>
         </div>
       </div>

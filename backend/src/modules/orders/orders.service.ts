@@ -200,7 +200,7 @@ export function renderBillHtml(order: Record<string, unknown>, settings?: BillSe
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body { font-family: 'Courier New', Courier, monospace; font-size: 11px; line-height: 1.4; color: #000; max-width: 300px; margin: 0 auto; padding: 16px; }
   .header { text-align: center; margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px dashed #ccc; }
-  .header img { max-width: 80px; max-height: 80px; margin-bottom: 6px; }
+  .header img { max-width: 80px; max-height: 80px; margin-bottom: 6px; filter: grayscale(100%); }
   .header h1 { font-size: 15px; font-weight: bold; margin-bottom: 2px; }
   .header p { font-size: 10px; color: #555; }
   .header .bin-line { font-size: 10px; color: #555; margin-top: 2px; }
@@ -222,7 +222,7 @@ export function renderBillHtml(order: Record<string, unknown>, settings?: BillSe
   .change { color: #c00; }
   .footer { text-align: center; margin-top: 20px; padding-top: 12px; border-top: 1px dashed #ccc; font-size: 10px; color: #888; }
   .footer p { margin-bottom: 2px; }
-  @media print { body { max-width: none; padding: 12px; } .header img { max-width: 60px; max-height: 60px; } }
+  @media print { body { max-width: none; padding: 12px; } .header img { max-width: 60px; max-height: 60px; filter: grayscale(100%); } }
 </style></head><body>
 
 <div class="header">

@@ -38,6 +38,8 @@ function renderSalesReport(data: Record<string, unknown>): string {
   const summary = data.summary as Record<string, number> | undefined;
   const byPaymentMethod = data.byPaymentMethod as Record<string, { count: number; revenue: number }> | undefined;
   const dailyBreakdown = data.dailyBreakdown as Array<Record<string, unknown>> | undefined;
+  const byProduct = data.byProduct as Array<Record<string, unknown>> | undefined;
+  const byCategory = data.byCategory as Array<Record<string, unknown>> | undefined;
   const range = data.range as { from: string; to: string } | undefined;
 
   let html = `
@@ -54,14 +56,30 @@ function renderSalesReport(data: Record<string, unknown>): string {
         <p style="font-size: 20px; font-weight: 700; color: #16a34a; margin: 0;">${summary?.totalOrders ?? 0}</p>
       </div>
       <div style="flex: 1; min-width: 120px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 12px 16px;">
-        <p style="font-size: 11px; color: #64748b; margin: 0 0 4px 0;">Avg Order Value</p>
-        <p style="font-size: 20px; font-weight: 700; color: #64748b; margin: 0;">${formatValue(summary?.averageOrderValue, '৳')}</p>
-      </div>
-      <div style="flex: 1; min-width: 120px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 12px 16px;">
         <p style="font-size: 11px; color: #64748b; margin: 0 0 4px 0;">Products Sold</p>
         <p style="font-size: 20px; font-weight: 700; color: #16a34a; margin: 0;">${summary?.totalProductsSold ?? 0}</p>
       </div>
     </div>`;
+
+  if (byProduct && byProduct.length > 0) {
+    html += '<h3 style="font-size: 14px; font-weight: 600; color: #0f172a; margin: 0 0 8px 0;">By Product</h3>';
+    html += renderTable(byProduct, [
+      { key: 'name', label: 'Product' },
+      { key: 'category', label: 'Category' },
+      { key: 'unitsSold', label: 'Units Sold' },
+      { key: 'income', label: 'Income', format: (v) => formatValue(v as number, '৳') },
+      { key: 'percentageOfTotal', label: '% of Total', format: (v) => `${v ?? 0}%` },
+    ]);
+  }
+
+  if (byCategory && byCategory.length > 0) {
+    html += '<h3 style="font-size: 14px; font-weight: 600; color: #0f172a; margin: 0 0 8px 0;">By Category</h3>';
+    html += renderTable(byCategory, [
+      { key: 'category', label: 'Category' },
+      { key: 'unitsSold', label: 'Units Sold' },
+      { key: 'income', label: 'Income', format: (v) => formatValue(v as number, '৳') },
+    ]);
+  }
 
   if (byPaymentMethod) {
     const methodEntries = Object.entries(byPaymentMethod).map(([method, val]) => ({
@@ -89,121 +107,88 @@ function renderSalesReport(data: Record<string, unknown>): string {
   return html;
 }
 
-function renderIncomeReport(data: Record<string, unknown>): string {
-  const summary = data.summary as Record<string, number | string> | undefined;
-  const byProduct = data.byProduct as Array<Record<string, unknown>> | undefined;
-  const byCategory = data.byCategory as Array<Record<string, unknown>> | undefined;
+function renderProfitReport(data: Record<string, unknown>): string {
+  const income = data.income as Record<string, number> | undefined;
+  const expenses = data.expenses as Record<string, unknown> | undefined;
+  const salaries = data.salaries as Record<string, unknown> | undefined;
+  const profit = data.profit as number | undefined;
   const range = data.range as { from: string; to: string } | undefined;
+  const expenseCategories = (expenses?.byCategory as Array<Record<string, unknown>> | undefined) || [];
+  const salaryEmployees = (salaries?.byEmployee as Array<Record<string, unknown>> | undefined) || [];
+
+  const profitColor = profit !== undefined && profit >= 0 ? '#16a34a' : '#dc2626';
 
   let html = `
-    <h2 style="font-size: 18px; font-weight: 700; color: #0f172a; margin: 0 0 4px 0;">Income Report</h2>
-    <p style="font-size: 12px; color: #64748b; margin: 0 0 16px 0;">${range?.from || 'N/A'} — ${range?.to || 'N/A'}</p>
+    <h2 style="font-size: 18px; font-weight: 700; color: #0f172a; margin: 0 0 4px 0;">Profit Report</h2>
+    <p style="font-size: 12px; color: #64748b; margin: 0 0 16px 0;">${range?.from || 'N/A'} — ${range?.to || 'N/A'}</p>`;
 
-    <div style="display: flex; gap: 16px; margin-bottom: 24px; flex-wrap: wrap;">
+  html += `
+    <h3 style="font-size: 14px; font-weight: 600; color: #0f172a; margin: 24px 0 8px 0;">Income</h3>
+    <div style="display: flex; gap: 16px; margin-bottom: 16px; flex-wrap: wrap;">
       <div style="flex: 1; min-width: 120px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 12px 16px;">
-        <p style="font-size: 11px; color: #64748b; margin: 0 0 4px 0;">Total Income</p>
-        <p style="font-size: 20px; font-weight: 700; color: #4f46e5; margin: 0;">${formatValue(summary?.totalIncome as number, '৳')}</p>
+        <p style="font-size: 11px; color: #64748b; margin: 0 0 4px 0;">Total Revenue</p>
+        <p style="font-size: 20px; font-weight: 700; color: #2563eb; margin: 0;">${formatValue(income?.totalRevenue, '৳')}</p>
+      </div>
+      <div style="flex: 1; min-width: 120px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 12px 16px;">
+        <p style="font-size: 11px; color: #64748b; margin: 0 0 4px 0;">Total Orders</p>
+        <p style="font-size: 20px; font-weight: 700; color: #16a34a; margin: 0;">${income?.totalOrders ?? 0}</p>
       </div>
       <div style="flex: 1; min-width: 120px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 12px 16px;">
         <p style="font-size: 11px; color: #64748b; margin: 0 0 4px 0;">Products Sold</p>
-        <p style="font-size: 20px; font-weight: 700; color: #2563eb; margin: 0;">${summary?.totalProductsSold ?? 0}</p>
-      </div>
-      <div style="flex: 1; min-width: 120px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 12px 16px;">
-        <p style="font-size: 11px; color: #64748b; margin: 0 0 4px 0;">Unique Products</p>
-        <p style="font-size: 20px; font-weight: 700; color: #64748b; margin: 0;">${summary?.uniqueProductsSold ?? 0}</p>
+        <p style="font-size: 20px; font-weight: 700; color: #16a34a; margin: 0;">${income?.totalProductsSold ?? 0}</p>
       </div>
     </div>`;
 
-  if (byProduct && byProduct.length > 0) {
-    html += '<h3 style="font-size: 14px; font-weight: 600; color: #0f172a; margin: 0 0 8px 0;">By Product</h3>';
-    html += renderTable(byProduct, [
-      { key: 'name', label: 'Product' },
-      { key: 'category', label: 'Category' },
-      { key: 'unitsSold', label: 'Units Sold' },
-      { key: 'income', label: 'Income', format: (v) => formatValue(v as number, '৳') },
-      { key: 'percentageOfTotal', label: '% of Total', format: (v) => `${v ?? 0}%` },
-    ]);
-  }
-
-  if (byCategory && byCategory.length > 0) {
-    html += '<h3 style="font-size: 14px; font-weight: 600; color: #0f172a; margin: 0 0 8px 0;">By Category</h3>';
-    html += renderTable(byCategory, [
-      { key: 'category', label: 'Category' },
-      { key: 'unitsSold', label: 'Units Sold' },
-      { key: 'income', label: 'Income', format: (v) => formatValue(v as number, '৳') },
-    ]);
-  }
-
-  return html;
-}
-
-function renderExpenseReport(data: Record<string, unknown>): string {
-  const summary = data.summary as Record<string, number> | undefined;
-  const byCategory = data.byCategory as Array<Record<string, unknown>> | undefined;
-  const byVendor = data.byVendor as Array<Record<string, unknown>> | undefined;
-  const byPaymentMethod = data.byPaymentMethod as Record<string, { count: number; total: number }> | undefined;
-  const dailyBreakdown = data.dailyBreakdown as Array<Record<string, unknown>> | undefined;
-  const range = data.range as { from: string; to: string } | undefined;
-
-  let html = `
-    <h2 style="font-size: 18px; font-weight: 700; color: #0f172a; margin: 0 0 4px 0;">Expense Report</h2>
-    <p style="font-size: 12px; color: #64748b; margin: 0 0 16px 0;">${range?.from || 'N/A'} — ${range?.to || 'N/A'}</p>
-
-    <div style="display: flex; gap: 16px; margin-bottom: 24px; flex-wrap: wrap;">
+  html += `
+    <h3 style="font-size: 14px; font-weight: 600; color: #0f172a; margin: 24px 0 8px 0;">Expenses</h3>
+    <div style="display: flex; gap: 16px; margin-bottom: 16px; flex-wrap: wrap;">
       <div style="flex: 1; min-width: 120px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 12px 16px;">
         <p style="font-size: 11px; color: #64748b; margin: 0 0 4px 0;">Total Expenses</p>
-        <p style="font-size: 20px; font-weight: 700; color: #dc2626; margin: 0;">${formatValue(summary?.totalExpenses, '৳')}</p>
+        <p style="font-size: 20px; font-weight: 700; color: #dc2626; margin: 0;">${formatValue(expenses?.totalExpenses as number, '৳')}</p>
       </div>
       <div style="flex: 1; min-width: 120px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 12px 16px;">
         <p style="font-size: 11px; color: #64748b; margin: 0 0 4px 0;">Entries</p>
-        <p style="font-size: 20px; font-weight: 700; color: #d97706; margin: 0;">${summary?.totalEntries ?? 0}</p>
-      </div>
-      <div style="flex: 1; min-width: 120px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 12px 16px;">
-        <p style="font-size: 11px; color: #64748b; margin: 0 0 4px 0;">Avg Expense</p>
-        <p style="font-size: 20px; font-weight: 700; color: #64748b; margin: 0;">${formatValue(summary?.averageExpense, '৳')}</p>
+        <p style="font-size: 20px; font-weight: 700; color: #d97706; margin: 0;">${expenses?.totalEntries ?? 0}</p>
       </div>
     </div>`;
 
-  if (byCategory && byCategory.length > 0) {
-    html += '<h3 style="font-size: 14px; font-weight: 600; color: #0f172a; margin: 0 0 8px 0;">By Category</h3>';
-    html += renderTable(byCategory, [
+  if (expenseCategories.length > 0) {
+    html += renderTable(expenseCategories, [
       { key: 'category', label: 'Category' },
       { key: 'count', label: 'Count' },
       { key: 'total', label: 'Total', format: (v) => formatValue(v as number, '৳') },
     ]);
   }
 
-  if (byVendor && byVendor.length > 0) {
-    html += '<h3 style="font-size: 14px; font-weight: 600; color: #0f172a; margin: 0 0 8px 0;">By Vendor</h3>';
-    html += renderTable(byVendor, [
-      { key: 'vendorName', label: 'Vendor' },
-      { key: 'count', label: 'Count' },
-      { key: 'total', label: 'Total', format: (v) => formatValue(v as number, '৳') },
+  html += `
+    <h3 style="font-size: 14px; font-weight: 600; color: #0f172a; margin: 24px 0 8px 0;">Salaries</h3>
+    <div style="display: flex; gap: 16px; margin-bottom: 16px; flex-wrap: wrap;">
+      <div style="flex: 1; min-width: 120px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 12px 16px;">
+        <p style="font-size: 11px; color: #64748b; margin: 0 0 4px 0;">Total Salary</p>
+        <p style="font-size: 20px; font-weight: 700; color: #d97706; margin: 0;">${formatValue(salaries?.totalSalary as number, '৳')}</p>
+      </div>
+      <div style="flex: 1; min-width: 120px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 12px 16px;">
+        <p style="font-size: 11px; color: #64748b; margin: 0 0 4px 0;">Records</p>
+        <p style="font-size: 20px; font-weight: 700; color: #64748b; margin: 0;">${salaries?.totalRecords ?? 0}</p>
+      </div>
+    </div>`;
+
+  if (salaryEmployees.length > 0) {
+    html += renderTable(salaryEmployees, [
+      { key: 'employeeName', label: 'Employee' },
+      { key: 'baseSalary', label: 'Base Salary', format: (v) => formatValue(v as number, '৳') },
+      { key: 'status', label: 'Status' },
     ]);
   }
 
-  if (byPaymentMethod) {
-    const methodEntries = Object.entries(byPaymentMethod).map(([method, val]) => ({
-      method,
-      count: val.count,
-      total: val.total,
-    }));
-    html += '<h3 style="font-size: 14px; font-weight: 600; color: #0f172a; margin: 0 0 8px 0;">By Payment Method</h3>';
-    html += renderTable(methodEntries, [
-      { key: 'method', label: 'Method' },
-      { key: 'count', label: 'Count' },
-      { key: 'total', label: 'Total', format: (v) => formatValue(v as number, '৳') },
-    ]);
-  }
-
-  if (dailyBreakdown && dailyBreakdown.length > 0) {
-    html += '<h3 style="font-size: 14px; font-weight: 600; color: #0f172a; margin: 0 0 8px 0;">Daily Trend</h3>';
-    html += renderTable(dailyBreakdown, [
-      { key: 'date', label: 'Date' },
-      { key: 'count', label: 'Count' },
-      { key: 'total', label: 'Total', format: (v) => formatValue(v as number, '৳') },
-    ]);
-  }
+  html += `
+    <h3 style="font-size: 14px; font-weight: 600; color: #0f172a; margin: 24px 0 8px 0;">Profit</h3>
+    <div style="display: flex; gap: 16px; margin-bottom: 16px; flex-wrap: wrap;">
+      <div style="flex: 1; min-width: 200px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 12px 16px;">
+        <p style="font-size: 11px; color: #64748b; margin: 0 0 4px 0;">Net Profit</p>
+        <p style="font-size: 24px; font-weight: 700; color: ${profitColor}; margin: 0;">${formatValue(profit, '৳')}</p>
+      </div>
+    </div>`;
 
   return html;
 }
@@ -215,8 +200,7 @@ export function renderReportToHtml(
 ): string {
   const reportRenderers: Record<string, (d: Record<string, unknown>) => string> = {
     sales: renderSalesReport,
-    income: renderIncomeReport,
-    expense: renderExpenseReport,
+    profit: renderProfitReport,
   };
 
   const renderer = reportRenderers[type];

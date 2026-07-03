@@ -158,7 +158,7 @@ If a feature prompt seems to require breaking a rule above (e.g., "let's just ha
 These remain unresolved in `API.md`/`DATABASE.md` and constrain what generated code can safely assume. Do not "decide" these inside a feature implementation — surface them back to the docs first:
 
 1. Order hard-delete scope (`API.md` §25.1) — **RESOLVED:** narrow same-day/pending/no-coupon restriction accepted for v1. No `isActive` field added to `Order`. See `tasks/implementation_plan.md` Decision 1.
-2. Income's permission key folded into `dashboard` (`API.md` §25.2) — do not give Income its own permission checks until this is confirmed.
+2. ~~Income's permission key folded into `dashboard` (`API.md` §25.2) — do not give Income its own permission checks until this is confirmed.~~ **RESOLVED:** Income section removed; profit report uses `reports` permission key.
 3. `completed → cancelled` gated by plain `orders:edit` (`API.md` §25.3) — **RESOLVED:** kept at `orders:edit` for v1. See `tasks/implementation_plan.md` Decision 2.
 4. ~~User invite via reset-password token reuse (`API.md` §25.4) — do not add an admin-set-password field as an alternative path without resolving this.~~ **RESOLVED:** Admin sets password directly during account creation. `API.md` §25.4 closed, §6 updated.
 5. ~~`Settings.taxConfig.mode: itemized` (`DATABASE.md` §8.2) — POS tax calculation assumes a single flat rate until resolved; don't build itemized per-category tax logic prematurely.~~ **RESOLVED:** v1 uses `mode: 'none'` — no tax calculation. POS `taxAmount` is always 0 for v1. Subsequently **replaced** with `Settings.vatInfo` (bin + mushak) — the old `taxConfig` field has been removed from the Settings model entirely.

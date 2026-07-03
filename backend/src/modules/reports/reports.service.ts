@@ -1,6 +1,7 @@
 import { Types } from 'mongoose';
 import Order from '../../models/Order';
 import Expense from '../../models/Expense';
+import Salary from '../../models/Salary';
 
 import Settings from '../../models/Settings';
 import { createError } from '../../middleware/errorHandler';
@@ -8,7 +9,6 @@ import { renderPdf } from '../../lib/pdf';
 import { renderReportToHtml } from './report-template';
 import {
   salesAggregation,
-  incomeAggregation,
   expenseAggregation,
   REPORT_TYPES,
   type ReportType,
@@ -52,6 +52,17 @@ export async function getReport(type: string, query: ReportQueryDto) {
       const summaryRow = data.summary[0] || {};
       const totalOrders = summaryRow.totalOrders || 0;
 
+      const byProduct = (data.byProduct || []).map(
+        (item: { productId: Types.ObjectId; name: string; category: string; unitsSold: number; income: number }) => ({
+          ...item,
+          productId: item.productId.toString(),
+          percentageOfTotal:
+            (summaryRow.totalRevenue || 0) > 0
+              ? Math.round((item.income / (summaryRow.totalRevenue || 0)) * 1000) / 10
+              : 0,
+        })
+      );
+
       result = {
         range: {
           from: dateRange.from.toISOString().split('T')[0],
@@ -60,79 +71,68 @@ export async function getReport(type: string, query: ReportQueryDto) {
         summary: {
           totalRevenue: summaryRow.totalRevenue || 0,
           totalOrders,
-          averageOrderValue: totalOrders > 0
-            ? Math.round(((summaryRow.totalRevenue || 0) / totalOrders) * 100) / 100
-            : 0,
           totalProductsSold: summaryRow.totalProductsSold || 0,
           totalDiscountAmount: summaryRow.totalDiscountAmount || 0,
           totalTaxAmount: summaryRow.totalTaxAmount || 0,
         },
         byPaymentMethod: arrayToObject(data.byPaymentMethod || [], ['count', 'revenue']),
         dailyBreakdown: data.dailyBreakdown || [],
-      };
-      break;
-    }
-
-    case 'income': {
-      const pipeline = incomeAggregation(dateRange.from, dateRange.to);
-      const aggResult = await Order.aggregate(pipeline);
-      const data = aggResult[0] || { summary: [], byProduct: [], byCategory: [] };
-
-      const summaryRow = data.summary[0] || {};
-      const byProduct = (data.byProduct || []).map(
-        (item: { productId: Types.ObjectId; name: string; category: string; unitsSold: number; income: number }, _index: number, arr: Array<{ income: number }>) => ({
-          ...item,
-          productId: item.productId.toString(),
-          percentageOfTotal:
-            (summaryRow.totalIncome || 0) > 0
-              ? Math.round((item.income / (summaryRow.totalIncome || 0)) * 1000) / 10
-              : 0,
-        })
-      );
-      const byCategory = data.byCategory || [];
-      const topCategory = byCategory.length > 0 ? byCategory[0].category : null;
-
-      result = {
-        range: {
-          from: dateRange.from.toISOString().split('T')[0],
-          to: new Date(dateRange.to.getTime() - 86400000).toISOString().split('T')[0],
-        },
-        summary: {
-          totalIncome: summaryRow.totalIncome || 0,
-          totalProductsSold: summaryRow.totalProductsSold || 0,
-          uniqueProductsSold: byProduct.length,
-          topCategory,
-        },
         byProduct,
-        byCategory,
+        byCategory: data.byCategory || [],
       };
       break;
     }
 
-    case 'expense': {
-      const pipeline = expenseAggregation(dateRange.from, dateRange.to);
-      const aggResult = await Expense.aggregate(pipeline);
-      const data = aggResult[0] || { summary: [], byCategory: [], byPaymentMethod: [], dailyBreakdown: [], byVendor: [] };
+    case 'profit': {
+      const salesPipeline = salesAggregation(dateRange.from, dateRange.to);
+      const salesAggResult = await Order.aggregate(salesPipeline);
+      const salesData = salesAggResult[0] || { summary: [] };
+      const salesSummaryRow = salesData.summary[0] || {};
+      const totalRevenue = salesSummaryRow.totalRevenue || 0;
 
-      const summaryRow = data.summary[0] || {};
-      const totalEntries = summaryRow.totalEntries || 0;
+      const expensePipeline = expenseAggregation(dateRange.from, dateRange.to);
+      const expenseAggResult = await Expense.aggregate(expensePipeline);
+      const expenseData = expenseAggResult[0] || { summary: [] };
+      const expenseSummaryRow = expenseData.summary[0] || {};
+      const totalExpenses = expenseSummaryRow.totalExpenses || 0;
+
+      const salaryRecords = await Salary.find({
+        createdAt: { $gte: dateRange.from, $lte: dateRange.to },
+        status: { $ne: 'cancelled' },
+      }).populate('employeeId', 'name');
+
+      const totalSalary = salaryRecords.reduce((sum, r) => sum + (r.baseSalary || 0), 0);
+      const byEmployee = salaryRecords
+        .map((r) => ({
+          employeeName: (r.employeeId as { name?: string })?.name || 'Unknown',
+          baseSalary: r.baseSalary || 0,
+          status: r.status,
+        }))
+        .sort((a, b) => a.employeeName.localeCompare(b.employeeName));
+
+      const profit = totalRevenue - totalExpenses - totalSalary;
 
       result = {
         range: {
           from: dateRange.from.toISOString().split('T')[0],
           to: new Date(dateRange.to.getTime() - 86400000).toISOString().split('T')[0],
         },
-        summary: {
-          totalExpenses: summaryRow.totalExpenses || 0,
-          totalEntries,
-          averageExpense: totalEntries > 0
-            ? Math.round(((summaryRow.totalExpenses || 0) / totalEntries) * 100) / 100
-            : 0,
+        income: {
+          totalRevenue,
+          totalOrders: salesSummaryRow.totalOrders || 0,
+          totalProductsSold: salesSummaryRow.totalProductsSold || 0,
         },
-        byCategory: data.byCategory || [],
-        byVendor: data.byVendor || [],
-        byPaymentMethod: arrayToObject(data.byPaymentMethod || [], ['count', 'total']),
-        dailyBreakdown: data.dailyBreakdown || [],
+        expenses: {
+          totalExpenses,
+          totalEntries: expenseSummaryRow.totalEntries || 0,
+          byCategory: expenseData.byCategory || [],
+        },
+        salaries: {
+          totalSalary,
+          totalRecords: salaryRecords.length,
+          byEmployee,
+        },
+        profit,
       };
       break;
     }

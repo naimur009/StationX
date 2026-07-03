@@ -41,6 +41,64 @@ describe('settingsService', () => {
     });
   });
 
+  describe('getPublicSettings', () => {
+    it('returns only restaurantName and logo when settings exist', async () => {
+      const existingSettings = {
+        _id: 'restaurant-settings',
+        restaurantName: 'Test Cafe',
+        logo: { url: 'https://example.com/logo.png', publicId: 'logo123' },
+        address: '123 Main St',
+        contactNumber: '555-0000',
+        vatInfo: { bin: '123', mushak: '456' },
+        businessHours: [],
+        loyaltyOrderThreshold: 0,
+      };
+      vi.mocked(Settings.findById).mockReturnValueOnce({
+        lean: vi.fn().mockResolvedValueOnce(existingSettings),
+      } as never);
+
+      const result = await settingsService.getPublicSettings();
+
+      expect(result).toEqual({
+        restaurantName: 'Test Cafe',
+        logo: { url: 'https://example.com/logo.png', publicId: 'logo123' },
+      });
+      expect(result).not.toHaveProperty('address');
+      expect(result).not.toHaveProperty('vatInfo');
+      expect(result).not.toHaveProperty('contactNumber');
+    });
+
+    it('returns logo null when logo.url is empty', async () => {
+      const existingSettings = {
+        _id: 'restaurant-settings',
+        restaurantName: 'Empty Logo Cafe',
+        logo: { url: '', publicId: '' },
+      };
+      vi.mocked(Settings.findById).mockReturnValueOnce({
+        lean: vi.fn().mockResolvedValueOnce(existingSettings),
+      } as never);
+
+      const result = await settingsService.getPublicSettings();
+
+      expect(result).toEqual({
+        restaurantName: 'Empty Logo Cafe',
+        logo: null,
+      });
+    });
+
+    it('returns empty restaurantName when settings are defaults', async () => {
+      vi.mocked(Settings.findById).mockReturnValueOnce({
+        lean: vi.fn().mockResolvedValueOnce(null),
+      } as never);
+      vi.mocked(Settings.create).mockResolvedValueOnce(DEFAULT_SETTINGS as never);
+
+      const result = await settingsService.getPublicSettings();
+
+      expect(result.restaurantName).toBe('');
+      expect(result.logo).toBeNull();
+    });
+  });
+
   describe('updateSettings', () => {
     it('merges only whitelisted fields using $set', async () => {
       const updatedSettings = { ...DEFAULT_SETTINGS, restaurantName: 'New Name' };

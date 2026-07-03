@@ -14,7 +14,6 @@ export interface ReportRange {
 export interface SalesSummary {
   totalRevenue: number;
   totalOrders: number;
-  averageOrderValue: number;
   totalProductsSold: number;
   totalDiscountAmount: number;
   totalTaxAmount: number;
@@ -29,20 +28,6 @@ export interface DailySalesEntry {
   date: string;
   orders: number;
   revenue: number;
-}
-
-export interface SalesReport {
-  range: ReportRange;
-  summary: SalesSummary;
-  byPaymentMethod: Record<string, PaymentMethodEntry>;
-  dailyBreakdown: DailySalesEntry[];
-}
-
-export interface IncomeSummary {
-  totalIncome: number;
-  totalProductsSold: number;
-  uniqueProductsSold: number;
-  topCategory: string | null;
 }
 
 export interface ProductIncomeEntry {
@@ -60,17 +45,13 @@ export interface CategoryIncomeEntry {
   income: number;
 }
 
-export interface IncomeReport {
+export interface SalesReport {
   range: ReportRange;
-  summary: IncomeSummary;
+  summary: SalesSummary;
+  byPaymentMethod: Record<string, PaymentMethodEntry>;
+  dailyBreakdown: DailySalesEntry[];
   byProduct: ProductIncomeEntry[];
   byCategory: CategoryIncomeEntry[];
-}
-
-export interface ExpenseSummary {
-  totalExpenses: number;
-  totalEntries: number;
-  averageExpense: number;
 }
 
 export interface CategoryExpenseEntry {
@@ -79,34 +60,39 @@ export interface CategoryExpenseEntry {
   total: number;
 }
 
-export interface VendorExpenseEntry {
-  vendorId: string | null;
-  vendorName: string;
-  count: number;
-  total: number;
+export interface ProfitIncome {
+  totalRevenue: number;
+  totalOrders: number;
+  totalProductsSold: number;
 }
 
-export interface PaymentMethodExpenseEntry {
-  count: number;
-  total: number;
-}
-
-export interface DailyExpenseEntry {
-  date: string;
-  count: number;
-  total: number;
-}
-
-export interface ExpenseReport {
-  range: ReportRange;
-  summary: ExpenseSummary;
+export interface ProfitExpenses {
+  totalExpenses: number;
+  totalEntries: number;
   byCategory: CategoryExpenseEntry[];
-  byVendor: VendorExpenseEntry[];
-  byPaymentMethod: Record<string, PaymentMethodExpenseEntry>;
-  dailyBreakdown: DailyExpenseEntry[];
 }
 
-export type ReportData = SalesReport | IncomeReport | ExpenseReport;
+export interface SalaryEmployeeEntry {
+  employeeName: string;
+  baseSalary: number;
+  status: string;
+}
+
+export interface ProfitSalaries {
+  totalSalary: number;
+  totalRecords: number;
+  byEmployee: SalaryEmployeeEntry[];
+}
+
+export interface ProfitReport {
+  range: ReportRange;
+  income: ProfitIncome;
+  expenses: ProfitExpenses;
+  salaries: ProfitSalaries;
+  profit: number;
+}
+
+export type ReportData = SalesReport | ProfitReport;
 
 // ---- Hooks ----
 

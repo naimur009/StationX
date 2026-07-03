@@ -1,9 +1,9 @@
 import { PipelineStage, Types } from 'mongoose';
 import { buildCancelledExcludedMatch } from '../../lib/aggregation';
 
-export type ReportType = 'sales' | 'income' | 'expense';
+export type ReportType = 'sales' | 'profit';
 
-export const REPORT_TYPES: ReportType[] = ['sales', 'income', 'expense'];
+export const REPORT_TYPES: ReportType[] = ['sales', 'profit'];
 
 export function salesAggregation(from: Date, to: Date): PipelineStage[] {
   return [
@@ -42,25 +42,6 @@ export function salesAggregation(from: Date, to: Date): PipelineStage[] {
           },
           { $project: { _id: 0, date: '$_id', orders: 1, revenue: 1 } },
           { $sort: { date: 1 } },
-        ],
-      },
-    },
-  ];
-}
-
-export function incomeAggregation(from: Date, to: Date): PipelineStage[] {
-  return [
-    { $match: { ...buildCancelledExcludedMatch(), createdAt: { $gte: from, $lte: to } } },
-    {
-      $facet: {
-        summary: [
-          {
-            $group: {
-              _id: null,
-              totalIncome: { $sum: { $sum: '$items.lineTotal' } },
-              totalProductsSold: { $sum: { $sum: '$items.quantity' } },
-            },
-          },
         ],
         byProduct: [
           { $unwind: '$items' },

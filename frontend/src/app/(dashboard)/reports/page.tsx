@@ -7,11 +7,10 @@ import { useDateRangeFilter } from '@/hooks/useDateRangeFilter';
 import ReportTypeSelector from '@/features/reports/components/ReportTypeSelector';
 import ExportButton from '@/features/reports/components/ExportButton';
 import SalesReportView from '@/features/reports/components/SalesReportView';
-import IncomeReportView from '@/features/reports/components/IncomeReportView';
-import ExpenseReportView from '@/features/reports/components/ExpenseReportView';
+import ProfitReportView from '@/features/reports/components/ProfitReportView';
 import { useReport } from '@/features/reports/api';
 import type { ReportType } from '@/features/reports/schema';
-import type { SalesReport, IncomeReport, ExpenseReport } from '@/features/reports/api';
+import type { SalesReport, ProfitReport } from '@/features/reports/api';
 
 export default function ReportsPage() {
   const [selectedType, setSelectedType] = useState<ReportType>('sales');
@@ -75,10 +74,8 @@ export default function ReportsPage() {
     switch (selectedType) {
       case 'sales':
         return <SalesReportView data={data.data as SalesReport} />;
-      case 'income':
-        return <IncomeReportView data={data.data as IncomeReport} />;
-      case 'expense':
-        return <ExpenseReportView data={data.data as ExpenseReport} />;
+      case 'profit':
+        return <ProfitReportView data={data.data as ProfitReport} />;
     }
   }
 

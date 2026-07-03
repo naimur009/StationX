@@ -5,21 +5,16 @@ import {
   DollarSign,
   ShoppingCart,
   Package,
-  Percent,
-  PiggyBank,
-  HandCoins,
-  type LucideIcon,
 } from 'lucide-react';
 import type { ReportType } from '../schema';
 import type {
   SalesReport,
-  IncomeReport,
-  ExpenseReport,
+  ProfitReport,
 } from '../api';
 
 interface ReportSummaryCardsProps {
   type: ReportType;
-  data: SalesReport | IncomeReport | ExpenseReport;
+  data: SalesReport | ProfitReport;
 }
 
 export default function ReportSummaryCards({ type, data }: ReportSummaryCardsProps) {
@@ -27,32 +22,22 @@ export default function ReportSummaryCards({ type, data }: ReportSummaryCardsPro
     case 'sales': {
       const s = (data as SalesReport).summary;
       return (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          <MetricCard title="Total Revenue" value={`৳${s.totalRevenue.toLocaleString()}`} icon={DollarSign as LucideIcon} color="blue" />
-          <MetricCard title="Total Orders" value={s.totalOrders} icon={ShoppingCart as LucideIcon} color="green" />
-          <MetricCard title="Avg Order Value" value={`৳${s.averageOrderValue.toLocaleString()}`} icon={PiggyBank as LucideIcon} color="slate" />
-          <MetricCard title="Products Sold" value={s.totalProductsSold} icon={Package as LucideIcon} color="green" />
-        </div>
-      );
-    }
-    case 'income': {
-      const s = (data as IncomeReport).summary;
-      return (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          <MetricCard title="Total Income" value={`৳${s.totalIncome.toLocaleString()}`} icon={HandCoins as LucideIcon} color="indigo" />
-          <MetricCard title="Products Sold" value={s.totalProductsSold} icon={Package as LucideIcon} color="blue" />
-          <MetricCard title="Unique Products" value={s.uniqueProductsSold} icon={Package as LucideIcon} color="slate" />
-          <MetricCard title="Top Category" value={s.topCategory || 'N/A'} icon={Percent as LucideIcon} color="slate" />
-        </div>
-      );
-    }
-    case 'expense': {
-      const s = (data as ExpenseReport).summary;
-      return (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          <MetricCard title="Total Expenses" value={`৳${s.totalExpenses.toLocaleString()}`} icon={DollarSign as LucideIcon} color="red" />
-          <MetricCard title="Entries" value={s.totalEntries} icon={ShoppingCart as LucideIcon} color="yellow" />
-          <MetricCard title="Avg Expense" value={`৳${s.averageExpense.toLocaleString()}`} icon={PiggyBank as LucideIcon} color="slate" />
+          <MetricCard title="Total Revenue" value={`৳${s.totalRevenue.toLocaleString()}`} icon={DollarSign} color="blue" />
+          <MetricCard title="Total Orders" value={s.totalOrders} icon={ShoppingCart} color="green" />
+          <MetricCard title="Products Sold" value={s.totalProductsSold} icon={Package} color="green" />
+        </div>
+      );
+    }
+    case 'profit': {
+      const p = data as ProfitReport;
+      const profitColor = p.profit >= 0 ? 'green' : 'red';
+      return (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <MetricCard title="Total Revenue" value={`৳${p.income.totalRevenue.toLocaleString()}`} icon={DollarSign} color="blue" />
+          <MetricCard title="Total Expenses" value={`৳${p.expenses.totalExpenses.toLocaleString()}`} icon={DollarSign} color="red" />
+          <MetricCard title="Total Salary" value={`৳${p.salaries.totalSalary.toLocaleString()}`} icon={DollarSign} color="yellow" />
+          <MetricCard title="Net Profit" value={`${p.profit >= 0 ? '+' : ''}৳${p.profit.toLocaleString()}`} icon={DollarSign} color={profitColor} />
         </div>
       );
     }

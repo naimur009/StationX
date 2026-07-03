@@ -174,21 +174,9 @@ Response is short-TTL cacheable (`ARCHITECTURE.md` §2/§10, Redis Phase 2+); un
 
 ---
 
-## 8. Income
+## 8. Income _(Removed — folded into Profit Report)_
 
-Base path: `/income`. **Permission module key:** `dashboard` — Income is a sub-view of the Dashboard feature (`ARCHITECTURE.md` §9 maps it to `features/dashboard (sub-view)`), so it does not get its own row in the permission editor. **Decision, not previously made explicit — flag if Income should be its own permission module instead.**
-
-| Method | Path | Description |
-|---|---|---|
-| GET | `/income?range=&groupBy=product` | Per-product income breakdown for the selected range |
-
-```json
-// Response 200
-{ "data": [
-  { "productId": "...", "name": "Chicken Fry", "unitsSold": 142, "income": 28400 },
-  { "productId": "...", "name": "Tea", "unitsSold": 310, "income": 9300 }
-], "meta": { "range": "month", "from": "2026-06-01", "to": "2026-06-20" } }
-```
+Income data is now part of the Profit report (`GET /reports/profit`, §19). The standalone `/income` endpoint is removed.
 
 ---
 
@@ -567,16 +555,30 @@ Base path: `/customers`. **Permission module key:** `customers`. Standard CRUD w
 
 ## 19. Reports
 
-Base path: `/reports`. **Permission module key:** `reports`. One key covers all four report types (Sales, Income, Expense, Attendance) — they share the same aggregation/export infrastructure per `ARCHITECTURE.md` §9, so splitting permissions per report type would add UI complexity with no real access-control benefit (an admin/manager who can see one financial report can reasonably see all of them).
+Base path: `/reports`. **Permission module key:** `reports`. One key covers both report types (Sales, Profit).
 
 | Method | Path | Action | Description |
 |---|---|---|---|
-| GET | `/reports/:type?range=&from=&to=` | `view` | On-screen JSON data. `type ∈ sales\|income\|expense\|attendance` |
+| GET | `/reports/:type?range=&from=&to=` | `view` | On-screen JSON data. `type ∈ sales\|profit` |
 | GET | `/reports/:type/export?range=&from=&to=&format=pdf` | `create` | Streams a Puppeteer-rendered PDF download |
 
 `create` is used (rather than `view`) for the export action because rendering a PDF is meaningfully more expensive than reading the on-screen numbers, and it's the action most worth distinguishing if a future role should see reports but not be able to generate exportable documents from them.
 
-All four report types reuse the cancelled-orders-excluded aggregation helper from §7.
+Sales report excludes cancelled orders via the shared aggregation helper from §7.
+
+### Profit Report Response
+
+```json
+{
+  "range": { "from": "2026-06-01", "to": "2026-06-30" },
+  "income": { "totalRevenue": 150000, "totalOrders": 320, "totalProductsSold": 580 },
+  "expenses": { "totalExpenses": 45000, "totalEntries": 28, "byCategory": [...] },
+  "salaries": { "totalSalary": 60000, "totalRecords": 5, "byEmployee": [...] },
+  "profit": 45000
+}
+```
+
+Profit is calculated as: `profit = income.totalRevenue - expenses.totalExpenses - salaries.totalSalary`.
 
 ### Extension Point
 `ARCHITECTURE.md` §13 lists scheduled/automated report email delivery as out of scope for v1. The `export` route above is deliberately what a future cron/worker (`POST /reports/:type/schedule`, not built yet) would call internally to produce the PDF it emails — so no second code path needs to be written when that feature is picked up.
@@ -587,10 +589,13 @@ All four report types reuse the cancelled-orders-excluded aggregation helper fro
 
 Base path: `/settings`. **Permission module key:** `settings`. Singleton (fixed `_id`, `DATABASE.md` §3.14).
 
-| Method | Path | Action | Description |
-|---|---|---|---|
-| GET | `/settings` | `view` | Returns the one document |
-| PUT | `/settings` | `edit` | Partial-merge update — see below |
+| Method | Path | Auth | Action | Description |
+|---|---|---|---|---|---|
+| GET | `/settings/public` | none | none | Public — returns `restaurantName` and `logo` for the homepage (no auth required) |
+| GET | `/settings` | required | `view` | Returns the full Settings document |
+| PUT | `/settings` | required | `edit` | Partial-merge update — see below |
+
+> **`GET /settings/public` is intentionally separate from the authenticated `GET /settings`.** The public endpoint returns only `restaurantName` and `logo` — the two fields the unauthenticated homepage needs. All other Settings fields (`vatInfo`, `businessHours`, `address`, etc.) remain gated behind authentication.
 
 **`PUT` here behaves like a merge, not a full replace:** the Settings UI is naturally split into sections (Business Info, VAT Information, Business Hours, Logo), and requiring the frontend to resend the entire document on every section save would be both wasteful and risky (a stale `logo` object in a VAT-tab form could accidentally null it out). The server merges the submitted fields into the singleton document rather than replacing it wholesale. Flagged here as a deliberate departure from strict REST `PUT` semantics, consistent with this document being where such calls get made explicit.
 
@@ -668,7 +673,7 @@ Single namespace, all authenticated dashboard clients join one shared room — n
 | HTTP | `code` | Meaning |
 |---|---|---|
 | 400 | `VALIDATION_ERROR` | Zod schema rejected the request body; see `details` |
-| 400 | `INVALID_REPORT_TYPE` | `:type` param is not one of `sales\|income\|expense\|attendance` |
+| 400 | `INVALID_REPORT_TYPE` | `:type` param is not one of `sales\|profit` |
 | 400 | `UNSUPPORTED_FILE_TYPE` / `FILE_TOO_LARGE` | Upload rejected before reaching Cloudinary |
 | 400 | `EMAIL_EXISTS` | A user with this email already exists |
 | 400 | `ALREADY_INACTIVE` | Attempt to deactivate an already-deactivated user |
@@ -701,7 +706,7 @@ Single namespace, all authenticated dashboard clients join one shared room — n
 
 ## 24. Permission Module Keys
 
-The authoritative list referenced loosely by `DATABASE.md` §3.1 ("≤18 modules"). Sixteen keys in practice — Home needs no permission (public), and Income folds into `dashboard` (§8) rather than getting its own key.
+The authoritative list referenced loosely by `DATABASE.md` §3.1 ("≤18 modules").
 
 | Key | Actions that apply | Notes |
 |---|---|---|
@@ -730,7 +735,6 @@ The authoritative list referenced loosely by `DATABASE.md` §3.1 ("≤18 modules
 ## 25. Open Items Carried Forward
 
 1. **`Order` deletion vs. schema** (§10): **RESOLVED — narrow hard-delete rules accepted for v1.** `Order` gets no `isActive` field. `DELETE /orders/:id` succeeds only for orders that are `status: pending`, created the same day (server date), and have no `couponId` set. All other orders return `409 ORDER_NOT_DELETABLE`. Decision rationale: see `tasks/implementation_plan.md` Decision 1.
-2. **Income permission key** (§8): currently folded into `dashboard:view` rather than its own module. Confirm this matches the intended permission-editor UX before `users.permissions` data starts getting created in real accounts (changing this later is a migration, not just a doc edit).
-3. **`completed → cancelled` transition** (§10): **RESOLVED — gated by `orders:edit` for v1.** No new permission action added. The `cancelReason` field provides the audit trail. If a stricter gate is wanted later, it's a non-breaking addition. Decision rationale: see `tasks/implementation_plan.md` Decision 2.
+2. **`completed → cancelled` transition** (§10): **RESOLVED — gated by `orders:edit` for v1.** No new permission action added. The `cancelReason` field provides the audit trail. If a stricter gate is wanted later, it's a non-breaking addition. Decision rationale: see `tasks/implementation_plan.md` Decision 2.
 4. ~~**User invite flow** (§6): assumes account creation reuses the password-reset token mechanism rather than an admin-set-password field. Confirm before `modules/users` is implemented, since the alternative skips the email-provider dependency entirely for this one flow.~~ **RESOLVED:** Admin sets password directly during account creation (`POST /users` accepts a `password` field). `API.md` §6 updated accordingly.
 5. ~~**`Settings.taxConfig.mode: itemized`** (carried from `DATABASE.md` §8, item 2): until resolved, `Order.taxAmount` calculation in `POS` (§9.3) assumes a single flat rate.~~ **RESOLVED:** v1 uses `mode: 'none'` — no tax calculation. See `decisions.md` and `tasks/implementation_plan.md`.

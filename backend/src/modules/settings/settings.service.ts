@@ -14,6 +14,14 @@ export async function getSettings() {
   return settings;
 }
 
+export async function getPublicSettings() {
+  const settings = await getSettings();
+  return {
+    restaurantName: settings.restaurantName,
+    logo: settings.logo?.url ? settings.logo : null,
+  };
+}
+
 export async function updateSettings(dto: UpdateSettingsDto) {
   const updateData: Record<string, unknown> = {};
 

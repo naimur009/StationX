@@ -512,16 +512,14 @@ These apply to **every** module below; listed once here and referenced by ID rat
 ## 18. Reports
 
 | ID | Type | Case | Expected |
-|---|---|---|---|
+|---|---|---|---|---|
 | REP-H-01 | Happy | `GET /reports/sales?range=month` | Correct on-screen JSON data |
-| REP-H-02 | Happy | `GET /reports/income?range=` | Matches Income module's own data for the same range (shared underlying aggregation) |
-| REP-H-03 | Happy | `GET /reports/expense?range=` | Matches Expenses list totals for the same range |
-| REP-H-04 | Happy | `GET /reports/attendance?range=` | Correct attendance summary |
-| REP-V-01 | Validation | `type` outside `sales|income|expense|attendance` | `400 VALIDATION_ERROR` or `404` |
-| REP-H-05 | Happy | `GET /reports/sales/export?range=&format=pdf` | Streams a valid PDF, correct `Content-Type: application/pdf` |
-| REP-E-01 | Edge | Export requested for a range with zero data | PDF still generates (e.g. "No data for this period"), doesn't error |
+| REP-H-02 | Happy | `GET /reports/profit?range=month` | Returns income, expenses, salaries, and calculated profit |
+| REP-H-03 | Happy | `GET /reports/sales/export?range=&format=pdf` | Streams a valid PDF, correct `Content-Type: application/pdf` |
+| REP-V-01 | Validation | `type` outside `sales|profit` | `400 INVALID_REPORT_TYPE` |
+| REP-E-01 | Edge | Export requested for a range with zero data | PDF still generates (e.g. "No data for this period."), doesn't error |
 | REP-AUTH-01 | Security | User has `reports:view` but not `reports:create` | On-screen `GET /reports/:type` succeeds; `GET /reports/:type/export` returns `403 FORBIDDEN` |
-| REP-CALC-01 | Integration | All four report types exclude cancelled orders | Cross-check against Dashboard/Income numbers for the same range — must agree exactly (shared aggregation helper) |
+| REP-CALC-01 | Integration | Profit report calculation | `profit = totalRevenue - totalExpenses - totalSalary` for the same range |
 | REP-PERF-01 | Performance | Export for a full year of data (`range=custom`, 12-month span) | PDF generation completes within an acceptable time bound (define SLA in feature spec); no timeout on the Puppeteer render |
 
 ---

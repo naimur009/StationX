@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
+import { usePublicSettings } from '@/features/homepage/api';
 
 interface HealthStatus {
   connected: boolean;
@@ -30,9 +31,8 @@ function HealthIndicator() {
   return (
     <div className="flex items-center gap-2 text-xs font-medium text-slate-400">
       <span
-        className={`inline-block h-2 w-2 rounded-full ${
-          status.connected ? 'bg-green-500' : 'bg-red-500'
-        }`}
+        className={`inline-block h-2 w-2 rounded-full ${status.connected ? 'bg-green-500' : 'bg-red-500'
+          }`}
       />
       <span>{status.connected ? 'Connected' : 'Disconnected'}</span>
     </div>
@@ -73,11 +73,26 @@ const features = [
 ];
 
 export default function HomePage() {
+  const { data: settingsData, isError } = usePublicSettings();
+  const settings = settingsData?.data;
+  const logoSrc = !isError ? settings?.logo?.url : undefined;
+
   return (
     <div className="flex min-h-screen flex-col bg-slate-50">
       <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/80 backdrop-blur-md">
-        <nav className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
-          <span className="text-lg font-bold text-slate-800">StationX</span>
+        <nav className="mx-auto flex max-w-7xl items-center justify-between px-6 py-2">
+          <span className="flex h-16 items-center">
+            {logoSrc && (
+              <img
+                src={logoSrc}
+                alt="Logo"
+                className="h-full w-auto object-contain"
+                onError={(e) => {
+                  (e.target as HTMLImageElement).style.display = 'none';
+                }}
+              />
+            )}
+          </span>
           <Link
             href="/login"
             className="inline-flex h-11 items-center justify-center rounded-xl bg-blue-600 px-5 text-sm font-medium text-white shadow-blue-500/25 transition-all hover:bg-blue-700 active:translate-y-px"

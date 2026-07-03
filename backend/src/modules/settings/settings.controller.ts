@@ -1,7 +1,20 @@
-import { Response, NextFunction } from 'express';
+import { Request, Response, NextFunction } from 'express';
 import { AuthenticatedRequest } from '../../middleware/authenticate';
 import * as settingsService from './settings.service';
 import type { UpdateSettingsDto } from './settings.validation';
+
+export async function handleGetPublicSettings(
+  _req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const settings = await settingsService.getPublicSettings();
+    res.status(200).json({ data: settings });
+  } catch (error) {
+    next(error);
+  }
+}
 
 export async function handleGetSettings(
   _req: AuthenticatedRequest,
