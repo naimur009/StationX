@@ -7,7 +7,7 @@ export const createExpenseSchema = z.object({
   date: z.coerce.date({ required_error: 'Date is required' }),
   description: z.string().max(500).trim().optional(),
   category: z.string().min(1, 'Category is required').max(100).trim(),
-  vendorId: z.string().regex(objectIdRegex, 'Invalid vendor ID format').optional(),
+  vendorId: z.string().regex(objectIdRegex, 'Invalid vendor ID format').optional().nullable(),
   paidBy: z.string().regex(objectIdRegex, 'Invalid paidBy ID format'),
   paidTo: z.string().min(1, 'Paid to is required').max(200).trim(),
   paymentMethod: z.enum(['cash', 'card', 'bkash', 'nagad']),

@@ -449,8 +449,17 @@ export async function updateOrder(id: string, dto: UpdateOrderDto) {
     if (dto.payment.method) updates['payment.method'] = dto.payment.method;
   }
 
-  if (dto.cashTendered !== undefined) updates.cashTendered = dto.cashTendered;
-  if (dto.changeAmount !== undefined) updates.changeAmount = dto.changeAmount;
+  if (dto.cashTendered !== undefined) {
+    const effectiveGrandTotal = (updates.grandTotal ?? order.grandTotal) as number;
+    const effectivePaymentMethod = (dto.payment?.method ?? order.payment.method) as string;
+    if (effectivePaymentMethod === 'cash' && dto.cashTendered < effectiveGrandTotal) {
+      throw createError(400, 'VALIDATION_ERROR', 'Cash tendered must be greater than or equal to the grand total.');
+    }
+    updates.cashTendered = dto.cashTendered;
+    if (dto.cashTendered >= effectiveGrandTotal) {
+      updates.changeAmount = round2(dto.cashTendered - effectiveGrandTotal);
+    }
+  }
 
   const updated = await Order.findByIdAndUpdate(
     id,

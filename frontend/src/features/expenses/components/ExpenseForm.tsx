@@ -3,10 +3,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useCreateExpense, useUpdateExpense, type ExpenseResponse } from '../api';
+import { useCreateExpense, useUpdateExpense, useExpenseReferenceData, type ExpenseResponse } from '../api';
 import { createExpenseSchema, updateExpenseSchema } from '../schema';
-import { useVendorsList } from '@/features/vendors/api';
-import { useUsersList } from '@/features/users/api';
 import { Dialog } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { AppError } from '@/lib/utils';
@@ -25,11 +23,10 @@ export default function ExpenseForm({ open, expense, onClose }: ExpenseFormProps
   const isEdit = !!expense;
   const schema = isEdit ? updateExpenseSchema : createExpenseSchema;
 
-  const { data: vendorsData } = useVendorsList({ page: 1, limit: 100 });
-  const { data: usersData } = useUsersList({ page: 1, limit: 100, includeInactive: 'true' });
+  const { data: refData, isError: refError } = useExpenseReferenceData();
 
-  const vendors = vendorsData?.data ?? [];
-  const users = usersData?.data ?? [];
+  const vendors = refData?.data.vendors ?? [];
+  const users = refData?.data.users ?? [];
 
   const {
     register,
@@ -188,6 +185,11 @@ export default function ExpenseForm({ open, expense, onClose }: ExpenseFormProps
       {error && (
         <div className="mb-5 rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700">
           {error}
+        </div>
+      )}
+      {refError && (
+        <div className="mb-5 rounded-xl border border-amber-100 bg-amber-50 px-4 py-3 text-sm text-amber-700">
+          Could not load vendor and staff lists. You may not have permission to create expenses.
         </div>
       )}
 

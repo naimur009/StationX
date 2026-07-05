@@ -34,6 +34,7 @@ export function useDashboardMetrics(filter: { range: string; from?: string; to?:
   return useQuery({
     queryKey: ['dashboard', 'metrics', params.toString()],
     queryFn: () => apiClient<DashboardMetricsResponse>(`/dashboard/metrics?${params.toString()}`),
+    enabled: filter.range !== 'custom' || (!!filter.from && !!filter.to),
   });
 }
 
@@ -48,5 +49,6 @@ export function useDashboardTopItems(
   return useQuery({
     queryKey: ['dashboard', 'top-items', params.toString()],
     queryFn: () => apiClient<DashboardTopItemsResponse>(`/dashboard/top-items?${params.toString()}`),
+    enabled: filter.range !== 'custom' || (!!filter.from && !!filter.to),
   });
 }

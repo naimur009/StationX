@@ -3,9 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Search, ChevronLeft, ChevronRight, Eye, Edit3, Trash2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { useExpensesList, type ExpenseResponse } from '../api';
-import { useVendorsList } from '@/features/vendors/api';
-import { useUsersList } from '@/features/users/api';
+import { useExpensesList, useExpenseReferenceData, type ExpenseResponse } from '../api';
 import { useDateRangeFilter } from '@/hooks/useDateRangeFilter';
 import DateRangeFilter from '@/components/shared/DateRangeFilter';
 import { Badge } from '@/components/ui/badge';
@@ -29,11 +27,10 @@ export default function ExpenseList({ onEdit, onDelete }: ExpenseListProps) {
 
   const { filter: dateFilter, setRange, setCustomRange, queryString: dateQueryString } = useDateRangeFilter('today');
 
-  const { data: vendorsData } = useVendorsList({ page: 1, limit: 100 });
-  const { data: usersData } = useUsersList({ page: 1, limit: 100, includeInactive: 'true' });
+  const { data: refData, isError: refError } = useExpenseReferenceData();
 
-  const vendors = vendorsData?.data ?? [];
-  const users = usersData?.data ?? [];
+  const vendors = refData?.data.vendors ?? [];
+  const users = refData?.data.users ?? [];
 
   useEffect(() => {
     mountedRef.current = true;
@@ -107,6 +104,11 @@ export default function ExpenseList({ onEdit, onDelete }: ExpenseListProps) {
           onCustomRange={setCustomRange}
         />
 
+        {refError && (
+          <div className="rounded-xl border border-amber-100 bg-amber-50 px-4 py-2.5 text-xs text-amber-700">
+            Could not load vendor and staff lists for filters.
+          </div>
+        )}
         <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-3">
           <div className="relative flex-1 min-w-[180px]">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />

@@ -179,6 +179,18 @@ export async function updateExpense(id: string, dto: UpdateExpenseDto) {
   return toData(updated as unknown as Record<string, unknown>);
 }
 
+export async function getReferenceData() {
+  const [vendors, users] = await Promise.all([
+    Vendor.find({}).select('name').sort({ name: 1 }).lean(),
+    User.find({ isActive: true }).select('name email').sort({ name: 1 }).lean(),
+  ]);
+
+  return {
+    vendors: vendors.map((v) => ({ id: String(v._id), name: v.name })),
+    users: users.map((u) => ({ id: String(u._id), name: u.name, email: u.email })),
+  };
+}
+
 export async function deleteExpense(id: string) {
   const expense = await Expense.findByIdAndDelete(id);
 

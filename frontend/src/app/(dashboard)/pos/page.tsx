@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { usePosStore } from '@/features/pos/store';
 import { useEmployees, useCreateOrder } from '@/features/pos/api';
-import { useSettings } from '@/features/settings/api';
+import { usePublicSettings } from '@/features/settings/api';
 import { apiClient } from '@/lib/api-client';
 import ProductGrid from '@/features/pos/components/ProductGrid';
 import Cart from '@/features/pos/components/Cart';
@@ -45,7 +45,7 @@ export default function PosPage() {
   const createOrder = useCreateOrder();
   const { data: employeesData } = useEmployees();
   const employees = employeesData?.data ?? [];
-  const { data: settingsData } = useSettings();
+  const { data: settingsData } = usePublicSettings();
   const loyaltyThreshold = settingsData?.data?.loyaltyOrderThreshold ?? 0;
 
   const [lookedUpCust, setLookedUpCust] = useState<{ name: string; orderCount: number } | null>(null);

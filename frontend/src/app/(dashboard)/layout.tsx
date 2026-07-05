@@ -130,13 +130,13 @@ export default function DashboardLayout({
     history.pushState = (...args) => {
       originalPushState(...args);
       if (!initializedRef.current) return;
-      triggerNav();
+      setTimeout(triggerNav, 0);
     };
 
     history.replaceState = (...args) => {
       originalReplaceState(...args);
       if (!initializedRef.current) return;
-      triggerNav();
+      setTimeout(triggerNav, 0);
     };
 
     initializedRef.current = true;
@@ -154,10 +154,19 @@ export default function DashboardLayout({
   }, [triggerNav]);
 
   function handleLogout() {
+    const token = useAuthStore.getState().accessToken;
+    redirectedRef.current = true;
     clearAuth();
     queryClient.removeQueries({ queryKey: ['auth', 'me'] });
     router.replace('/login');
-    logoutMutation.mutateAsync().catch(() => {});
+    if (token) {
+      const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1';
+      fetch(`${API_BASE}/auth/logout`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        credentials: 'include',
+      }).catch(() => {});
+    }
   }
 
   if (!isAuthenticated) {

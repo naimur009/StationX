@@ -19,6 +19,7 @@ export async function getPublicSettings() {
   return {
     restaurantName: settings.restaurantName,
     logo: settings.logo?.url ? settings.logo : null,
+    loyaltyOrderThreshold: settings.loyaltyOrderThreshold,
   };
 }
 

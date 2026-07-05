@@ -122,6 +122,32 @@ export function useUpdateExpense() {
   });
 }
 
+export interface ReferenceDataVendor {
+  id: string;
+  name: string;
+}
+
+export interface ReferenceDataUser {
+  id: string;
+  name: string;
+  email: string;
+}
+
+interface ReferenceDataResponse {
+  data: {
+    vendors: ReferenceDataVendor[];
+    users: ReferenceDataUser[];
+  };
+}
+
+export function useExpenseReferenceData() {
+  return useQuery({
+    queryKey: ['expenses', 'reference-data'],
+    queryFn: () => apiClient<ReferenceDataResponse>('/expenses/reference-data'),
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
 export function useDeleteExpense() {
   const queryClient = useQueryClient();
 

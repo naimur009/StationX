@@ -66,6 +66,19 @@ export async function handleUpdateExpense(
   }
 }
 
+export async function handleGetReferenceData(
+  _req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const data = await expenseService.getReferenceData();
+    res.status(200).json({ data });
+  } catch (error) {
+    next(error);
+  }
+}
+
 export async function handleDeleteExpense(
   req: AuthenticatedRequest,
   res: Response,

@@ -22,6 +22,7 @@ export const MODULE_ACTIONS: Record<string, readonly string[]> = {
   employees: ['view', 'create', 'edit', 'delete'],
   settings: ['view', 'edit'],
   reports: ['view', 'create'],
+  salary: ['view', 'create', 'edit', 'delete'],
   ['activity-log']: ['view', 'delete'],
   uploads: ['create'],
 } as const;

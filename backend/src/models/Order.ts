@@ -96,7 +96,6 @@ const orderSchema = new Schema<IOrder>(
   { timestamps: true, toJSON: { versionKey: false } }
 );
 
-orderSchema.index({ orderNumber: 1 }, { unique: true });
 orderSchema.index({ status: 1, createdAt: -1 });
 orderSchema.index({ customerId: 1 });
 orderSchema.index({ createdBy: 1 });

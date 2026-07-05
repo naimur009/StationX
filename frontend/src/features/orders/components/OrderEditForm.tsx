@@ -37,6 +37,7 @@ export default function OrderEditForm({ order, open, onClose, onSaved }: OrderEd
     order.cashTendered ? String(order.cashTendered) : ''
   );
   const [discountPercent, setDiscountPercent] = useState(order.discountPercent);
+  const [extraPaid, setExtraPaid] = useState(0);
   const [productCatalog, setProductCatalog] = useState<CatalogProduct[]>([]);
   const [catalogError, setCatalogError] = useState('');
   const [productSearch, setProductSearch] = useState('');
@@ -61,6 +62,7 @@ export default function OrderEditForm({ order, open, onClose, onSaved }: OrderEd
     setPaymentMethod(order.payment.method);
     setCashTendered(order.cashTendered ? String(order.cashTendered) : '');
     setDiscountPercent(order.discountPercent);
+    setExtraPaid(0);
     setError('');
   }, [open, order]);
 
@@ -81,9 +83,14 @@ export default function OrderEditForm({ order, open, onClose, onSaved }: OrderEd
   }, 0));
   const grandTotal = round2(subtotal - discountAmount);
 
+  const originalGrandTotal = order.grandTotal;
   const tendered = parseFloat(cashTendered) || 0;
-  const changeAmount = paymentMethod === 'cash' && tendered >= grandTotal
-    ? round2(tendered - grandTotal)
+  const extraDue = paymentMethod === 'cash' && grandTotal > originalGrandTotal
+    ? round2(grandTotal - originalGrandTotal)
+    : 0;
+  const effectiveCashTendered = round2(tendered + extraPaid);
+  const changeAmount = paymentMethod === 'cash' && effectiveCashTendered >= grandTotal
+    ? round2(effectiveCashTendered - grandTotal)
     : 0;
 
   const filteredProducts = productCatalog.filter(
@@ -110,6 +117,18 @@ export default function OrderEditForm({ order, open, onClose, onSaved }: OrderEd
 
   async function handleSave() {
     setError('');
+    if (paymentMethod === 'cash') {
+      if (extraDue > 0) {
+        const extraProvided = round2(effectiveCashTendered - (order.cashTendered || 0));
+        if (extraProvided < extraDue) {
+          setError(`Extra paid must be at least ${formatBdt(extraDue)} to cover the increased total.`);
+          return;
+        }
+      } else if (effectiveCashTendered < grandTotal) {
+        setError('Cash tendered must be greater than or equal to the grand total.');
+        return;
+      }
+    }
     const payload: Record<string, unknown> = {};
     if (tableNumber !== (order.tableNumber || '')) payload.tableNumber = tableNumber || undefined;
     if (JSON.stringify(items) !== JSON.stringify(order.items.map((i) => ({ productId: i.productId, quantity: i.quantity })))) {
@@ -118,8 +137,8 @@ export default function OrderEditForm({ order, open, onClose, onSaved }: OrderEd
     if (paymentMethod !== order.payment.method) {
       payload.payment = { method: paymentMethod };
     }
-    if (paymentMethod === 'cash' && tendered > 0) {
-      payload.cashTendered = tendered;
+    if (paymentMethod === 'cash' && effectiveCashTendered > 0) {
+      payload.cashTendered = effectiveCashTendered;
       payload.changeAmount = changeAmount;
     }
     if (discountPercent !== order.discountPercent) {
@@ -141,7 +160,7 @@ export default function OrderEditForm({ order, open, onClose, onSaved }: OrderEd
     tableNumber !== (order.tableNumber || '') ||
     JSON.stringify(items) !== JSON.stringify(order.items.map((i) => ({ productId: i.productId, quantity: i.quantity }))) ||
     paymentMethod !== order.payment.method ||
-    (paymentMethod === 'cash' && tendered > 0 && tendered !== (order.cashTendered || 0)) ||
+    (paymentMethod === 'cash' && effectiveCashTendered > 0 && effectiveCashTendered !== (order.cashTendered || 0)) ||
     discountPercent !== order.discountPercent;
 
   return (
@@ -296,6 +315,27 @@ export default function OrderEditForm({ order, open, onClose, onSaved }: OrderEd
                   {formatBdt(changeAmount)}
                 </div>
               </div>
+              {extraDue > 0 && (
+                <>
+                  <div className="col-span-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2">
+                    <p className="text-xs font-medium text-amber-700">
+                      Extra to pay: {formatBdt(extraDue)}
+                    </p>
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-sm font-medium text-slate-700">Extra Paid</label>
+                    <Input
+                      type="number"
+                      inputMode="decimal"
+                      step="0.01"
+                      min="0"
+                      placeholder="0.00"
+                      value={extraPaid || ''}
+                      onChange={(e) => setExtraPaid(parseFloat(e.target.value) || 0)}
+                    />
+                  </div>
+                </>
+              )}
             </div>
           )}
         </div>

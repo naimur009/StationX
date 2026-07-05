@@ -5,7 +5,7 @@ export const createExpenseSchema = z.object({
   date: z.coerce.date({ required_error: 'Date is required' }),
   description: z.string().max(500).optional().default(''),
   category: z.string().min(1, 'Category is required').max(100),
-  vendorId: z.string().optional(),
+  vendorId: z.string().optional().default(''),
   paidBy: z.string().min(1, 'Paid by is required'),
   paidTo: z.string().min(1, 'Paid to is required').max(200),
   paymentMethod: z.enum(['cash', 'card', 'bkash', 'nagad']),

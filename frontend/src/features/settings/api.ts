@@ -34,6 +34,20 @@ interface SettingsUpdateData {
   loyaltyOrderThreshold?: number;
 }
 
+export interface PublicSettingsResponse {
+  restaurantName: string;
+  logo: { url: string; publicId: string } | null;
+  loyaltyOrderThreshold: number;
+}
+
+export function usePublicSettings() {
+  return useQuery({
+    queryKey: ['settings', 'public'],
+    queryFn: () => apiClient<{ data: PublicSettingsResponse }>('/settings/public'),
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
 export function useSettings() {
   return useQuery({
     queryKey: ['settings'],

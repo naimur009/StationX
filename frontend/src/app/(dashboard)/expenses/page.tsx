@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { ArrowUpDown, DollarSign, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import PermissionGate from '@/components/shared/PermissionGate';
+import { useAuthStore } from '@/stores/auth-store';
 import ExpenseList from '@/features/expenses/components/ExpenseList';
 import ExpenseForm from '@/features/expenses/components/ExpenseForm';
 import DeleteExpenseDialog from './DeleteExpenseDialog';
@@ -18,6 +19,8 @@ import type { SalaryResponse } from '@/features/salaries/api';
 type ActiveTab = 'expenses' | 'salaries';
 
 export default function ExpensesPage() {
+  const user = useAuthStore((state) => state.user);
+  const isAdmin = user?.role === 'admin';
   const [activeTab, setActiveTab] = useState<ActiveTab>('expenses');
 
   const [createOpen, setCreateOpen] = useState(false);
@@ -64,18 +67,20 @@ export default function ExpensesPage() {
             <ArrowUpDown className="h-4 w-4" />
             Expenses
           </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab('salaries')}
-            className={`flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-medium transition-colors ${
-              activeTab === 'salaries'
-                ? 'border-blue-600 text-blue-600'
-                : 'border-transparent text-slate-500 hover:text-slate-700'
-            }`}
-          >
-            <DollarSign className="h-4 w-4" />
-            Salaries
-          </button>
+          {isAdmin && (
+            <button
+              type="button"
+              onClick={() => setActiveTab('salaries')}
+              className={`flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-medium transition-colors ${
+                activeTab === 'salaries'
+                  ? 'border-blue-600 text-blue-600'
+                  : 'border-transparent text-slate-500 hover:text-slate-700'
+              }`}
+            >
+              <DollarSign className="h-4 w-4" />
+              Salaries
+            </button>
+          )}
         </div>
 
         {activeTab === 'expenses' ? (
