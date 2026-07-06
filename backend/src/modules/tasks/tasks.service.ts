@@ -1,5 +1,5 @@
 import Task, { ITask } from '../../models/Task';
-import User from '../../models/User';
+import Employee from '../../models/Employee';
 import { createError } from '../../middleware/errorHandler';
 import type {
   CreateTaskDto,
@@ -12,7 +12,7 @@ interface TaskResponse {
   id: string;
   title: string;
   description?: string;
-  assignedTo: { _id: string; name: string; email: string };
+  assignedTo: { _id: string; name: string };
   assignedBy: { _id: string; name: string };
   priority: 'low' | 'medium' | 'high';
   deadline: string;
@@ -27,7 +27,7 @@ function toResponse(task: ITask): TaskResponse {
     id: task._id.toString(),
     title: task.title,
     description: task.description,
-    assignedTo: task.assignedTo as unknown as { _id: string; name: string; email: string },
+    assignedTo: task.assignedTo as unknown as { _id: string; name: string },
     assignedBy: task.assignedBy as unknown as { _id: string; name: string },
     priority: task.priority,
     deadline: task.deadline instanceof Date ? task.deadline.toISOString() : String(task.deadline),
@@ -74,7 +74,7 @@ export async function listTasks(query: ListTasksDto) {
 
   const [tasks, total] = await Promise.all([
     Task.find(filter)
-      .populate('assignedTo', 'name email')
+      .populate('assignedTo', 'name')
       .populate('assignedBy', 'name')
       .sort(sortObj)
       .skip(skip)
@@ -87,7 +87,7 @@ export async function listTasks(query: ListTasksDto) {
     id: task._id.toString(),
     title: task.title,
     description: task.description,
-    assignedTo: task.assignedTo as unknown as { _id: string; name: string; email: string },
+    assignedTo: task.assignedTo as unknown as { _id: string; name: string },
     assignedBy: task.assignedBy as unknown as { _id: string; name: string },
     priority: task.priority,
     deadline: task.deadline instanceof Date ? task.deadline.toISOString() : String(task.deadline),
@@ -105,7 +105,7 @@ export async function listTasks(query: ListTasksDto) {
 
 export async function getTaskById(id: string) {
   const task = await Task.findById(id)
-    .populate('assignedTo', 'name email')
+    .populate('assignedTo', 'name')
     .populate('assignedBy', 'name')
     .lean();
 
@@ -117,7 +117,7 @@ export async function getTaskById(id: string) {
     id: task._id.toString(),
     title: task.title,
     description: task.description,
-    assignedTo: task.assignedTo as unknown as { _id: string; name: string; email: string },
+    assignedTo: task.assignedTo as unknown as { _id: string; name: string },
     assignedBy: task.assignedBy as unknown as { _id: string; name: string },
     priority: task.priority,
     deadline: task.deadline instanceof Date ? task.deadline.toISOString() : String(task.deadline),
@@ -129,9 +129,9 @@ export async function getTaskById(id: string) {
 }
 
 export async function createTask(dto: CreateTaskDto, userId: string) {
-  const user = await User.findOne({ _id: dto.assignedTo, isActive: true });
-  if (!user) {
-    throw createError(404, 'NOT_FOUND', 'Assigned user not found or is deactivated');
+  const employee = await Employee.findById(dto.assignedTo);
+  if (!employee) {
+    throw createError(404, 'NOT_FOUND', 'Assigned employee not found');
   }
 
   const task = await Task.create({
@@ -144,7 +144,7 @@ export async function createTask(dto: CreateTaskDto, userId: string) {
     status: 'pending',
   });
 
-  await task.populate('assignedTo', 'name email');
+  await task.populate('assignedTo', 'name');
   await task.populate('assignedBy', 'name');
 
   emitTaskAssigned(task._id.toString(), task.assignedTo.toString());
@@ -154,9 +154,9 @@ export async function createTask(dto: CreateTaskDto, userId: string) {
 
 export async function updateTask(id: string, dto: UpdateTaskDto) {
   if (dto.assignedTo) {
-    const user = await User.findOne({ _id: dto.assignedTo, isActive: true });
-    if (!user) {
-      throw createError(404, 'NOT_FOUND', 'Assigned user not found or is deactivated');
+    const employee = await Employee.findById(dto.assignedTo);
+    if (!employee) {
+      throw createError(404, 'NOT_FOUND', 'Assigned employee not found');
     }
   }
 
@@ -169,7 +169,7 @@ export async function updateTask(id: string, dto: UpdateTaskDto) {
     { $set: dto },
     { new: true, runValidators: true }
   )
-    .populate('assignedTo', 'name email')
+    .populate('assignedTo', 'name')
     .populate('assignedBy', 'name');
 
   if (!updated) {
@@ -200,7 +200,7 @@ export async function updateTaskStatus(id: string, status: UpdateTaskStatusDto['
   task.status = status;
   await task.save();
 
-  await task.populate('assignedTo', 'name email');
+  await task.populate('assignedTo', 'name');
   await task.populate('assignedBy', 'name');
 
   return toResponse(task);

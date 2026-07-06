@@ -47,7 +47,7 @@ export default function TodayAttendanceSheet() {
   const { data, isLoading, isError, refetch } = useTodayStaff(selectedDate);
   const markMutation = useMarkAttendance();
   const batchMutation = useBatchMarkAttendance();
-  const [pendingUserId, setPendingUserId] = useState<string | null>(null);
+  const [pendingEmployeeId, setPendingEmployeeId] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
@@ -65,22 +65,22 @@ export default function TodayAttendanceSheet() {
     }, 3000);
   };
 
-  const handleMark = useCallback(async (userId: string, status: 'present' | 'absent' | 'late' | 'half-day') => {
-    setPendingUserId(userId);
+  const handleMark = useCallback(async (employeeId: string, status: 'present' | 'absent' | 'late' | 'half-day') => {
+    setPendingEmployeeId(employeeId);
     try {
-      await markMutation.mutateAsync({ userId, status, date: selectedDate });
+      await markMutation.mutateAsync({ employeeId, status, date: selectedDate });
       showTempMessage('Attendance marked successfully');
     } catch (err) {
       const msg = err instanceof AppError ? err.message : 'Failed to mark attendance';
       showTempMessage(msg, true);
     } finally {
-      setPendingUserId(null);
+      setPendingEmployeeId(null);
     }
   }, [markMutation, selectedDate]);
 
-  const handleQuickStatus = useCallback(async (userId: string, currentStatus: string | undefined) => {
+  const handleQuickStatus = useCallback(async (employeeId: string, currentStatus: string | undefined) => {
     const next = currentStatus === 'present' ? 'absent' : 'present';
-    handleMark(userId, next as 'present' | 'absent');
+    handleMark(employeeId, next as 'present' | 'absent');
   }, [handleMark]);
 
   const handleMarkAllPresent = useCallback(async () => {
@@ -93,7 +93,7 @@ export default function TodayAttendanceSheet() {
     try {
       await batchMutation.mutateAsync({
         date: selectedDate,
-        records: unmarked.map((s) => ({ userId: s.user._id, status: 'present' as const })),
+        records: unmarked.map((s) => ({ employeeId: s.employee._id, status: 'present' as const })),
       });
       showTempMessage(`${unmarked.length} staff marked present`);
     } catch (err) {
@@ -222,12 +222,12 @@ export default function TodayAttendanceSheet() {
             <div className="divide-y divide-slate-100 md:hidden">
               {staff.map((item) => (
                 <StaffCard
-                  key={item.user._id}
+                  key={item.employee._id}
                   item={item}
                   onQuickStatus={handleQuickStatus}
                   onMark={handleMark}
                   isMutating={isMutating}
-                  isPending={pendingUserId === item.user._id}
+                  isPending={pendingEmployeeId === item.employee._id}
                 />
               ))}
             </div>
@@ -248,12 +248,12 @@ export default function TodayAttendanceSheet() {
                 <tbody>
                   {staff.map((item) => (
                     <StaffRow
-                      key={item.user._id}
+                      key={item.employee._id}
                       item={item}
                       onMark={handleMark}
                       onQuickStatus={handleQuickStatus}
                       isMutating={isMutating}
-                      isPending={pendingUserId === item.user._id}
+                      isPending={pendingEmployeeId === item.employee._id}
                     />
                   ))}
                 </tbody>
@@ -297,8 +297,8 @@ function StaffRow({
   isPending,
 }: {
   item: StaffAttendanceItem;
-  onMark: (userId: string, status: 'present' | 'absent' | 'late' | 'half-day') => void;
-  onQuickStatus: (userId: string, currentStatus: string | undefined) => void;
+  onMark: (employeeId: string, status: 'present' | 'absent' | 'late' | 'half-day') => void;
+  onQuickStatus: (employeeId: string, currentStatus: string | undefined) => void;
   isMutating: boolean;
   isPending: boolean;
 }) {
@@ -310,11 +310,10 @@ function StaffRow({
       <td className="px-4 py-3.5 pl-6">
         <div className="flex items-center gap-3">
           <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-blue-600 text-xs font-bold text-white shadow-sm">
-            {item.user.name.charAt(0).toUpperCase()}
+            {item.employee.name.charAt(0).toUpperCase()}
           </div>
           <div>
-            <p className="font-medium text-slate-800">{item.user.name}</p>
-            <p className="text-xs text-slate-400">{item.user.role}</p>
+            <p className="font-medium text-slate-800">{item.employee.name}</p>
           </div>
         </div>
       </td>
@@ -328,7 +327,7 @@ function StaffRow({
                 key={status}
                 type="button"
                 disabled={isMutating}
-                onClick={() => onMark(item.user._id, status)}
+                onClick={() => onMark(item.employee._id, status)}
                 className={`cursor-pointer rounded-lg px-2.5 py-1.5 text-xs font-semibold transition-all duration-150 disabled:cursor-not-allowed active:scale-95 ${
                   isActive ? cfg.active : cfg.inactive
                 }`}
@@ -352,7 +351,7 @@ function StaffRow({
         <button
           type="button"
           disabled={isMutating}
-          onClick={() => onQuickStatus(item.user._id, currentStatus)}
+          onClick={() => onQuickStatus(item.employee._id, currentStatus)}
           className="cursor-pointer rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-medium text-slate-500 transition-all hover:border-slate-300 hover:bg-slate-50 hover:text-slate-700 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {isPending ? (
@@ -378,8 +377,8 @@ function StaffCard({
   isPending,
 }: {
   item: StaffAttendanceItem;
-  onQuickStatus: (userId: string, currentStatus: string | undefined) => void;
-  onMark: (userId: string, status: 'present' | 'absent' | 'late' | 'half-day') => void;
+  onQuickStatus: (employeeId: string, currentStatus: string | undefined) => void;
+  onMark: (employeeId: string, status: 'present' | 'absent' | 'late' | 'half-day') => void;
   isMutating: boolean;
   isPending: boolean;
 }) {
@@ -392,17 +391,16 @@ function StaffCard({
       <div className="mb-3 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-blue-600 text-sm font-bold text-white shadow-sm">
-            {item.user.name.charAt(0).toUpperCase()}
+            {item.employee.name.charAt(0).toUpperCase()}
           </div>
           <div>
-            <p className="font-semibold text-slate-800">{item.user.name}</p>
-            <p className="text-xs text-slate-400">{item.user.role} &middot; {item.user.email}</p>
+            <p className="font-semibold text-slate-800">{item.employee.name}</p>
           </div>
         </div>
         <button
           type="button"
           disabled={isMutating}
-          onClick={() => onQuickStatus(item.user._id, currentStatus)}
+          onClick={() => onQuickStatus(item.employee._id, currentStatus)}
           className="cursor-pointer rounded-lg border border-slate-200 px-3 py-2 text-xs font-medium text-slate-600 transition-all hover:border-slate-300 hover:bg-slate-50 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {isPending ? (
@@ -433,7 +431,7 @@ function StaffCard({
               key={status}
               type="button"
               disabled={isMutating}
-              onClick={() => onMark(item.user._id, status)}
+              onClick={() => onMark(item.employee._id, status)}
               className={`flex shrink-0 cursor-pointer items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold transition-all duration-150 disabled:cursor-not-allowed active:scale-95 ${
                 isActive ? cfg.active : cfg.inactive
               }`}

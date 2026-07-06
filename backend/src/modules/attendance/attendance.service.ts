@@ -1,5 +1,5 @@
 import Attendance, { IAttendance } from '../../models/Attendance';
-import User from '../../models/User';
+import Employee from '../../models/Employee';
 import { createError } from '../../middleware/errorHandler';
 import type {
   CreateAttendanceDto,
@@ -9,11 +9,9 @@ import type {
   ListAttendanceQueryDto,
 } from './attendance.validation';
 
-interface PopulatedUser {
+interface PopulatedEmployee {
   _id: string;
   name: string;
-  email: string;
-  role: string;
 }
 
 interface PopulatedMarker {
@@ -23,19 +21,19 @@ interface PopulatedMarker {
 
 interface AttendanceResponse {
   id: string;
-  user: PopulatedUser;
+  employee: PopulatedEmployee | null;
   date: string;
   status: string;
   checkInAt: string | null;
   checkOutAt: string | null;
   notes: string | null;
-  markedBy: PopulatedMarker;
+  markedBy: PopulatedMarker | null;
   createdAt: string;
   updatedAt: string;
 }
 
 export interface StaffAttendanceItem {
-  user: PopulatedUser;
+  employee: PopulatedEmployee;
   attendance: AttendanceResponse | null;
 }
 
@@ -55,7 +53,7 @@ export interface TodayResponse {
 interface BatchResult {
   created: number;
   skipped: number;
-  errors: Array<{ userId: string; code: string; message: string }>;
+  errors: Array<{ employeeId: string; code: string; message: string }>;
 }
 
 function formatLocalDate(d: Date): string {
@@ -66,11 +64,11 @@ function formatLocalDate(d: Date): string {
 }
 
 function toResponse(record: IAttendance): AttendanceResponse {
-  const user = record.user as unknown as PopulatedUser;
-  const markedBy = record.markedBy as unknown as PopulatedMarker;
+  const employee = record.employee ? (record.employee as unknown as PopulatedEmployee) : null;
+  const markedBy = record.markedBy ? (record.markedBy as unknown as PopulatedMarker) : null;
   return {
     id: record._id.toString(),
-    user,
+    employee,
     date: record.date instanceof Date ? formatLocalDate(record.date) : String(record.date),
     status: record.status,
     checkInAt: record.checkInAt instanceof Date ? record.checkInAt.toISOString() : null,
@@ -100,27 +98,24 @@ function tryEmit(event: string, data: Record<string, unknown>): void {
 export async function getTodayStaff(queryDate?: string): Promise<TodayResponse> {
   const date = normalizeDate(queryDate || undefined);
 
-  const activeUsers = await User.find({
-    role: { $in: ['employee', 'manager'] },
-    isActive: true,
-  })
-    .select('name email role')
+  const allEmployees = await Employee.find()
+    .select('name')
     .sort({ name: 1 })
     .lean();
 
-  const userIds = activeUsers.map((u) => u._id);
+  const employeeIds = allEmployees.map((e) => e._id);
 
   const attendanceRecords = await Attendance.find({
-    user: { $in: userIds },
+    employee: { $in: employeeIds },
     date,
   })
-    .populate('user', 'name email role')
+    .populate('employee', 'name')
     .populate('markedBy', 'name')
     .lean();
 
   const recordMap = new Map<string, IAttendance>();
   for (const rec of attendanceRecords) {
-    recordMap.set(String(rec.user._id), rec as unknown as IAttendance);
+    recordMap.set(String(rec.employee._id), rec as unknown as IAttendance);
   }
 
   let present = 0;
@@ -129,8 +124,8 @@ export async function getTodayStaff(queryDate?: string): Promise<TodayResponse> 
   let halfDay = 0;
   let unmarked = 0;
 
-  const staff: StaffAttendanceItem[] = activeUsers.map((u) => {
-    const record = recordMap.get(String(u._id));
+  const staff: StaffAttendanceItem[] = allEmployees.map((e) => {
+    const record = recordMap.get(String(e._id));
     if (record) {
       switch (record.status) {
         case 'present': present++; break;
@@ -139,18 +134,18 @@ export async function getTodayStaff(queryDate?: string): Promise<TodayResponse> 
         case 'half-day': halfDay++; break;
       }
       return {
-        user: u as unknown as PopulatedUser,
+        employee: e as unknown as PopulatedEmployee,
         attendance: toResponse(record),
       };
     }
     unmarked++;
     return {
-      user: u as unknown as PopulatedUser,
+      employee: e as unknown as PopulatedEmployee,
       attendance: null,
     };
   });
 
-  const total = activeUsers.length;
+  const total = allEmployees.length;
 
   return {
     date: date.toISOString(),
@@ -162,21 +157,18 @@ export async function getTodayStaff(queryDate?: string): Promise<TodayResponse> 
 export async function markAttendance(dto: CreateAttendanceDto, authenticatedUserId: string) {
   const date = dto.date ? normalizeDate(dto.date) : normalizeDate();
 
-  const user = await User.findById(dto.userId).select('_id isActive role');
-  if (!user || !user.isActive) {
-    throw createError(404, 'NOT_FOUND', 'User not found');
-  }
-  if (!['employee', 'manager'].includes(user.role)) {
-    throw createError(400, 'VALIDATION_ERROR', 'Cannot mark attendance for admin users');
+  const employee = await Employee.findById(dto.employeeId);
+  if (!employee) {
+    throw createError(404, 'NOT_FOUND', 'Employee not found');
   }
 
-  const existing = await Attendance.findOne({ user: dto.userId, date });
+  const existing = await Attendance.findOne({ employee: dto.employeeId, date });
   if (existing) {
-    throw createError(409, 'ALREADY_CHECKED_IN', 'Attendance already marked for this user on this date');
+    throw createError(409, 'ALREADY_CHECKED_IN', 'Attendance already marked for this employee on this date');
   }
 
   const record = await Attendance.create({
-    user: dto.userId,
+    employee: dto.employeeId,
     date,
     status: dto.status,
     checkInAt: dto.checkInAt || undefined,
@@ -185,11 +177,11 @@ export async function markAttendance(dto: CreateAttendanceDto, authenticatedUser
     markedBy: authenticatedUserId,
   });
 
-  await record.populate('user', 'name email role');
+  await record.populate('employee', 'name');
   await record.populate('markedBy', 'name');
 
   tryEmit('attendance:marked', {
-    userId: dto.userId,
+    employeeId: dto.employeeId,
     date: date.toISOString(),
     status: dto.status,
   });
@@ -204,22 +196,22 @@ export async function batchMarkAttendance(dto: BatchAttendanceDto, authenticated
 
   for (const record of dto.records) {
     try {
-      const user = await User.findById(record.userId).select('_id isActive role');
-      if (!user || !user.isActive || !['employee', 'manager'].includes(user.role)) {
+      const employee = await Employee.findById(record.employeeId);
+      if (!employee) {
         result.skipped++;
         result.errors.push({
-          userId: record.userId,
-          code: 'USER_NOT_FOUND',
-          message: 'User not found or not eligible',
+          employeeId: record.employeeId,
+          code: 'EMPLOYEE_NOT_FOUND',
+          message: 'Employee not found',
         });
         continue;
       }
 
-      const existing = await Attendance.findOne({ user: record.userId, date });
+      const existing = await Attendance.findOne({ employee: record.employeeId, date });
       if (existing) {
         result.skipped++;
         result.errors.push({
-          userId: record.userId,
+          employeeId: record.employeeId,
           code: 'ALREADY_CHECKED_IN',
           message: 'Attendance already marked for this date',
         });
@@ -227,7 +219,7 @@ export async function batchMarkAttendance(dto: BatchAttendanceDto, authenticated
       }
 
       await Attendance.create({
-        user: record.userId,
+        employee: record.employeeId,
         date,
         status: record.status,
         checkInAt: record.checkInAt || undefined,
@@ -240,7 +232,7 @@ export async function batchMarkAttendance(dto: BatchAttendanceDto, authenticated
     } catch (error) {
       result.skipped++;
       result.errors.push({
-        userId: record.userId,
+        employeeId: record.employeeId,
         code: 'INTERNAL_ERROR',
         message: 'Failed to process record',
       });
@@ -271,12 +263,12 @@ export async function updateAttendance(id: string, dto: UpdateAttendanceDto) {
 
   await record.save();
 
-  await record.populate('user', 'name email role');
+  await record.populate('employee', 'name');
   await record.populate('markedBy', 'name');
 
   tryEmit('attendance:updated', {
     id: record._id.toString(),
-    userId: record.user._id,
+    employeeId: record.employee._id,
     date: record.date.toISOString(),
     status: record.status,
   });
@@ -287,8 +279,8 @@ export async function updateAttendance(id: string, dto: UpdateAttendanceDto) {
 export async function listAttendance(query: ListAttendanceQueryDto) {
   const filter: Record<string, unknown> = {};
 
-  if (query.userId) {
-    filter.user = query.userId;
+  if (query.employeeId) {
+    filter.employee = query.employeeId;
   }
 
   if (query.status) {
@@ -310,7 +302,7 @@ export async function listAttendance(query: ListAttendanceQueryDto) {
 
   const [records, total] = await Promise.all([
     Attendance.find(filter)
-      .populate('user', 'name email role')
+      .populate('employee', 'name')
       .populate('markedBy', 'name')
       .sort({ date: -1, createdAt: -1 })
       .skip(skip)
@@ -329,7 +321,7 @@ export async function listAttendance(query: ListAttendanceQueryDto) {
 
 export async function getAttendanceById(id: string) {
   const record = await Attendance.findById(id)
-    .populate('user', 'name email role')
+    .populate('employee', 'name')
     .populate('markedBy', 'name')
     .lean();
 

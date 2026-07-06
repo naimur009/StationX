@@ -8,7 +8,7 @@ import { Select } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useAttendanceList, type AttendanceRecord } from '../api';
-import { useUsersList, type UserResponse } from '../../users/api';
+import { useEmployeesList } from '../../employees/api';
 
 const statusBadge: Record<string, 'green' | 'red' | 'yellow' | 'blue' | 'slate'> = {
   present: 'green',
@@ -23,7 +23,7 @@ interface AttendanceHistoryListProps {
 
 export default function AttendanceHistoryList({ onCorrect }: AttendanceHistoryListProps = {}) {
   const [page, setPage] = useState(1);
-  const [userId, setUserId] = useState('');
+  const [employeeId, setEmployeeId] = useState('');
   const [status, setStatus] = useState('');
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
@@ -32,7 +32,7 @@ export default function AttendanceHistoryList({ onCorrect }: AttendanceHistoryLi
   const [showFilters, setShowFilters] = useState(false);
   const mountedRef = useRef(true);
 
-  const { data: usersData } = useUsersList({ limit: 100, includeInactive: 'true' });
+  const { data: employeesData } = useEmployeesList({ limit: 100 });
 
   useEffect(() => {
     mountedRef.current = true;
@@ -42,12 +42,12 @@ export default function AttendanceHistoryList({ onCorrect }: AttendanceHistoryLi
     return () => { mountedRef.current = false; clearTimeout(timer); };
   }, [search]);
 
-  useEffect(() => { setPage(1); }, [userId, status, from, to, debouncedSearch]);
+  useEffect(() => { setPage(1); }, [employeeId, status, from, to, debouncedSearch]);
 
   const { data, isLoading, isError, refetch } = useAttendanceList({
     page,
     limit: 20,
-    userId: userId || undefined,
+    employeeId: employeeId || undefined,
     status: status || undefined,
     from: from || undefined,
     to: to || undefined,
@@ -55,7 +55,7 @@ export default function AttendanceHistoryList({ onCorrect }: AttendanceHistoryLi
 
   const records = data?.data || [];
   const meta = data?.meta;
-  const hasActiveFilters = userId || status || from || to || debouncedSearch;
+  const hasActiveFilters = employeeId || status || from || to || debouncedSearch;
 
   const formatTime = (iso: string | null) =>
     iso ? new Date(iso).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '--';
@@ -119,10 +119,10 @@ export default function AttendanceHistoryList({ onCorrect }: AttendanceHistoryLi
 
             {/* Filter grid */}
             <div className="grid gap-3 sm:grid-cols-4">
-              <Select value={userId} onChange={(e) => setUserId(e.target.value)}>
+              <Select value={employeeId} onChange={(e) => setEmployeeId(e.target.value)}>
                 <option value="">All Staff</option>
-                {(usersData?.data || []).map((u: UserResponse) => (
-                  <option key={u.id} value={u.id}>{u.name}</option>
+                {(employeesData?.data || []).map((e) => (
+                  <option key={e.id} value={e.id}>{e.name}</option>
                 ))}
               </Select>
 
@@ -142,7 +142,7 @@ export default function AttendanceHistoryList({ onCorrect }: AttendanceHistoryLi
             {hasActiveFilters && (
               <button
                 type="button"
-                onClick={() => { setUserId(''); setStatus(''); setFrom(''); setTo(''); setSearch(''); }}
+                onClick={() => { setEmployeeId(''); setStatus(''); setFrom(''); setTo(''); setSearch(''); }}
                 className="text-xs text-blue-600 hover:text-blue-800 transition-colors"
               >
                 Clear all filters
@@ -185,7 +185,7 @@ export default function AttendanceHistoryList({ onCorrect }: AttendanceHistoryLi
             {hasActiveFilters && (
               <button
                 type="button"
-                onClick={() => { setUserId(''); setStatus(''); setFrom(''); setTo(''); setSearch(''); }}
+                onClick={() => { setEmployeeId(''); setStatus(''); setFrom(''); setTo(''); setSearch(''); }}
                 className="mt-2 text-xs text-blue-600 hover:text-blue-800"
               >
                 Clear filters
@@ -224,10 +224,16 @@ export default function AttendanceHistoryList({ onCorrect }: AttendanceHistoryLi
                       <td className="px-4 py-3.5 pl-6 text-slate-600 whitespace-nowrap">{formatDate(record.date)}</td>
                       <td className="px-4 py-3.5">
                         <div className="flex items-center gap-2.5">
-                          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-blue-600 text-xs font-bold text-white shadow-sm">
-                            {record.user.name.charAt(0).toUpperCase()}
-                          </div>
-                          <span className="font-medium text-slate-800">{record.user.name}</span>
+                          {record.employee ? (
+                            <>
+                              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-blue-600 text-xs font-bold text-white shadow-sm">
+                                {record.employee.name.charAt(0).toUpperCase()}
+                              </div>
+                              <span className="font-medium text-slate-800">{record.employee.name}</span>
+                            </>
+                          ) : (
+                            <span className="text-sm text-slate-400 italic">Deleted employee</span>
+                          )}
                         </div>
                       </td>
                       <td className="px-4 py-3.5">
@@ -339,13 +345,22 @@ function MobileRecordCard({
     <div className="px-4 py-4">
       <div className="mb-2 flex items-center justify-between">
         <div className="flex items-center gap-2.5">
-          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-blue-600 text-xs font-bold text-white shadow-sm">
-            {record.user.name.charAt(0).toUpperCase()}
-          </div>
-          <div>
-            <p className="text-sm font-medium text-slate-800">{record.user.name}</p>
-            <p className="text-xs text-slate-400">{formatDate(record.date)}</p>
-          </div>
+          {record.employee ? (
+            <>
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-blue-600 text-xs font-bold text-white shadow-sm">
+                {record.employee.name.charAt(0).toUpperCase()}
+              </div>
+              <div>
+                <p className="text-sm font-medium text-slate-800">{record.employee.name}</p>
+                <p className="text-xs text-slate-400">{formatDate(record.date)}</p>
+              </div>
+            </>
+          ) : (
+            <div>
+              <p className="text-sm font-medium text-slate-400 italic">Deleted employee</p>
+              <p className="text-xs text-slate-400">{formatDate(record.date)}</p>
+            </div>
+          )}
         </div>
         <div className="flex items-center gap-2">
           <Badge variant={statusBadge[record.status] || 'slate'}>

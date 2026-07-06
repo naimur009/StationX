@@ -217,10 +217,7 @@ export default function TaskDetail({ taskId, onEdit }: TaskDetailProps) {
               <div>
                 <p className="text-xs font-medium text-slate-500">Assigned To</p>
                 {task.assignedTo ? (
-                  <>
-                    <p className="text-sm font-medium text-slate-700">{task.assignedTo.name}</p>
-                    <p className="text-xs text-slate-400">{task.assignedTo.email}</p>
-                  </>
+                  <p className="text-sm font-medium text-slate-700">{task.assignedTo.name}</p>
                 ) : (
                   <p className="text-sm font-medium text-slate-400">Unassigned</p>
                 )}

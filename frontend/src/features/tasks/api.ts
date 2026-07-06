@@ -7,7 +7,7 @@ export interface TaskResponse {
   id: string;
   title: string;
   description?: string;
-  assignedTo: { _id: string; name: string; email: string };
+  assignedTo: { _id: string; name: string };
   assignedBy: { _id: string; name: string };
   priority: 'low' | 'medium' | 'high';
   deadline: string;

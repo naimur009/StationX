@@ -3,11 +3,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api-client';
 
-export interface StaffUser {
+export interface StaffEmployee {
   _id: string;
   name: string;
-  email: string;
-  role: string;
 }
 
 export interface MarkedBy {
@@ -17,19 +15,19 @@ export interface MarkedBy {
 
 export interface AttendanceRecord {
   id: string;
-  user: StaffUser;
+  employee: StaffEmployee | null;
   date: string;
   status: 'present' | 'absent' | 'late' | 'half-day';
   checkInAt: string | null;
   checkOutAt: string | null;
   notes: string | null;
-  markedBy: MarkedBy;
+  markedBy: MarkedBy | null;
   createdAt: string;
   updatedAt: string;
 }
 
 export interface StaffAttendanceItem {
-  user: StaffUser;
+  employee: StaffEmployee;
   attendance: AttendanceRecord | null;
 }
 
@@ -54,11 +52,11 @@ interface AttendanceListResponse {
 interface BatchResult {
   created: number;
   skipped: number;
-  errors: Array<{ userId: string; code: string; message: string }>;
+  errors: Array<{ employeeId: string; code: string; message: string }>;
 }
 
 interface AttendanceListParams {
-  userId?: string;
+  employeeId?: string;
   status?: string;
   from?: string;
   to?: string;
@@ -67,7 +65,7 @@ interface AttendanceListParams {
 }
 
 interface MarkAttendancePayload {
-  userId: string;
+  employeeId: string;
   status: 'present' | 'absent' | 'late' | 'half-day';
   date?: string;
   checkInAt?: string;
@@ -78,7 +76,7 @@ interface MarkAttendancePayload {
 interface BatchMarkPayload {
   date?: string;
   records: Array<{
-    userId: string;
+    employeeId: string;
     status: 'present' | 'absent' | 'late' | 'half-day';
     checkInAt?: string;
     checkOutAt?: string;
@@ -94,16 +92,16 @@ export function useTodayStaff(date?: string) {
   });
 }
 
-export function useUserAttendanceMonth(userId: string, year: number, month: number) {
+export function useEmployeeAttendanceMonth(employeeId: string, year: number, month: number) {
   const from = `${year}-${String(month).padStart(2, '0')}-01`;
   const lastDay = new Date(year, month, 0).getDate();
   const to = `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
-  const qs = `?userId=${encodeURIComponent(userId)}&from=${from}&to=${to}&limit=31`;
+  const qs = `?employeeId=${encodeURIComponent(employeeId)}&from=${from}&to=${to}&limit=31`;
 
   return useQuery({
-    queryKey: ['attendance', 'month', userId, year, month],
+    queryKey: ['attendance', 'month', employeeId, year, month],
     queryFn: () => apiClient<AttendanceListResponse>(`/attendance${qs}`),
-    enabled: !!userId,
+    enabled: !!employeeId,
   });
 }
 
@@ -111,7 +109,7 @@ export function useAttendanceList(params: AttendanceListParams) {
   const searchParams = new URLSearchParams();
   if (params.page) searchParams.set('page', String(params.page));
   if (params.limit) searchParams.set('limit', String(params.limit));
-  if (params.userId) searchParams.set('userId', params.userId);
+  if (params.employeeId) searchParams.set('employeeId', params.employeeId);
   if (params.status) searchParams.set('status', params.status);
   if (params.from) searchParams.set('from', params.from);
   if (params.to) searchParams.set('to', params.to);

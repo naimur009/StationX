@@ -3,7 +3,7 @@ import { z } from 'zod';
 const attendanceStatusEnum = z.enum(['present', 'absent', 'late', 'half-day']);
 
 const recordSchema = z.object({
-  userId: z.string().min(1, 'userId is required'),
+  employeeId: z.string().min(1, 'employeeId is required'),
   status: attendanceStatusEnum,
   checkInAt: z.coerce.date().optional(),
   checkOutAt: z.coerce.date().optional(),
@@ -34,7 +34,7 @@ export const todayQuerySchema = z.object({
 }).strict();
 
 export const listAttendanceQuerySchema = z.object({
-  userId: z.string().optional(),
+  employeeId: z.string().optional(),
   status: attendanceStatusEnum.optional(),
   from: z.string().optional(),
   to: z.string().optional(),

@@ -8,8 +8,8 @@ import {
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Select } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
-import { useUserAttendanceMonth } from '../api';
-import { useUsersList, type UserResponse } from '../../users/api';
+import { useEmployeeAttendanceMonth } from '../api';
+import { useEmployeesList } from '../../employees/api';
 
 const STATUS_META: Record<string, { label: string; bg: string; dot: string; icon: React.ElementType }> = {
   present: { label: 'Present', bg: 'bg-green-500', dot: 'bg-green-500', icon: Check },
@@ -37,14 +37,14 @@ function isWeekend(i: number) { return i === 0 || i === 6; }
 
 export default function AttendanceCalendar() {
   const now = new Date();
-  const [selectedUserId, setSelectedUserId] = useState('');
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState('');
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth() + 1);
 
-  const { data, isLoading, isError, refetch } = useUserAttendanceMonth(selectedUserId, year, month);
-  const { data: usersData } = useUsersList({ limit: 100, includeInactive: 'true' });
+  const { data, isLoading, isError, refetch } = useEmployeeAttendanceMonth(selectedEmployeeId, year, month);
+  const { data: employeesData } = useEmployeesList({ limit: 100 });
 
-  const selectedUser = (usersData?.data || []).find((u: UserResponse) => u.id === selectedUserId);
+  const selectedEmployee = (employeesData?.data || []).find((e) => e.id === selectedEmployeeId);
   const records = data?.data || [];
 
   const recordMap = useMemo(() => {
@@ -110,7 +110,7 @@ export default function AttendanceCalendar() {
             <div>
               <CardTitle>Monthly Report</CardTitle>
               <p className="mt-0.5 text-xs text-slate-500">
-                {selectedUserId ? `${selectedUser?.name || 'Staff'}'s attendance` : 'Select a staff member to view'}
+                {selectedEmployeeId ? `${selectedEmployee?.name || 'Staff'}'s attendance` : 'Select a staff member to view'}
               </p>
             </div>
           </div>
@@ -127,16 +127,16 @@ export default function AttendanceCalendar() {
         <div className="border-b border-border/20 bg-slate-50/50 px-5 py-3">
           <div className="flex items-center gap-2.5">
             <User className="h-4 w-4 shrink-0 text-slate-400" />
-            <Select value={selectedUserId} onChange={(e) => setSelectedUserId(e.target.value)} className="w-full sm:w-64 text-sm" placeholder="Select staff">
+            <Select value={selectedEmployeeId} onChange={(e) => setSelectedEmployeeId(e.target.value)} className="w-full sm:w-64 text-sm" placeholder="Select staff">
               <option value="">Select a staff member</option>
-              {(usersData?.data || []).map((u: UserResponse) => (
-                <option key={u.id} value={u.id}>{u.name} ({u.role})</option>
+              {(employeesData?.data || []).map((e) => (
+                <option key={e.id} value={e.id}>{e.name}</option>
               ))}
             </Select>
           </div>
         </div>
 
-        {!selectedUserId && (
+        {!selectedEmployeeId && (
           <div className="flex flex-col items-center gap-4 px-5 py-16">
             <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-purple-50">
               <User className="h-7 w-7 text-purple-300" />
@@ -145,13 +145,13 @@ export default function AttendanceCalendar() {
           </div>
         )}
 
-        {selectedUserId && isLoading && (
+        {selectedEmployeeId && isLoading && (
           <div className="flex items-center justify-center py-16">
             <Loader2 className="h-6 w-6 animate-spin text-purple-400" />
           </div>
         )}
 
-        {selectedUserId && isError && (
+        {selectedEmployeeId && isError && (
           <div className="flex flex-col items-center gap-3 px-5 py-10">
             <AlertTriangle className="h-8 w-8 text-red-400" />
             <p className="text-sm text-red-500">Failed to load attendance data</p>
@@ -159,7 +159,7 @@ export default function AttendanceCalendar() {
           </div>
         )}
 
-        {selectedUserId && !isLoading && !isError && (
+        {selectedEmployeeId && !isLoading && !isError && (
           <div className="p-5">
             {/* Month nav */}
             <div className="mb-4 flex items-center justify-between">

@@ -1,7 +1,7 @@
 import mongoose, { Schema, Document, Types } from 'mongoose';
 
 export interface IAttendance extends Document {
-  user: Types.ObjectId;
+  employee: Types.ObjectId;
   date: Date;
   status: 'present' | 'absent' | 'late' | 'half-day';
   checkInAt?: Date;
@@ -14,7 +14,7 @@ export interface IAttendance extends Document {
 
 const attendanceSchema = new Schema<IAttendance>(
   {
-    user: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+    employee: { type: Schema.Types.ObjectId, ref: 'Employee', required: true },
     date: { type: Date, required: true },
     status: {
       type: String,
@@ -29,7 +29,7 @@ const attendanceSchema = new Schema<IAttendance>(
   { timestamps: true, toJSON: { versionKey: false } }
 );
 
-attendanceSchema.index({ user: 1, date: 1 }, { unique: true });
+attendanceSchema.index({ employee: 1, date: 1 }, { unique: true });
 
 const Attendance = mongoose.model<IAttendance>('Attendance', attendanceSchema);
 
