@@ -217,6 +217,7 @@ export async function createOrder(dto: CreateOrderDto, userId: string) {
         changeAmount,
         payment: {
           method: paymentMethod,
+          ...(dto.payment.transactionId ? { transactionId: dto.payment.transactionId } : {}),
         },
         status: rest.status || 'completed',
         createdBy: userId,

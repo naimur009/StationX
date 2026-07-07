@@ -60,6 +60,7 @@ interface OrderDetailItem {
   changeAmount?: number;
   payment: {
     method: string;
+    transactionId?: string;
   };
   status: string;
   createdBy: unknown;
@@ -115,7 +116,7 @@ function toDetail(order: Record<string, unknown>): OrderDetailItem {
     grandTotal: order.grandTotal as number,
     cashTendered: order.cashTendered as number | undefined,
     changeAmount: order.changeAmount as number | undefined,
-    payment: order.payment as { method: string },
+    payment: order.payment as { method: string; transactionId?: string },
     status: order.status as string,
     createdBy: order.createdBy ?? null,
     completedAt: order.completedAt as Date | undefined,
@@ -164,13 +165,15 @@ export function renderBillHtml(order: Record<string, unknown>, settings?: BillSe
   const subtotal = order.subtotal as number;
   const discountAmount = order.discountAmount as number;
   const taxAmount = order.taxAmount as number;
-  const displayGrand = round2(subtotal - discountAmount);
-  const roundedGrand = Math.round(displayGrand);
-  const autoRound = +(roundedGrand - displayGrand).toFixed(2);
+  const totalWithVat = round2(subtotal + taxAmount);
+  const totalDiscount = round2(discountAmount + taxAmount);
+  const grandTotal = round2(totalWithVat - totalDiscount);
+  const roundedGrand = Math.floor(grandTotal);
+  const autoRound = +(roundedGrand - grandTotal).toFixed(2);
 
-  const payment = order.payment as { method: string } | undefined;
+  const payment = order.payment as { method: string; transactionId?: string } | undefined;
   const cashTendered = order.cashTendered as number | undefined;
-  const returnedAmount = cashTendered != null ? round2(Math.max(0, cashTendered - displayGrand)) : 0;
+  const returnedAmount = cashTendered != null ? round2(Math.max(0, cashTendered - roundedGrand)) : 0;
 
   const customer = order.customerId as { name?: string; phone?: string } | null | undefined;
   const createdBy = order.createdBy as { name?: string } | null | undefined;
@@ -181,7 +184,6 @@ export function renderBillHtml(order: Record<string, unknown>, settings?: BillSe
   const logoUrl = settings?.logo?.url || '';
   const bin = settings?.vatInfo?.bin || '';
   const mushak = settings?.vatInfo?.mushak || '';
-  const showVat = !!(bin && taxAmount > 0);
 
   const createdAt = order.createdAt as Date | string | undefined;
   const dateStr = createdAt ? new Date(createdAt).toLocaleDateString('en-BD', { day: 'numeric', month: 'short', year: 'numeric' }) : '';
@@ -221,7 +223,16 @@ export function renderBillHtml(order: Record<string, unknown>, settings?: BillSe
   .change { color: #c00; }
   .footer { text-align: center; margin-top: 20px; padding-top: 12px; border-top: 1px dashed #ccc; font-size: 10px; color: #888; }
   .footer p { margin-bottom: 2px; }
+  .page-break { page-break-before: always; }
   @media print { body { max-width: none; padding: 12px; } .header img { max-width: 60px; max-height: 60px; filter: grayscale(100%); } }
+  .kitchen-header { text-align: center; margin-bottom: 24px; }
+  .kitchen-header h1 { font-size: 26px; font-weight: bold; }
+  .kitchen-header .sub { font-size: 18px; color: #c00; font-weight: bold; margin-top: 6px; }
+  .kitchen-meta { margin-bottom: 16px; padding-bottom: 10px; border-bottom: 1px solid #000; font-size: 18px; }
+  .kitchen-meta .info-row span:first-child { color: #555; }
+  .kitchen-table { width: 100%; border-collapse: collapse; margin-bottom: 8px; }
+  .kitchen-table thead th { border-bottom: 2px solid #000; padding: 10px 0; font-size: 18px; text-align: left; text-transform: uppercase; }
+  .kitchen-table tbody td { padding: 10px 0; font-size: 18px; }
 </style></head><body>
 
 <div class="header">
@@ -235,7 +246,7 @@ export function renderBillHtml(order: Record<string, unknown>, settings?: BillSe
 
 <div class="meta">
   ${order.tableNumber ? `<div class="info-row"><span>Table</span><span>${escapeHtml(order.tableNumber as string)}</span></div>` : ''}
-  ${servedBy?.name ? `<div class="info-row"><span>Staff</span><span>${escapeHtml(servedBy.name)}</span></div>` : createdBy?.name ? `<div class="info-row"><span>Staff</span><span>${escapeHtml(createdBy.name)}</span></div>` : ''}
+  ${servedBy?.name ? `<div class="info-row"><span>Served By</span><span>${escapeHtml(servedBy.name)}</span></div>` : createdBy?.name ? `<div class="info-row"><span>Served By</span><span>${escapeHtml(createdBy.name)}</span></div>` : ''}
   <div class="info-row"><span>Date</span><span>${dateStr}</span></div>
   <div class="info-row"><span>Time</span><span>${timeStr}</span></div>
   <div class="info-row"><span>Invoice</span><span>${orderNumber}</span></div>
@@ -251,9 +262,9 @@ export function renderBillHtml(order: Record<string, unknown>, settings?: BillSe
 
 <div class="totals">
   <div class="total-line"><span class="label">Subtotal</span><span>${formatBdt(subtotal)}</span></div>
-  ${discountAmount > 0 ? `<div class="total-line"><span class="label">Discount</span><span>-${formatBdt(discountAmount)}</span></div>` : ''}
-  ${taxAmount > 0 ? `<div class="total-line"><span class="label">${showVat ? 'VAT (5%)' : 'VAT'}</span><span>${formatBdt(taxAmount)}</span></div>
-  <div class="total-line"><span class="label">${showVat ? 'VAT (5%)' : 'VAT'}</span><span>-${formatBdt(taxAmount)}</span></div>` : ''}
+  ${taxAmount > 0 ? `<div class="total-line"><span class="label">VAT</span><span>${formatBdt(taxAmount)}</span></div>` : ''}
+  <div class="total-line" style="font-weight: 600;"><span class="label">Subtotal + VAT</span><span>${formatBdt(totalWithVat)}</span></div>
+  ${totalDiscount > 0 ? `<div class="total-line"><span class="label">Discount</span><span>-${formatBdt(totalDiscount)}</span></div>` : ''}
   ${autoRound !== 0 ? `<div class="total-line"><span class="label">Auto Round</span><span>${formatBdt(autoRound)}</span></div>` : ''}
   <div class="grand-total"><span>Grand Total</span><span>${formatBdt(roundedGrand)}</span></div>
 </div>
@@ -268,8 +279,39 @@ export function renderBillHtml(order: Record<string, unknown>, settings?: BillSe
 ${cancelledLine}
 
 <div class="footer">
-  <p>Thank you, come again!</p>
+  <p>THANK YOU FOR VISITING</p>
+  <p>If you have any complaints or suggestions,<br />please contact our manager immediately.</p>
+  <p>Your feedback helps us improve.</p>
+  <p>Have a Wonderful Day!</p>
 </div>
+
+<div class="page-break"></div>
+
+<div class="kitchen-header">
+  <h1>${escapeHtml(settings?.restaurantName || '')}</h1>
+  <p class="sub">— KITCHEN COPY —</p>
+</div>
+
+<div class="kitchen-meta">
+  <div class="info-row"><span>Invoice</span><span>${orderNumber}</span></div>
+  ${order.tableNumber ? `<div class="info-row"><span>Table</span><span>${escapeHtml(order.tableNumber as string)}</span></div>` : ''}
+  ${servedBy?.name ? `<div class="info-row"><span>Served By</span><span>${escapeHtml(servedBy.name)}</span></div>` : createdBy?.name ? `<div class="info-row"><span>Served By</span><span>${escapeHtml(createdBy.name)}</span></div>` : ''}
+  <div class="info-row"><span>Date</span><span>${dateStr}</span></div>
+  <div class="info-row"><span>Time</span><span>${timeStr}</span></div>
+</div>
+
+<table class="kitchen-table">
+  <thead>
+    <tr><th>Item</th><th style="text-align: center">Qty</th></tr>
+  </thead>
+  <tbody>
+    ${items.map((item) => `
+    <tr>
+      <td>${escapeHtml(item.nameSnapshot as string)}</td>
+      <td style="text-align: center">${item.quantity}</td>
+    </tr>`).join('')}
+  </tbody>
+</table>
 
 </body></html>`;
 }
@@ -447,6 +489,7 @@ export async function updateOrder(id: string, dto: UpdateOrderDto) {
 
   if (dto.payment) {
     if (dto.payment.method) updates['payment.method'] = dto.payment.method;
+    if (dto.payment.transactionId !== undefined) updates['payment.transactionId'] = dto.payment.transactionId;
   }
 
   if (dto.cashTendered !== undefined) {

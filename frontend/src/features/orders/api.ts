@@ -44,6 +44,7 @@ export interface OrderDetail {
   changeAmount?: number;
   payment: {
     method: string;
+    transactionId?: string;
   };
   status: 'pending' | 'completed' | 'cancelled';
   createdBy: { _id: string; name: string } | string;

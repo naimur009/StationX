@@ -5,6 +5,7 @@ const ORDER_TYPES = ['dine-in', 'takeaway', 'delivery'] as const;
 
 const paymentSchema = z.object({
   method: z.enum(PAYMENT_METHODS),
+  transactionId: z.string().max(20).optional(),
 });
 
 const orderItemSchema = z.object({

@@ -33,9 +33,7 @@ export default function OrderEditForm({ order, open, onClose, onSaved }: OrderEd
     order.items.map((i) => ({ productId: i.productId, quantity: i.quantity }))
   );
   const [paymentMethod, setPaymentMethod] = useState(order.payment.method);
-  const [cashTendered, setCashTendered] = useState(
-    order.cashTendered ? String(order.cashTendered) : ''
-  );
+  const [transactionId, setTransactionId] = useState(order.payment.transactionId || '');
   const [discountPercent, setDiscountPercent] = useState(order.discountPercent);
   const [extraPaid, setExtraPaid] = useState(0);
   const [productCatalog, setProductCatalog] = useState<CatalogProduct[]>([]);
@@ -60,7 +58,7 @@ export default function OrderEditForm({ order, open, onClose, onSaved }: OrderEd
     setTableNumber(order.tableNumber || '');
     setItems(order.items.map((i) => ({ productId: i.productId, quantity: i.quantity })));
     setPaymentMethod(order.payment.method);
-    setCashTendered(order.cashTendered ? String(order.cashTendered) : '');
+    setTransactionId(order.payment.transactionId || '');
     setDiscountPercent(order.discountPercent);
     setExtraPaid(0);
     setError('');
@@ -81,14 +79,16 @@ export default function OrderEditForm({ order, open, onClose, onSaved }: OrderEd
     const taxRate = product?.taxRate ?? 0;
     return sum + round2(i.lineTotal * (taxRate / 100));
   }, 0));
-  const grandTotal = round2(subtotal - discountAmount);
+  const totalWithVat = round2(subtotal + taxAmount);
+  const totalDiscount = round2(discountAmount + taxAmount);
+  const grandTotal = round2(totalWithVat - totalDiscount);
 
   const originalGrandTotal = order.grandTotal;
-  const tendered = parseFloat(cashTendered) || 0;
-  const extraDue = paymentMethod === 'cash' && grandTotal > originalGrandTotal
-    ? round2(grandTotal - originalGrandTotal)
+  const originalCashTendered = order.cashTendered || 0;
+  const extraDue = paymentMethod === 'cash' && grandTotal > originalCashTendered
+    ? round2(grandTotal - originalCashTendered)
     : 0;
-  const effectiveCashTendered = round2(tendered + extraPaid);
+  const effectiveCashTendered = round2(originalCashTendered + extraPaid);
   const changeAmount = paymentMethod === 'cash' && effectiveCashTendered >= grandTotal
     ? round2(effectiveCashTendered - grandTotal)
     : 0;
@@ -118,14 +118,12 @@ export default function OrderEditForm({ order, open, onClose, onSaved }: OrderEd
   async function handleSave() {
     setError('');
     if (paymentMethod === 'cash') {
-      if (extraDue > 0) {
-        const extraProvided = round2(effectiveCashTendered - (order.cashTendered || 0));
-        if (extraProvided < extraDue) {
-          setError(`Extra paid must be at least ${formatBdt(extraDue)} to cover the increased total.`);
-          return;
-        }
-      } else if (effectiveCashTendered < grandTotal) {
-        setError('Cash tendered must be greater than or equal to the grand total.');
+      if (extraDue > 0 && extraPaid < extraDue) {
+        setError(`Extra pay must be at least ${formatBdt(extraDue)} to cover the increased total.`);
+        return;
+      }
+      if (effectiveCashTendered < grandTotal) {
+        setError('Total payment must be greater than or equal to the grand total.');
         return;
       }
     }
@@ -134,10 +132,10 @@ export default function OrderEditForm({ order, open, onClose, onSaved }: OrderEd
     if (JSON.stringify(items) !== JSON.stringify(order.items.map((i) => ({ productId: i.productId, quantity: i.quantity })))) {
       payload.items = items;
     }
-    if (paymentMethod !== order.payment.method) {
-      payload.payment = { method: paymentMethod };
+    if (paymentMethod !== order.payment.method || transactionId !== (order.payment.transactionId || '')) {
+      payload.payment = { method: paymentMethod, ...(transactionId ? { transactionId } : {}) };
     }
-    if (paymentMethod === 'cash' && effectiveCashTendered > 0) {
+    if (paymentMethod === 'cash' && extraPaid > 0) {
       payload.cashTendered = effectiveCashTendered;
       payload.changeAmount = changeAmount;
     }
@@ -160,7 +158,8 @@ export default function OrderEditForm({ order, open, onClose, onSaved }: OrderEd
     tableNumber !== (order.tableNumber || '') ||
     JSON.stringify(items) !== JSON.stringify(order.items.map((i) => ({ productId: i.productId, quantity: i.quantity }))) ||
     paymentMethod !== order.payment.method ||
-    (paymentMethod === 'cash' && effectiveCashTendered > 0 && effectiveCashTendered !== (order.cashTendered || 0)) ||
+    transactionId !== (order.payment.transactionId || '') ||
+    (paymentMethod === 'cash' && extraPaid > 0) ||
     discountPercent !== order.discountPercent;
 
   return (
@@ -230,21 +229,25 @@ export default function OrderEditForm({ order, open, onClose, onSaved }: OrderEd
                 <span className="text-slate-500">Subtotal</span>
                 <span className="text-slate-800">{formatBdt(subtotal)}</span>
               </div>
-              {discountAmount > 0 && (
-                <div className="flex justify-between text-sm">
-                  <span className="text-slate-500">Discount ({discountPercent}%)</span>
-                  <span className="text-green-600">-{formatBdt(discountAmount)}</span>
-                </div>
-              )}
               {taxAmount > 0 && (
                 <div className="flex justify-between text-sm">
                   <span className="text-slate-500">VAT</span>
-                  <span className="text-slate-600">{formatBdt(taxAmount)}</span>
+                  <span className="text-slate-800">{formatBdt(taxAmount)}</span>
+                </div>
+              )}
+              <div className="flex justify-between text-sm font-bold">
+                <span>Subtotal + VAT</span>
+                <span>{formatBdt(totalWithVat)}</span>
+              </div>
+              {totalDiscount > 0 && (
+                <div className="flex justify-between text-sm font-bold">
+                  <span className="text-green-600">Discount ({discountPercent}%)</span>
+                  <span className="text-green-600">-{formatBdt(totalDiscount)}</span>
                 </div>
               )}
               <div className="flex justify-between border-t border-border pt-1.5 text-base font-bold">
-                <span className="text-slate-800">Grand Total</span>
-                <span className="text-slate-800">{formatBdt(grandTotal)}</span>
+                <span>Grand Total</span>
+                <span>{formatBdt(grandTotal)}</span>
               </div>
             </div>
           )}
@@ -276,7 +279,7 @@ export default function OrderEditForm({ order, open, onClose, onSaved }: OrderEd
           </div>
         </div>
 
-        {/* Payment */}
+          {/* Payment */}
         <div className="pb-3">
           <h3 className="mb-2.5 text-sm font-bold text-slate-800">Payment</h3>
           <div className="flex flex-wrap gap-2">
@@ -295,19 +298,24 @@ export default function OrderEditForm({ order, open, onClose, onSaved }: OrderEd
             ))}
           </div>
 
+          {paymentMethod !== 'cash' && (
+            <div className="mt-3">
+              <label className="mb-1 block text-sm font-medium text-slate-700">Transaction ID</label>
+              <Input
+                placeholder="Last 3-4 digits"
+                value={transactionId}
+                onChange={(e) => setTransactionId(e.target.value)}
+                maxLength={20}
+              />
+            </div>
+          )}
           {paymentMethod === 'cash' && (
             <div className="mt-3 grid grid-cols-2 gap-3">
               <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700">Cash Tendered</label>
-                <Input
-                  type="number"
-                  inputMode="decimal"
-                  step="0.01"
-                  min="0"
-                  placeholder="0.00"
-                  value={cashTendered}
-                  onChange={(e) => setCashTendered(e.target.value)}
-                />
+                <label className="mb-1 block text-sm font-medium text-slate-700">Cash Tendered (prev)</label>
+                <div className="flex h-10 items-center rounded-xl border border-slate-200 bg-slate-50 px-3.5 text-sm font-medium text-slate-600">
+                  {formatBdt(originalCashTendered)}
+                </div>
               </div>
               <div>
                 <label className="mb-1 block text-sm font-medium text-slate-700">Change</label>
@@ -316,26 +324,24 @@ export default function OrderEditForm({ order, open, onClose, onSaved }: OrderEd
                 </div>
               </div>
               {extraDue > 0 && (
-                <>
-                  <div className="col-span-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2">
-                    <p className="text-xs font-medium text-amber-700">
-                      Extra to pay: {formatBdt(extraDue)}
-                    </p>
-                  </div>
-                  <div>
-                    <label className="mb-1 block text-sm font-medium text-slate-700">Extra Paid</label>
-                    <Input
-                      type="number"
-                      inputMode="decimal"
-                      step="0.01"
-                      min="0"
-                      placeholder="0.00"
-                      value={extraPaid || ''}
-                      onChange={(e) => setExtraPaid(parseFloat(e.target.value) || 0)}
-                    />
-                  </div>
-                </>
+                <div className="col-span-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2">
+                  <p className="text-xs font-medium text-amber-700">
+                    Extra due: {formatBdt(extraDue)}
+                  </p>
+                </div>
               )}
+              <div className="col-span-2">
+                <label className="mb-1 block text-sm font-medium text-slate-700">Extra Pay</label>
+                <Input
+                  type="number"
+                  inputMode="decimal"
+                  step="0.01"
+                  min="0"
+                  placeholder="0.00"
+                  value={extraPaid || ''}
+                  onChange={(e) => setExtraPaid(parseFloat(e.target.value) || 0)}
+                />
+              </div>
             </div>
           )}
         </div>

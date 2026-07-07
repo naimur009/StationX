@@ -26,6 +26,7 @@ const updateOrderItemSchema = z.object({
 
 const updatePaymentSchema = z.object({
   method: z.enum(['cash', 'card', 'bkash', 'nagad']).optional(),
+  transactionId: z.string().max(20).optional(),
 }).optional();
 
 export const updateOrderSchema = z.object({

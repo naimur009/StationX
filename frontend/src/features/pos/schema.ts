@@ -32,6 +32,7 @@ export interface PosState {
   couponDiscount: number;
   couponType: 'flat' | 'percentage' | null;
   paymentMethod: PaymentMethod;
+  transactionId: string;
   discountPercent: number;
   cashTendered: string;
   submitting: boolean;

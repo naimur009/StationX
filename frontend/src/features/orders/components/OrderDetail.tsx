@@ -18,6 +18,10 @@ function formatBdt(n: number): string {
   return `\u09F3${n.toFixed(2)}`;
 }
 
+function round2(n: number): number {
+  return +n.toFixed(2);
+}
+
 function formatDate(dateStr: string): string {
   return new Date(dateStr).toLocaleString('en-BD', {
     day: 'numeric',
@@ -203,6 +207,12 @@ export default function OrderDetailView({ order }: OrderDetailViewProps) {
               <span className="text-slate-500">Method</span>
               <span className="font-medium capitalize text-slate-800">{order.payment.method}</span>
             </div>
+            {order.payment.transactionId && (
+              <div className="flex justify-between">
+                <span className="text-slate-500">Transaction ID</span>
+                <span className="font-medium text-slate-800">{order.payment.transactionId}</span>
+              </div>
+            )}
             {order.cashTendered !== undefined && order.cashTendered !== null && (
               <div className="flex justify-between">
                 <span className="text-slate-500">Cash Tendered</span>
@@ -269,28 +279,47 @@ export default function OrderDetailView({ order }: OrderDetailViewProps) {
       {/* Totals */}
       <div className="flex justify-end">
         <div className="w-full max-w-sm space-y-2 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-          <div className="flex justify-between text-sm">
-            <span className="text-slate-500">Subtotal</span>
-            <span className="text-slate-800">{formatBdt(order.subtotal)}</span>
-          </div>
-          {order.discountAmount > 0 && (
-            <div className="flex justify-between text-sm">
-              <span className="text-slate-500">
-                Discount{order.couponId ? ' (Coupon)' : ''} {order.discountPercent > 0 && `(${order.discountPercent}%)`}
-              </span>
-              <span className="text-green-600">-{formatBdt(order.discountAmount)}</span>
-            </div>
-          )}
-          {order.taxAmount > 0 && (
-            <div className="flex justify-between text-sm">
-              <span className="text-slate-500">VAT</span>
-              <span className="text-slate-800">{formatBdt(order.taxAmount)}</span>
-            </div>
-          )}
-          <div className="flex justify-between border-t border-slate-200 pt-2 text-base font-bold">
-            <span className="text-slate-800">Grand Total</span>
-            <span className="text-slate-800">{formatBdt(order.grandTotal)}</span>
-          </div>
+          {(() => {
+            const totalWithVat = round2(order.subtotal + order.taxAmount);
+            const totalDiscount = round2(order.discountAmount + order.taxAmount);
+            const grandTotal = round2(totalWithVat - totalDiscount);
+            const roundedGrand = Math.floor(grandTotal);
+            const autoRound = +(roundedGrand - grandTotal).toFixed(2);
+            return (
+              <>
+                <div className="flex justify-between text-sm">
+                  <span className="text-slate-500">Subtotal</span>
+                  <span className="text-slate-800">{formatBdt(order.subtotal)}</span>
+                </div>
+                {order.taxAmount > 0 && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-slate-500">VAT</span>
+                    <span className="text-slate-800">{formatBdt(order.taxAmount)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between text-sm font-bold">
+                  <span>Subtotal + VAT</span>
+                  <span>{formatBdt(totalWithVat)}</span>
+                </div>
+                {totalDiscount > 0 && (
+                  <div className="flex justify-between text-sm font-bold">
+                    <span className="text-green-600">Discount</span>
+                    <span className="text-green-600">-{formatBdt(totalDiscount)}</span>
+                  </div>
+                )}
+                {autoRound !== 0 && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-slate-500">Auto Round</span>
+                    <span className="text-slate-500">{formatBdt(autoRound)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between border-t border-slate-200 pt-2 text-base font-bold">
+                  <span>Grand Total</span>
+                  <span>{formatBdt(roundedGrand)}</span>
+                </div>
+              </>
+            );
+          })()}
         </div>
       </div>
 

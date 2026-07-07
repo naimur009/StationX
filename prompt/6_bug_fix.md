@@ -10,7 +10,9 @@ Fix review findings without changing unrelated code.
 
 Review Findings:
 
+i face issue in attendance system, 
 
+the attendance system is not showing user information correctly. it should take attendance of the employee not the user. so check the error and fix this full system correctly
 
 
 # REQUIREMENTS

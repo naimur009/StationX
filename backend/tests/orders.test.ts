@@ -338,18 +338,24 @@ describe('renderBillHtml', () => {
     expect(html).toContain('Pasta');
     expect(html).toContain('Juice');
     expect(html).toContain('\u09F328.00');
+    expect(html).toContain('\u09F330.50');
     expect(html).toContain('\u09F326.00');
     expect(html).toContain('CASH');
     expect(html).toContain('Table');
     expect(html).toContain('5');
-    expect(html).toContain('Thank you, come again!');
+    expect(html).toContain('THANK YOU FOR VISITING');
+    expect(html).toContain('Have a Wonderful Day!');
+    expect(html).toContain('KITCHEN COPY');
   });
 
-  it('includes both VAT addition and deduction when taxAmount > 0', () => {
+  it('includes VAT and combined Discount when taxAmount > 0', () => {
     const html = renderBillHtml(sampleOrder as never);
     expect(html).toContain('VAT');
     expect(html).toContain('\u09F32.50');
-    expect(html).toContain('-\u09F32.50');
+    expect(html).toContain('Subtotal + VAT');
+    expect(html).toContain('Grand Total');
+    expect(html).toContain('\u09F326.00');
+    expect(html).toContain('-\u09F34.50');
   });
 
   it('omits VAT row when taxAmount is 0', () => {
@@ -358,16 +364,23 @@ describe('renderBillHtml', () => {
     expect(html).not.toContain('>VAT<');
   });
 
-  it('includes discount row when discountAmount > 0', () => {
+  it('includes combined discount row when totalDiscount > 0', () => {
     const html = renderBillHtml(sampleOrder as never);
-    expect(html).toContain('Discount');
-    expect(html).toContain('-\u09F32.00');
+    expect(html).toContain('>Discount</span><span>');
+    expect(html).toContain('-\u09F34.50');
   });
 
-  it('omits discount row when discountAmount is 0', () => {
+  it('shows combined discount as VAT amount when discountAmount is 0 but taxAmount > 0', () => {
     const noDiscount = { ...sampleOrder, discountAmount: 0 };
     const html = renderBillHtml(noDiscount as never);
-    expect(html).not.toContain('Discount');
+    expect(html).toContain('>Discount</span><span>');
+    expect(html).toContain('-\u09F32.50');
+  });
+
+  it('omits discount line when both discountAmount and taxAmount are 0', () => {
+    const noDiscountNoTax = { ...sampleOrder, discountAmount: 0, taxAmount: 0 };
+    const html = renderBillHtml(noDiscountNoTax as never);
+    expect(html).not.toContain('>Discount</span><span>');
   });
 
   it('includes cancelled reason when status is cancelled', () => {
@@ -392,7 +405,8 @@ describe('renderBillHtml', () => {
   it('handles missing payment info gracefully', () => {
     const noPayment = { ...sampleOrder, payment: undefined, cashTendered: undefined, changeAmount: undefined };
     const html = renderBillHtml(noPayment as unknown as never);
-    expect(html).toContain('Thank you, come again!');
+    expect(html).toContain('THANK YOU FOR VISITING');
+    expect(html).toContain('Have a Wonderful Day!');
   });
 
   it('includes cash tendered and change amount', () => {
@@ -403,11 +417,11 @@ describe('renderBillHtml', () => {
     expect(html).toContain('\u09F3474.00');
   });
 
-  it('includes auto-round when display grand total is not round', () => {
+  it('includes auto-round when grand total is not round', () => {
     const nonRound = { ...sampleOrder, subtotal: 28.5, discountAmount: 0, taxAmount: 0, grandTotal: 28.5 };
     const html = renderBillHtml(nonRound as never);
     expect(html).toContain('Auto Round');
-    expect(html).toContain('\u09F30.50');
+    expect(html).toContain('\u09F3-0.50');
   });
 
   it('includes settings data when provided', () => {
@@ -422,6 +436,23 @@ describe('renderBillHtml', () => {
     expect(html).toContain('01700000000');
     expect(html).toContain('BIN: 123456789');
     expect(html).toContain('Mushak-6.3');
+    expect(html).toContain('Test Cafe');
+  });
+
+  it('renders kitchen copy with items and quantity', () => {
+    const withServer = {
+      ...sampleOrder,
+      servedBy: { name: 'Alice' },
+      createdBy: { name: 'Bob' },
+    };
+    const html = renderBillHtml(withServer as never);
+    expect(html).toContain('KITCHEN COPY');
+    expect(html).toContain('Pasta');
+    expect(html).toContain('Juice');
+    expect(html).toContain('Alice');
+    expect(html).toContain('Invoice');
+    expect(html).toContain('ORD-000001');
+    expect(html).toContain('5');
   });
 });
 

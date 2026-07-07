@@ -25,6 +25,7 @@ export default function PosPage() {
   const couponDiscount = usePosStore((s) => s.couponDiscount);
   const couponType = usePosStore((s) => s.couponType);
   const paymentMethod = usePosStore((s) => s.paymentMethod);
+  const transactionId = usePosStore((s) => s.transactionId);
   const discountPercent = usePosStore((s) => s.discountPercent);
   const cashTendered = usePosStore((s) => s.cashTendered);
   const submitting = usePosStore((s) => s.submitting);
@@ -33,6 +34,7 @@ export default function PosPage() {
   const setTableNumber = usePosStore((s) => s.setTableNumber);
   const setServedBy = usePosStore((s) => s.setServedBy);
   const setDiscountPercent = usePosStore((s) => s.setDiscountPercent);
+  const setTransactionId = usePosStore((s) => s.setTransactionId);
   const setCashTendered = usePosStore((s) => s.setCashTendered);
   const setSubmitting = usePosStore((s) => s.setSubmitting);
   const reset = usePosStore((s) => s.reset);
@@ -52,7 +54,7 @@ export default function PosPage() {
   const [lookingUpCust, setLookingUpCust] = useState(false);
   const custTimerRef = useRef<ReturnType<typeof setTimeout>>();
   const custAbortRef = useRef<AbortController>();
-  const isLoyaltyEligible = loyaltyThreshold > 0 && lookedUpCust !== null && lookedUpCust.orderCount >= loyaltyThreshold;
+  const isLoyaltyMilestone = loyaltyThreshold > 0 && lookedUpCust !== null && lookedUpCust.orderCount > 0 && lookedUpCust.orderCount % loyaltyThreshold === 0;
 
   useEffect(() => {
     if (custTimerRef.current) clearTimeout(custTimerRef.current);
@@ -123,7 +125,7 @@ export default function PosPage() {
     try {
       const payload: Record<string, unknown> = {
         items: items.map((i) => ({ productId: i.productId, quantity: i.quantity })),
-        payment: { method: paymentMethod },
+        payment: { method: paymentMethod, ...(transactionId ? { transactionId } : {}) },
       };
 
       if (tableNumber) {
@@ -265,9 +267,10 @@ export default function PosPage() {
                         {lookedUpCust.orderCount} order{lookedUpCust.orderCount !== 1 ? 's' : ''} placed
                       </div>
                     )}
-                    {isLoyaltyEligible && (
-                      <div className="mt-1.5 rounded-lg bg-amber-100 px-2.5 py-1.5 text-xs font-semibold text-amber-700">
-                        Loyalty customer — {lookedUpCust!.orderCount} orders placed
+                    {isLoyaltyMilestone && (
+                      <div className="mt-1.5 rounded-xl bg-purple-100 px-3 py-2 text-xs font-semibold text-purple-800">
+                        This customer has placed {lookedUpCust!.orderCount} orders with us.
+                        Congratulations on reaching {lookedUpCust!.orderCount} orders!
                       </div>
                     )}
                     {!lookingUpCust && customerPhone.trim() && !lookedUpCust && (
@@ -314,6 +317,17 @@ export default function PosPage() {
               <div className="space-y-2 rounded-xl border border-border p-3">
                 <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Payment</p>
                 <PaymentMethodSelector />
+                {paymentMethod !== 'cash' && (
+                  <div className="relative">
+                    <Input
+                      placeholder="Transaction ID (last 3-4 digits)"
+                      value={transactionId}
+                      onChange={(e) => setTransactionId(e.target.value)}
+                      className="pl-3 text-sm"
+                      maxLength={20}
+                    />
+                  </div>
+                )}
                 {paymentMethod === 'cash' && (
                   <div className="space-y-2">
                     <div className="relative">

@@ -25,10 +25,20 @@ Then read these docs relevant to the feature being modified:
 
 ## Feature to Modify
 
-**Module:** <category>
+**Module:** <orders>
 **What to change:**
-add Tax on the category, items under this categories should have tax. make sure tax is calculated on the items. also make changes in the order, when i add an item to the order, it should have the tax added to it. and in order details page, the tax should be displayed separately. for now tax rate will be 5 percent.
 
+the bill page will be 2: one is for customer and one is for kitchen:
+    the customer bill is already implemented. 
+    the kitchen bill is not implemented. 
+    the kitchen bill will be something like this:
+        1. table no
+        2. order no
+        3. server name or waiter name
+        4. item name
+        5. quantity
+        
+    
 
 
 ## Scope Boundaries

@@ -10,6 +10,7 @@ export interface IOrderItem {
 
 export interface IPayment {
   method: 'cash' | 'card' | 'bkash' | 'nagad';
+  transactionId?: string;
 }
 
 export interface IOrder extends Document {
@@ -46,6 +47,7 @@ const paymentSchema = new Schema<IPayment>(
       required: true,
       enum: ['cash', 'card', 'bkash', 'nagad'],
     },
+    transactionId: { type: String, required: false },
   },
   { _id: false }
 );
