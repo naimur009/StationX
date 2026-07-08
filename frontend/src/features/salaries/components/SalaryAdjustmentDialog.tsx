@@ -15,23 +15,7 @@ const MONTHS = [
   'July', 'August', 'September', 'October', 'November', 'December',
 ];
 
-const BONUS_REASONS = [
-  'Good work',
-  'Festival bonus',
-  'Performance bonus',
-  'Overtime',
-  'Special contribution',
-  'Other',
-];
 
-const CUT_REASONS = [
-  'Late coming',
-  'Misconduct',
-  'Absence',
-  'Half day',
-  'Leave without pay',
-  'Other',
-];
 
 interface SalaryAdjustmentDialogProps {
   open: boolean;
@@ -53,7 +37,7 @@ export default function SalaryAdjustmentDialog({
   onClose,
 }: SalaryAdjustmentDialogProps) {
   const [error, setError] = useState<string | null>(null);
-  const [customReason, setCustomReason] = useState(false);
+
   const createAdjustment = useCreateAdjustment();
   const updateAdjustment = useUpdateAdjustment();
   const isEdit = !!editAdjustment;
@@ -93,8 +77,6 @@ export default function SalaryAdjustmentDialog({
 
   const selectedType = watch('type');
 
-  const currentReasons = selectedType === 'bonus' ? BONUS_REASONS : CUT_REASONS;
-
   useEffect(() => {
     if (open) {
       if (editAdjustment) {
@@ -104,7 +86,6 @@ export default function SalaryAdjustmentDialog({
           reason: editAdjustment.reason,
           date: new Date(editAdjustment.date),
         });
-        setCustomReason(!BONUS_REASONS.includes(editAdjustment.reason) && !CUT_REASONS.includes(editAdjustment.reason));
       } else {
         reset({
           employeeId: defaultEmployeeId ?? '',
@@ -115,7 +96,6 @@ export default function SalaryAdjustmentDialog({
           month: defaultMonth ?? now.getMonth() + 1,
           year: defaultYear ?? now.getFullYear(),
         });
-        setCustomReason(false);
       }
       setError(null);
     }
@@ -123,7 +103,6 @@ export default function SalaryAdjustmentDialog({
 
   useEffect(() => {
     setValue('reason', '');
-    setCustomReason(false);
   }, [selectedType, setValue]);
 
   function formatCurrency(amount: number): string {
@@ -286,44 +265,15 @@ export default function SalaryAdjustmentDialog({
           <label htmlFor="adj-reason" className="mb-1.5 block text-sm font-medium text-slate-700">
             Reason <span className="text-red-500">*</span>
           </label>
-          {!customReason ? (
-            <div className="space-y-1.5">
-              {currentReasons.map((reason) => (
-                <button
-                  key={reason}
-                  type="button"
-                  onClick={() => {
-                    setValue('reason', reason);
-                    if (reason === 'Other') {
-                      setCustomReason(true);
-                    }
-                  }}
-                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-left text-sm text-slate-700 transition-colors hover:border-blue-300 hover:bg-blue-50"
-                >
-                  {reason}
-                </button>
-              ))}
-            </div>
-          ) : (
-            <div className="space-y-2">
-              <input
-                id="adj-reason"
-                type="text"
-                placeholder="Enter custom reason"
-                className={`w-full rounded-xl border bg-white px-3.5 py-2.5 text-sm text-slate-800 placeholder-slate-400 ring-ring focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-ring ${
-                  errors.reason ? 'border-red-400' : 'border-slate-300'
-                }`}
-                {...register('reason')}
-              />
-              <button
-                type="button"
-                onClick={() => { setCustomReason(false); setValue('reason', ''); }}
-                className="text-xs text-blue-600 hover:underline"
-              >
-                Back to preset reasons
-              </button>
-            </div>
-          )}
+          <input
+            id="adj-reason"
+            type="text"
+            placeholder="Enter reason"
+            className={`w-full rounded-xl border bg-white px-3.5 py-2.5 text-sm text-slate-800 placeholder-slate-400 ring-ring focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-ring ${
+              errors.reason ? 'border-red-400' : 'border-slate-300'
+            }`}
+            {...register('reason')}
+          />
           {errors.reason && <p className="mt-1 text-xs text-red-500">{errors.reason.message}</p>}
         </div>
 

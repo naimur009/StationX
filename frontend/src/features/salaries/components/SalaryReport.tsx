@@ -71,11 +71,11 @@ export default function SalaryReport() {
   const filteredEmployees = viewMode === 'all'
     ? sortedEmployees
     : sortedEmployees.filter((e) => {
-        if (viewMode === 1) return e.totalPaid === 0;
-        if (viewMode === 2) return e.totalPaid > 0 && e.totalPaid < e.baseSalary;
-        if (viewMode === 3) return e.totalPaid >= e.baseSalary;
-        return true;
-      });
+      if (viewMode === 1) return e.totalPaid === 0;
+      if (viewMode === 2) return e.totalPaid > 0 && e.totalPaid < e.baseSalary;
+      if (viewMode === 3) return e.totalPaid >= e.baseSalary;
+      return true;
+    });
 
   return (
     <div className="space-y-5">
