@@ -299,7 +299,42 @@ Monthly salary records for employees, with advance tracking. `baseSalary` is fix
 > - A salary record with existing advances cannot be hard-deleted.
 > - `status: 'cancelled'` is only allowed when `advances` is empty.
 
-### 3.13 Expense
+### 3.13 SalaryAdjustment
+
+Records bonuses and salary cuts (deductions) for employees. Each adjustment is a single entry specifying whether it is a bonus (positive adjustment) or cut (negative adjustment).
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| `employeeId` | ObjectId → Employee | ✓ | The employee this adjustment applies to |
+| `salaryId` | ObjectId → Salary | — | Optional link to a specific monthly salary record |
+| `type` | String enum `bonus \| cut` | ✓ | Whether this is a bonus or a salary cut/deduction |
+| `amount` | Number | ✓ | Positive amount (always stored as positive; the `type` field determines whether it adds or subtracts) |
+| `reason` | String | ✓ | Free-text reason (e.g. "Late coming", "Festival bonus", "Good work") |
+| `date` | Date | ✓ | Date the adjustment was applied |
+| `month` | Number | ✓ | 1–12 |
+| `year` | Number | ✓ | e.g. 2026 |
+| `createdBy` | ObjectId → User | ✓ | Who recorded the adjustment |
+
+**Indexes:** `{ employeeId: 1, month: 1, year: 1 }`, `{ salaryId: 1 }`, `{ type: 1 }`.
+
+### 3.14 SalarySummary
+
+Monthly salary summary per employee, computed from the salary record and all adjustments. Auto-created on first query if it doesn't exist, and can be regenerated on demand.
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| `employeeId` | ObjectId → Employee | ✓ | The employee |
+| `month` | Number | ✓ | 1–12 |
+| `year` | Number | ✓ | e.g. 2026 |
+| `totalSalary` | Number | ✓ (default 0) | Base salary from the monthly Salary record |
+| `totalBonus` | Number | ✓ (default 0) | Sum of all bonus adjustments for this period |
+| `totalCut` | Number | ✓ (default 0) | Sum of all cut adjustments for this period |
+| `totalPaid` | Number | ✓ (default 0) | Sum of all advances paid |
+| `netSalary` | Number | ✓ | `totalSalary + totalBonus - totalCut` |
+
+**Indexes:** unique compound `{ employeeId: 1, month: 1, year: 1 }`, `{ month: 1, year: 1 }`.
+
+### 3.15 Expense
 
 | Field | Type | Required | Notes |
 |---|---|---|---|
@@ -371,6 +406,8 @@ Singleton — exactly one document for the whole restaurant (single-tenant per `
 | Task | `{assignedTo, status}`, `priority`, `deadline` | assignee views, filters |
 | Attendance | `{userId, date}` (unique) | one record/day, history queries |
 | Salary | `{employeeId, month, year}` (unique), `{month, year}`, `{status}` | per-employee monthly records, reports |
+| SalaryAdjustment | `{employeeId, month, year}`, `{salaryId}`, `{type}` | lookups by employee, period, or type |
+| SalarySummary | `{employeeId, month, year}` (unique), `{month, year}` | monthly summary queries |
 | Expense | `date`, `category`, `vendorId` | reports, filters |
 | ActivityLog | `{actor, createdAt}`, `{module, createdAt}` | audit views |
 

@@ -11,9 +11,9 @@
 ## 1. Purpose & Scope
 
 - Defines every HTTP endpoint for all 15 permission-gated modules + Auth, plus shared utility endpoints (uploads).
-- Defines the Socket.io event contract (§22) that complements the REST API for live updates.
-- Defines the permission-module key list (§24) — the authoritative source for what string goes in `User.permissions[].module`, since `DATABASE.md` §3.1 references it but doesn't enumerate it.
-- Resolves a few ambiguities left open by `ARCHITECTURE.md` / `DATABASE.md` where the API layer is where they actually surface (flagged inline and summarized in §25).
+- Defines the Socket.io event contract (§23) that complements the REST API for live updates.
+- Defines the permission-module key list (§25) — the authoritative source for what string goes in `User.permissions[].module`, since `DATABASE.md` §3.1 references it but doesn't enumerate it.
+ - Resolves a few ambiguities left open by `ARCHITECTURE.md` / `DATABASE.md` where the API layer is where they actually surface (flagged inline and summarized in §26).
 
 ---
 
@@ -168,7 +168,7 @@ Base path: `/dashboard`. **Permission module key:** `dashboard` (`view` only —
 | GET | `/dashboard/metrics?range=` | `{ totalEarned, totalProductsSold, totalOrdersCompleted }` for the selected range |
 | GET | `/dashboard/top-items?range=&limit=10` | Top-selling items, same range filter, aggregated from `Order.items` (multikey index, `DATABASE.md` §3.8) |
 
-Both exclude `status: cancelled` orders per `DATABASE.md` §5.4, via the shared aggregation helper noted there — implemented once in `modules/dashboard`, reused by Reports (§19) and Income (§8) so the "exclude cancelled" rule can't be forgotten in one of the three places it applies.
+Both exclude `status: cancelled` orders per `DATABASE.md` §5.4, via the shared aggregation helper noted there — implemented once in `modules/dashboard`, reused by Reports (§20) so the "exclude cancelled" rule can't be forgotten.
 
 Response is short-TTL cacheable (`ARCHITECTURE.md` §2/§10, Redis Phase 2+); until Redis is added, responses carry `Cache-Control: private, max-age=15` as a placeholder so the frontend's React Query layer isn't the only thing preventing redundant aggregation load.
 
@@ -176,7 +176,7 @@ Response is short-TTL cacheable (`ARCHITECTURE.md` §2/§10, Redis Phase 2+); un
 
 ## 8. Income _(Removed — folded into Profit Report)_
 
-Income data is now part of the Profit report (`GET /reports/profit`, §19). The standalone `/income` endpoint is removed.
+Income data is now part of the Profit report (`GET /reports/profit`, §20). The standalone `/income` endpoint is removed.
 
 ---
 
@@ -186,7 +186,7 @@ Base path: `/pos`. **Permission module key:** `pos`. Only `view` (browse catalog
 
 ### 9.1 Product Catalog for POS
 `GET /pos/products?categoryId=&search=`
-Returns only `isActive: true` products, trimmed to the fields the POS grid needs (`id, name, price, image.url, categoryId`). Deliberately a separate route from `GET /products` (§16) rather than the admin product list with a filter flag — the POS screen has its own latency budget (NFR: fast loading for POS) and shouldn't pay for the heavier admin-list payload shape (full image object, `isActive` toggle metadata, timestamps).
+Returns only `isActive: true` products, trimmed to the fields the POS grid needs (`id, name, price, image.url, categoryId`). Deliberately a separate route from `GET /products` (§17) rather than the admin product list with a filter flag — the POS screen has its own latency budget (NFR: fast loading for POS) and shouldn't pay for the heavier admin-list payload shape (full image object, `isActive` toggle metadata, timestamps).
 
 ### 9.2 Coupon Validation (pre-check)
 `POST /pos/coupons/validate`
@@ -236,7 +236,7 @@ This is where `ARCHITECTURE.md` §4's `pos.service.ts` ("order total calc, coupo
 
 **`status` field — assumption made here, flag if wrong:** every POS order requires `payment` upfront (it's a required field per `DATABASE.md` §3.8), which implies payment is captured at the moment of sale in v1 — there's no separate kitchen/fulfillment workflow yet (KDS is `ARCHITECTURE.md` §13 Future Scope). So `status` **defaults to `completed`** if omitted. Staff may explicitly pass `status: "pending"` to represent a dine-in tab taken but not yet finalized; pending orders transition via `PATCH /orders/:id/status` (§10) like any other order.
 
-Internally this delegates to the same transaction described in `DATABASE.md` §5.1 (`Counter` increment, `Order` insert, `Coupon.usageCount` `$inc`, `ActivityLog` write) — POS is the route, not a separate code path. On success it also emits `order:created` and `dashboard:metricsInvalidate` (§22).
+Internally this delegates to the same transaction described in `DATABASE.md` §5.1 (`Counter` increment, `Order` insert, `Coupon.usageCount` `$inc`, `ActivityLog` write) — POS is the route, not a separate code path. On success it also emits `order:created` and `dashboard:metricsInvalidate` (§23).
 
 Errors: `400 VALIDATION_ERROR`, `409 COUPON_USAGE_LIMIT_REACHED` (if a race lost between validate-preview and submit — rare, but the transaction re-checks per `DATABASE.md` §5.2), `409 PRODUCT_UNAVAILABLE` (a submitted `productId` was deactivated between catalog load and submit).
 
@@ -252,7 +252,7 @@ These are deliberately **not built in v1**, but the route shapes below are reser
 | Hold / park a bill, resume later | `POST /pos/holds`, `GET /pos/holds`, `DELETE /pos/holds/:id` | Module-level tool | Not in PRD; would need a lightweight `Hold` collection (cart snapshot only) kept deliberately separate from `Order` so a parked cart never touches `ActivityLog` or coupon usage until it's actually checked out |
 | Void / refund a completed order or single line item | `PATCH /orders/:id/void`, `PATCH /orders/:id/items/:itemId/void` | State-transition | Distinct from `cancelled` (which is pre-fulfillment); a post-completion correction needs its own audit trail and likely a stricter approval step — deferred until a feature spec defines that flow |
 | Split one cart into multiple orders/customers | `POST /pos/orders/split` | Module-level tool | Not to be confused with `payment.splits`, which already splits **one** order's total across payment methods and is in v1 today |
-| Kitchen Display System ticket push | *(none needed)* | — | Already covered — `order:created` (§22) is exactly the event a future KDS client would subscribe to, per `ARCHITECTURE.md` §13 |
+| Kitchen Display System ticket push | *(none needed)* | — | Already covered — `order:created` (§23) is exactly the event a future KDS client would subscribe to, per `ARCHITECTURE.md` §13 |
 | Offline POS queue sync | `POST /pos/orders` + `Idempotency-Key` header | Existing route, additive header | Header name is reserved now (§2) so the route signature won't change shape when offline support is built |
 
 ---
@@ -278,7 +278,7 @@ Base path: `/orders`. **Permission module key:** `orders`.
 ```
 Valid transitions: `pending → completed`, `pending → cancelled`, `completed → cancelled` (the latter requires `cancelReason` and is effectively a refund acknowledgment — gated by the same `orders:edit` permission since the schema's action enum doesn't define a separate `cancel` action; a stricter approval step is a candidate future feature spec, not added here to avoid inventing a permission action `DATABASE.md` doesn't define). `cancelled` is terminal. Sets `completedAt`/`cancelledAt` accordingly and excludes the order from revenue per `DATABASE.md` §5.4.
 
-**Open item — `DELETE /orders/:id` needs a DATABASE.md decision (carried to §25):** the PRD lists "Delete order" as a feature, but `Order` has no `isActive` field in `DATABASE.md` §3.8, and a true hard delete of a *settled* order would silently corrupt historical Reports/Income — directly contradicting the snapshot-pricing rationale that document goes out of its way to protect. Until that's resolved, this endpoint is implemented narrowly: it only succeeds for orders that are `status: pending`, created the same day, and have no coupon usage recorded (i.e., a mistaken/duplicate draft, not a completed sale). Any other order returns `409 ORDER_NOT_DELETABLE` with a message pointing the user to `PATCH /orders/:id/status` (cancel) instead.
+**Open item — `DELETE /orders/:id` needs a DATABASE.md decision (carried to §26):** the PRD lists "Delete order" as a feature, but `Order` has no `isActive` field in `DATABASE.md` §3.8, and a true hard delete of a *settled* order would silently corrupt historical Reports/Income — directly contradicting the snapshot-pricing rationale that document goes out of its way to protect. Until that's resolved, this endpoint is implemented narrowly: it only succeeds for orders that are `status: pending`, created the same day, and have no coupon usage recorded (i.e., a mistaken/duplicate draft, not a completed sale). Any other order returns `409 ORDER_NOT_DELETABLE` with a message pointing the user to `PATCH /orders/:id/status` (cancel) instead.
 
 ---
 
@@ -401,9 +401,9 @@ Base path: `/expenses`. **Permission module key:** `expenses`. **Hard-deletable*
   "paymentMethod": "cash" }
 ```
 
-### 14.1 Salaries (Sub-feature of Expenses)
+## 15. Salaries
 
-Manages employee monthly salary records with advance tracking. `baseSalary` is fixed per employee (from the Employee record, not user-entered). When creating a salary record, `paidAmount` is entered instead — it creates the first advance automatically. `remainingBalance` = `baseSalary` - sum of all advances. Uses the same `expenses` permission module key.
+Manages employee monthly salary records with advance tracking. `baseSalary` is fixed per employee (from the Employee record, not user-entered). When creating a salary record, `paidAmount` is entered instead — it creates the first advance automatically. `remainingBalance` = `baseSalary` - sum of all advances. Uses the `expenses` permission module key.
 
 | Method | Path | Action | Description |
 |---|---|---|---|
@@ -448,9 +448,92 @@ Manages employee monthly salary records with advance tracking. `baseSalary` is f
 }
 ```
 
+### 15.1 Salary Adjustments (Bonus / Cut)
+
+Manages bonuses (positive adjustments) and salary cuts/deductions for employees. Each adjustment is a single record with a type, amount, and reason. Uses the `expenses` permission module key.
+
+| Method | Path | Action | Description |
+|---|---|---|---|
+| GET | `/salary-adjustments?employeeId=&salaryId=&type=&month=&year=` | `expenses:view` | List adjustments (bonuses/cuts) |
+| GET | `/salary-adjustments/:id` | `expenses:view` | Single adjustment detail |
+| POST | `/salary-adjustments` | `expenses:create` | Create a bonus or cut adjustment |
+| DELETE | `/salary-adjustments/:id` | `expenses:delete` | Delete an adjustment |
+
+```json
+// POST /salary-adjustments request
+{ "employeeId": "...", "type": "bonus", "amount": 2000, "reason": "Festival bonus",
+  "date": "2026-07-01", "month": 7, "year": 2026 }
+```
+
+```json
+// POST /salary-adjustments response (201)
+{
+  "data": {
+    "id": "...",
+    "employeeId": "...",
+    "type": "bonus",
+    "amount": 2000,
+    "reason": "Festival bonus",
+    "date": "2026-07-01T00:00:00.000Z",
+    "month": 7,
+    "year": 2026,
+    "createdBy": { "_id": "...", "name": "Admin" },
+    "createdAt": "2026-07-01T10:00:00.000Z"
+  }
+}
+```
+
+```json
+// GET /salary-adjustments response
+{
+  "data": [
+    {
+      "id": "...",
+      "employeeId": "...",
+      "type": "bonus",
+      "amount": 2000,
+      "reason": "Festival bonus",
+      "date": "2026-07-01T00:00:00.000Z",
+      "month": 7,
+      "year": 2026,
+      "createdBy": { "_id": "...", "name": "Admin" },
+      "createdAt": "2026-07-01T10:00:00.000Z"
+    }
+  ],
+  "meta": { "total": 1, "page": 1, "limit": 20 }
+}
+```
+
+### 15.2 Salary Summary
+
+Read-only endpoint that computes or retrieves a monthly salary summary for an employee, including total salary, total bonus, total cut, total paid, and net salary. Uses the `expenses:view` permission.
+
+| Method | Path | Action | Description |
+|---|---|---|---|
+| GET | `/salary-summary?employeeId=&month=&year=` | `expenses:view` | Get salary summary for an employee/period |
+
+```json
+// GET /salary-summary?employeeId=xxx&month=7&year=2026 response
+{
+  "data": {
+    "id": "...",
+    "employeeId": "...",
+    "month": 7,
+    "year": 2026,
+    "totalSalary": 10000,
+    "totalBonus": 2000,
+    "totalCut": 500,
+    "totalPaid": 8000,
+    "netSalary": 11500
+  }
+}
+```
+
+The summary is auto-created on first query if it doesn't exist, computed from the salary record + all adjustments. To refresh, re-query.
+
 ---
 
-## 15. Vendors
+## 16. Vendors
 
 Base path: `/vendors`. **Permission module key:** `vendors`. Standard soft-delete CRUD.
 
@@ -464,7 +547,7 @@ Base path: `/vendors`. **Permission module key:** `vendors`. Standard soft-delet
 
 ---
 
-## 16. Products
+## 17. Products
 
 Base path: `/products`. **Permission module key:** `products`. Standard soft-delete CRUD; `image` is set via `POST /uploads/image` (§4) first, then referenced here.
 
@@ -486,7 +569,7 @@ Base path: `/products`. **Permission module key:** `products`. Standard soft-del
 
 ---
 
-## 17. Categories
+## 18. Categories
 
 Base path: `/categories`. **Permission module key:** `categories`. Standard soft-delete CRUD.
 
@@ -500,7 +583,7 @@ Base path: `/categories`. **Permission module key:** `categories`. Standard soft
 
 ---
 
-## 18. Customers
+## 19. Customers
 
 Base path: `/customers`. **Permission module key:** `customers`. Standard CRUD with **hard delete**.
 
@@ -553,7 +636,7 @@ Base path: `/customers`. **Permission module key:** `customers`. Standard CRUD w
 
 ---
 
-## 19. Reports
+## 20. Reports
 
 Base path: `/reports`. **Permission module key:** `reports`. One key covers both report types (Sales, Profit).
 
@@ -585,7 +668,7 @@ Profit is calculated as: `profit = income.totalRevenue - expenses.totalExpenses 
 
 ---
 
-## 20. Settings
+## 21. Settings
 
 Base path: `/settings`. **Permission module key:** `settings`. Singleton (fixed `_id`, `DATABASE.md` §3.14).
 
@@ -601,7 +684,7 @@ Base path: `/settings`. **Permission module key:** `settings`. Singleton (fixed 
 
 ---
 
-## 21. Activity Log
+## 22. Activity Log
 
 Base path: `/activity-log`. **Permission module key:** `activity-log`. **`view` is the only action that exists** — no `PUT`/`DELETE`/`POST` handler is ever registered for this collection (`DATABASE.md` §3.13's "read-only by omission" rule).
 
@@ -653,7 +736,7 @@ The `actor` field is populated from the `User` collection (`.populate('actor', '
 
 ---
 
-## 22. Real-Time Events (Socket.io)
+## 23. Real-Time Events (Socket.io)
 
 Single namespace, all authenticated dashboard clients join one shared room — no tenant scoping needed per `ARCHITECTURE.md` §1 (single-restaurant v1). A future multi-tenant build would room-scope these by `restaurantId` per `ARCHITECTURE.md` §13.
 
@@ -668,7 +751,7 @@ Single namespace, all authenticated dashboard clients join one shared room — n
 
 ---
 
-## 23. Error Code Reference
+## 24. Error Code Reference
 
 | HTTP | `code` | Meaning |
 |---|---|---|
@@ -697,6 +780,7 @@ Single namespace, all authenticated dashboard clients join one shared room — n
 | 409 | `SALARY_HAS_ADVANCES` | Cannot delete a salary record that has advances |
 | 400 | `INVALID_SALARY_STATUS` | Can only add advances to active salary records |
 | 400 | `EXCEEDS_SALARY` | Advance amount would exceed remaining balance |
+| 400 | `ADJUSTMENT_EXCEEDS_SALARY` | Cut amount exceeds base salary |
 | 400 | `HAS_ADVANCES` | Cannot cancel a salary record with advances |
 | 423 | `ACCOUNT_DEACTIVATED` | Login attempt on a deactivated user (`isActive: false`) |
 | 429 | `RATE_LIMITED` | Hit on `/auth/login`, `/auth/refresh`, `/auth/forgot-password`, `/auth/reset-password` per `ARCHITECTURE.md` §12 |
@@ -704,7 +788,7 @@ Single namespace, all authenticated dashboard clients join one shared room — n
 
 ---
 
-## 24. Permission Module Keys
+## 25. Permission Module Keys
 
 The authoritative list referenced loosely by `DATABASE.md` §3.1 ("≤18 modules").
 
@@ -724,7 +808,7 @@ The authoritative list referenced loosely by `DATABASE.md` §3.1 ("≤18 modules
 | `users` | `view`, `create`, `edit`, `delete` | Realistically admin-only, but permission-gated like everything else, not hardcoded to role |
 | `employees` | `view`, `create`, `edit`, `delete` | Manages employee-specific data (name, phone, base salary, etc.) |
 | `settings` | `view`, `edit` | |
-| `reports` | `view`, `create` | `create` gates PDF export, see §19 |
+| `reports` | `view`, `create` | `create` gates PDF export, see §20 |
 | `uploads` | `create` | Utility — gates `POST /uploads/image` endpoint |
 | `activity-log` | `view` | Read-only by design |
 
@@ -732,7 +816,7 @@ The authoritative list referenced loosely by `DATABASE.md` §3.1 ("≤18 modules
 
 ---
 
-## 25. Open Items Carried Forward
+## 26. Open Items Carried Forward
 
 1. **`Order` deletion vs. schema** (§10): **RESOLVED — narrow hard-delete rules accepted for v1.** `Order` gets no `isActive` field. `DELETE /orders/:id` succeeds only for orders that are `status: pending`, created the same day (server date), and have no `couponId` set. All other orders return `409 ORDER_NOT_DELETABLE`. Decision rationale: see `tasks/implementation_plan.md` Decision 1.
 2. **`completed → cancelled` transition** (§10): **RESOLVED — gated by `orders:edit` for v1.** No new permission action added. The `cancelReason` field provides the audit trail. If a stricter gate is wanted later, it's a non-breaking addition. Decision rationale: see `tasks/implementation_plan.md` Decision 2.

@@ -13,6 +13,12 @@ export interface IPayment {
   transactionId?: string;
 }
 
+export interface IPreviousPayment {
+  method: string;
+  amount: number;
+  transactionId?: string;
+}
+
 export interface IOrder extends Document {
   orderNumber: string;
   orderType: 'dine-in' | 'takeaway' | 'delivery';
@@ -31,6 +37,7 @@ export interface IOrder extends Document {
   cashTendered?: number;
   changeAmount?: number;
   payment: IPayment;
+  previousPayments: IPreviousPayment[];
   status: 'pending' | 'completed' | 'cancelled';
   createdBy: mongoose.Types.ObjectId;
   completedAt?: Date;
@@ -47,6 +54,15 @@ const paymentSchema = new Schema<IPayment>(
       required: true,
       enum: ['cash', 'card', 'bkash', 'nagad'],
     },
+    transactionId: { type: String, required: false },
+  },
+  { _id: false }
+);
+
+const previousPaymentSchema = new Schema<IPreviousPayment>(
+  {
+    method: { type: String, required: true },
+    amount: { type: Number, required: true },
     transactionId: { type: String, required: false },
   },
   { _id: false }
@@ -85,6 +101,7 @@ const orderSchema = new Schema<IOrder>(
     cashTendered: { type: Number, required: false },
     changeAmount: { type: Number, required: false },
     payment: { type: paymentSchema, required: true },
+    previousPayments: { type: [previousPaymentSchema], default: [] },
     status: {
       type: String,
       default: 'pending',

@@ -203,10 +203,30 @@ export default function OrderDetailView({ order }: OrderDetailViewProps) {
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <h3 className="mb-3 text-sm font-semibold text-slate-500 uppercase tracking-wider">Payment</h3>
           <div className="space-y-2 text-sm">
+            {order.previousPayments && order.previousPayments.length > 0 && (
+              <div className="mb-2 space-y-1">
+                {order.previousPayments.map((p, i) => (
+                  <div key={i} className="flex justify-between">
+                    <span className="text-slate-400">{p.method.charAt(0).toUpperCase() + p.method.slice(1)}</span>
+                    <span className="text-xs text-slate-400">{formatBdt(p.amount)}</span>
+                  </div>
+                ))}
+                <div className="border-t border-dashed border-slate-200 pt-1" />
+              </div>
+            )}
             <div className="flex justify-between">
               <span className="text-slate-500">Method</span>
               <span className="font-medium capitalize text-slate-800">{order.payment.method}</span>
             </div>
+            {order.payment.method !== 'cash' && (() => {
+              const prevTotal = (order.previousPayments || []).reduce((s, p) => s + p.amount, 0);
+              return (
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Amount</span>
+                  <span className="font-medium text-slate-800">{formatBdt(order.grandTotal - prevTotal)}</span>
+                </div>
+              );
+            })()}
             {order.payment.transactionId && (
               <div className="flex justify-between">
                 <span className="text-slate-500">Transaction ID</span>

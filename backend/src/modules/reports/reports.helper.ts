@@ -9,6 +9,38 @@ export function salesAggregation(from: Date, to: Date): PipelineStage[] {
   return [
     { $match: { ...buildCancelledExcludedMatch(), createdAt: { $gte: from, $lte: to } } },
     {
+      $addFields: {
+        paymentSplits: {
+          $cond: {
+            if: { $gt: [{ $size: { $ifNull: ['$previousPayments', []] } }, 0] },
+            then: {
+              $concatArrays: [
+                {
+                  $map: {
+                    input: '$previousPayments',
+                    as: 'pp',
+                    in: { method: '$$pp.method', revenue: '$$pp.amount' },
+                  },
+                },
+                [
+                  {
+                    method: '$payment.method',
+                    revenue: {
+                      $subtract: [
+                        '$grandTotal',
+                        { $sum: '$previousPayments.amount' },
+                      ],
+                    },
+                  },
+                ],
+              ],
+            },
+            else: [{ method: '$payment.method', revenue: '$grandTotal' }],
+          },
+        },
+      },
+    },
+    {
       $facet: {
         summary: [
           {
@@ -23,14 +55,22 @@ export function salesAggregation(from: Date, to: Date): PipelineStage[] {
           },
         ],
         byPaymentMethod: [
+          { $unwind: '$paymentSplits' },
           {
             $group: {
-              _id: '$payment.method',
-              count: { $sum: 1 },
-              revenue: { $sum: '$grandTotal' },
+              _id: '$paymentSplits.method',
+              count: { $addToSet: '$_id' },
+              revenue: { $sum: '$paymentSplits.revenue' },
             },
           },
-          { $project: { _id: 0, method: '$_id', count: 1, revenue: 1 } },
+          {
+            $project: {
+              _id: 0,
+              method: '$_id',
+              count: { $size: '$count' },
+              revenue: { $round: ['$revenue', 2] },
+            },
+          },
         ],
         dailyBreakdown: [
           {

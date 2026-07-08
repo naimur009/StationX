@@ -23,6 +23,59 @@
 
 ## Log
 
+### [—] Salary — Independent Dashboard Section — 2026-07-08
+
+**Open item resolved:** N/A — structural reorganization of existing feature.
+
+**Decision:** Extracted the Salaries tab (previously embedded in the Expenses page) into its own standalone dashboard section. Created `/salaries` page independent from `/expenses`. Added a "Salaries" nav item in the sidebar using the `expenses` permission module key. The backend API routes (already at `/salaries`, `/salary-adjustments`, `/salary-summary`) continue to use the `expenses` permission key — no new module key was invented. The `salary` module key in `frontend/src/lib/constants.ts` is retained for forward compatibility but is not used by any backend route.
+
+**Doc(s) updated:**
+- `API.md` §14 (removed salaries subsections), §15 (new top-level Salaries section), renumbered all subsequent sections (§16–§26)
+- `decision.md` (this entry)
+
+**Files changed:**
+- Created `frontend/src/app/(dashboard)/salaries/page.tsx`
+- Modified `frontend/src/app/(dashboard)/expenses/page.tsx` (removed salaries tab, dialogs, state)
+- Modified `frontend/src/components/shared/Sidebar.tsx` (added Salaries nav item)
+
+**Reasoning:**
+- Salaries are now a first-class section alongside other modules, not buried as a tab inside Expenses.
+- No backend changes needed — the salary API routes were already registered independently under `/salaries`.
+- Using `expenses` permission key for the sidebar item keeps the security check consistent with the backend routes, avoiding a new permission key that would need backend updates.
+- The `salary` frontend constant entry exists but unused — it was added previously and removing it could break permission configurations. Left in place for future use if the backend ever adopts a dedicated `salary` permission key.
+
+### [7a/7b] Salary Bonus & Cut (Adjustments + Summary) — 2026-07-08
+
+**Open item resolved:** N/A — enhancement of existing Salary feature.
+
+**Decision:** Added a `SalaryAdjustment` collection with `type` (bonus/cut), `amount`, `reason`, and `date` fields to support per-employee bonuses and salary deductions. Added a `SalarySummary` collection for monthly per-employee computed summaries (`totalSalary`, `totalBonus`, `totalCut`, `netSalary` = `totalSalary + totalBonus - totalCut`).
+
+**Backend:**
+- `SalaryAdjustment` model with compound index `{employeeId, month, year}`, optional `salaryId` link
+- `SalarySummary` model with unique compound index `{employeeId, month, year}`
+- 5 new service functions: `listAdjustments`, `getAdjustmentById`, `createAdjustment`, `deleteAdjustment`, `getOrCreateSalarySummary`
+- 5 new controller handlers, 5 new routes under existing salaries router with `expenses` permission
+- Validation schemas for create adjustment, list adjustments query, and summary query
+
+**Frontend:**
+- `SalaryAdjustmentDialog` (new) — modal with employee select, type toggle (bonus/cut), amount, reason (preset options + custom), date picker
+- `SalaryList` — added Bonus, Cut, Net columns; Gift (bonus) and Minus (cut) action buttons
+- `SalaryDetailDialog` — added adjustments list with delete button; summary section now shows Bonus, Cut, Net Salary, Paid
+- Navbar buttons for "Add Bonus" / "Add Cut" quick actions
+
+**Doc(s) updated:**
+- `database.md` §3.13 (SalaryAdjustment schema), §3.14 (SalarySummary schema), §4 (new index entries)
+- `API.md` §15.1 (adjustments endpoints), §15.2 (summary endpoint), §24 (ADJUSTMENT_EXCEEDS_SALARY error code)
+- `TEST_CASES.md` §20 (20 adjustment test cases: ADJ-H-01–ADJ-E-02), §21 (6 summary test cases: SUM-H-01–SUM-H-03), renumbered subsequent sections
+- `decision.md` (this entry)
+
+**Reasoning:**
+- Separate `SalaryAdjustment` collection (not embedded) allows independent CRUD and querying by type/employee/period without loading the entire salary document.
+- `SalarySummary` is a pre-computed read model that avoids recomputing net salary on every view. Auto-created on first query — no separate write workflow.
+- Financial fields are snapshot-only (no edits to adjustments post-creation) to maintain audit integrity.
+- Reuses `expenses` permission module key, consistent with the existing Salary sub-feature.
+- The `amount` field is always stored as a positive absolute value; the `type` field (`bonus`/`cut`) determines whether it adds or subtracts from net salary, avoiding confusion with negative numbers.
+
 ### [10/11] Bill / Receipt Generation (Template + Endpoint) — 2026-07-01
 
 **Open items resolved:** N/A — all four open items from the planning phase were already resolved by prior work:
@@ -79,7 +132,7 @@
 
 **Doc(s) updated:**
 - `DATABASE.md` §1 (removed Vendor from soft-delete list), §3.7 (removed isActive from Vendor schema), §5 (updated index note), §7.5 (updated referential soft-delete note)
-- `API.md` §15 (removed isActive from GET query params, changed DELETE to hard delete)
+- `API.md` §16 (removed isActive from GET query params, changed DELETE to hard delete)
 - `TEST_CASES.md` §10 (EXP-E-01 updated), §11 (VEN-H-02–VEN-E-01 updated), §20 (XMOD-08 updated)
 - `AI_rules.md` §6 (removed Vendor from soft-delete collections list)
 - `theme.md` §Badge variants (removed Vendor from isActive badge table)
@@ -125,7 +178,7 @@
 **Decision:** When creating a salary record, `baseSalary` is no longer user-entered. It is derived from the referenced Employee's `baseSalary` field. The create form now accepts `paidAmount` instead, which creates the first advance entry automatically. `remainingBalance` = `baseSalary` - sum of advances.
 
 **Doc(s) updated:**
-- `API.md` §14.1 (request shape, description)
+- `API.md` §15 (request shape, description)
 - `database.md` §3.12 (description)
 - `TEST_CASES.md` §19 (SAL-H-01, SAL-V-02, added SAL-H-01b)
 - `decision.md` (this entry)
@@ -151,7 +204,7 @@
 
 **Doc(s) updated:**
 - `database.md` §3.12 (new Salary collection), §4 (Salary indexes)
-- `API.md` §14 (new Salaries sub-section), §23 (new error codes)
+- `API.md` §15 (new Salaries section), §24 (new error codes)
 - `TEST_CASES.md` §19 (new Salaries test cases), renumbered subsequent sections
 
 **Files created:**

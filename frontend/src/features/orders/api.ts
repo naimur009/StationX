@@ -46,6 +46,11 @@ export interface OrderDetail {
     method: string;
     transactionId?: string;
   };
+  previousPayments: Array<{
+    method: string;
+    amount: number;
+    transactionId?: string;
+  }>;
   status: 'pending' | 'completed' | 'cancelled';
   createdBy: { _id: string; name: string } | string;
   completedAt?: string;

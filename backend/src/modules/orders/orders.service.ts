@@ -62,6 +62,11 @@ interface OrderDetailItem {
     method: string;
     transactionId?: string;
   };
+  previousPayments: Array<{
+    method: string;
+    amount: number;
+    transactionId?: string;
+  }>;
   status: string;
   createdBy: unknown;
   completedAt?: Date;
@@ -117,6 +122,11 @@ function toDetail(order: Record<string, unknown>): OrderDetailItem {
     cashTendered: order.cashTendered as number | undefined,
     changeAmount: order.changeAmount as number | undefined,
     payment: order.payment as { method: string; transactionId?: string },
+    previousPayments: ((order.previousPayments as Array<Record<string, unknown>>) || []).map((p) => ({
+      method: p.method as string,
+      amount: p.amount as number,
+      transactionId: p.transactionId as string | undefined,
+    })),
     status: order.status as string,
     createdBy: order.createdBy ?? null,
     completedAt: order.completedAt as Date | undefined,
@@ -172,8 +182,10 @@ export function renderBillHtml(order: Record<string, unknown>, settings?: BillSe
   const autoRound = +(roundedGrand - grandTotal).toFixed(2);
 
   const payment = order.payment as { method: string; transactionId?: string } | undefined;
+  const previousPayments = (order.previousPayments as Array<{ method: string; amount: number; transactionId?: string }>) || [];
+  const previousPaymentsTotal = previousPayments.reduce((s, p) => s + p.amount, 0);
   const cashTendered = order.cashTendered as number | undefined;
-  const returnedAmount = cashTendered != null ? round2(Math.max(0, cashTendered - roundedGrand)) : 0;
+  const changeAmountStored = order.changeAmount as number | undefined;
 
   const customer = order.customerId as { name?: string; phone?: string } | null | undefined;
   const createdBy = order.createdBy as { name?: string } | null | undefined;
@@ -271,9 +283,13 @@ export function renderBillHtml(order: Record<string, unknown>, settings?: BillSe
 
 <div class="payments">
   <h3>Payments</h3>
-  <div class="total-line"><span class="label">${payment?.method ? payment.method.toUpperCase() : '—'}</span></div>
+  ${previousPayments.map((p) => `
+  <div class="total-line"><span class="label">${p.method.toUpperCase()}</span><span>${formatBdt(p.amount)}</span></div>
+  `).join('')}
+  ${payment && payment.method !== 'cash' ? `<div class="total-line" style="font-weight:600"><span class="label">${payment.method.toUpperCase()}</span><span>${formatBdt(roundedGrand - previousPaymentsTotal)}</span></div>` : ''}
+  ${payment && payment.method === 'cash' ? `<div class="total-line" style="font-weight:600"><span class="label">CASH</span></div>` : ''}
   ${cashTendered != null ? `<div class="total-line"><span class="label">Cash Tendered</span><span>${formatBdt(cashTendered)}</span></div>` : ''}
-  ${returnedAmount > 0 ? `<div class="total-line change"><span class="label">Returned Amount</span><span>${formatBdt(returnedAmount)}</span></div>` : ''}
+  ${changeAmountStored != null && changeAmountStored > 0 ? `<div class="total-line change"><span class="label">Returned</span><span>${formatBdt(changeAmountStored)}</span></div>` : ''}
 </div>
 
 ${cancelledLine}
@@ -488,6 +504,22 @@ export async function updateOrder(id: string, dto: UpdateOrderDto) {
   }
 
   if (dto.payment) {
+    const oldMethod = order.payment.method;
+    const newMethod = dto.payment.method;
+    if (newMethod && newMethod !== oldMethod) {
+      const oldGrandTotal = order.grandTotal;
+      const sumPreviousPayment = (order.previousPayments || []).reduce(
+        (s, p) => s + p.amount, 0
+      );
+      const oldAmount = oldMethod === 'cash'
+        ? round2((order.cashTendered ?? oldGrandTotal) - (order.changeAmount ?? 0))
+        : round2(Math.max(0, oldGrandTotal - sumPreviousPayment));
+      const entry: Record<string, unknown> = { method: oldMethod, amount: round2(oldAmount) };
+      if (order.payment.transactionId) {
+        entry.transactionId = order.payment.transactionId;
+      }
+      await Order.updateOne({ _id: id }, { $push: { previousPayments: entry } });
+    }
     if (dto.payment.method) updates['payment.method'] = dto.payment.method;
     if (dto.payment.transactionId !== undefined) updates['payment.transactionId'] = dto.payment.transactionId;
   }
@@ -495,11 +527,21 @@ export async function updateOrder(id: string, dto: UpdateOrderDto) {
   if (dto.cashTendered !== undefined) {
     const effectiveGrandTotal = (updates.grandTotal ?? order.grandTotal) as number;
     const effectivePaymentMethod = (dto.payment?.method ?? order.payment.method) as string;
-    if (effectivePaymentMethod === 'cash' && dto.cashTendered < effectiveGrandTotal) {
-      throw createError(400, 'VALIDATION_ERROR', 'Cash tendered must be greater than or equal to the grand total.');
+    if (effectivePaymentMethod === 'cash') {
+      const alreadyCollected = order.payment.method === 'cash'
+        ? (order.cashTendered ?? 0)
+        : order.grandTotal;
+      const totalCollected = order.payment.method === 'cash'
+        ? dto.cashTendered
+        : order.grandTotal + dto.cashTendered;
+      if (totalCollected < effectiveGrandTotal) {
+        throw createError(400, 'VALIDATION_ERROR', 'Total payment must cover the grand total.');
+      }
     }
     updates.cashTendered = dto.cashTendered;
-    if (dto.cashTendered >= effectiveGrandTotal) {
+    if (dto.changeAmount !== undefined) {
+      updates.changeAmount = dto.changeAmount;
+    } else if (dto.cashTendered >= effectiveGrandTotal) {
       updates.changeAmount = round2(dto.cashTendered - effectiveGrandTotal);
     }
   }

@@ -1,11 +1,13 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useSalary, useUpdateSalaryStatus, useDeleteSalary } from '../api';
+import { useState, useEffect, useMemo } from 'react';
+import { useSalary, useUpdateSalaryStatus, useDeleteSalary, useAdjustmentsList, useDeleteAdjustment, type AdjustmentResponse } from '../api';
 import { Dialog } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import PermissionGate from '@/components/shared/PermissionGate';
 import { AppError } from '@/lib/utils';
+import SalaryAdjustmentDialog from './SalaryAdjustmentDialog';
 
 interface SalaryDetailDialogProps {
   open: boolean;
@@ -22,9 +24,32 @@ export default function SalaryDetailDialog({ open, salaryId, onClose }: SalaryDe
   const { data: response, isLoading, isError } = useSalary(salaryId ?? '');
   const updateStatus = useUpdateSalaryStatus();
   const deleteSalary = useDeleteSalary();
+  const deleteAdjustment = useDeleteAdjustment();
   const [statusMessage, setStatusMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [editingAdjustment, setEditingAdjustment] = useState<AdjustmentResponse | null>(null);
 
   const salary = response?.data ?? null;
+
+  const { data: adjustmentsData, refetch: refetchAdjustments } = useAdjustmentsList({
+    employeeId: salary?.employeeId?._id,
+    month: salary?.month,
+    year: salary?.year,
+    limit: 100,
+  }, salaryId != null && salary?.employeeId?._id != null && salary?.month != null && salary?.year != null);
+
+  const adjustments = useMemo(() => adjustmentsData?.data ?? [], [adjustmentsData]);
+
+  const totalBonus = useMemo(
+    () => adjustments.filter((a) => a.type === 'bonus').reduce((sum, a) => sum + a.amount, 0),
+    [adjustments]
+  );
+
+  const totalCut = useMemo(
+    () => adjustments.filter((a) => a.type === 'cut').reduce((sum, a) => sum + a.amount, 0),
+    [adjustments]
+  );
+
+  const netSalary = (salary?.baseSalary ?? 0) + totalBonus - totalCut;
 
   function formatCurrency(amount: number): string {
     return `৳${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -68,6 +93,22 @@ export default function SalaryDetailDialog({ open, salaryId, onClose }: SalaryDe
         setStatusMessage({ type: 'error', text: err.message });
       } else {
         setStatusMessage({ type: 'error', text: 'Failed to delete salary record' });
+      }
+    }
+  }
+
+  async function handleDeleteAdjustment(adjustmentId: string) {
+    if (!confirm('Delete this adjustment? This cannot be undone.')) return;
+    setStatusMessage(null);
+    try {
+      await deleteAdjustment.mutateAsync(adjustmentId);
+      setStatusMessage({ type: 'success', text: 'Adjustment deleted' });
+      refetchAdjustments();
+    } catch (err) {
+      if (err instanceof AppError) {
+        setStatusMessage({ type: 'error', text: err.message });
+      } else {
+        setStatusMessage({ type: 'error', text: 'Failed to delete adjustment' });
       }
     }
   }
@@ -130,20 +171,26 @@ export default function SalaryDetailDialog({ open, salaryId, onClose }: SalaryDe
                 <p className="font-semibold text-slate-800">{salary.advances.length}</p>
               </div>
             </div>
-            <div className="mt-4 grid grid-cols-3 gap-4 border-t border-slate-200 pt-4">
+            <div className="mt-4 grid grid-cols-3 gap-4 border-t border-slate-200 pt-4 sm:grid-cols-5">
               <div>
                 <span className="text-xs text-slate-500">Base Salary</span>
                 <p className="text-lg font-bold text-slate-800">{formatCurrency(salary.baseSalary)}</p>
               </div>
               <div>
-                <span className="text-xs text-slate-500">Total Paid</span>
-                <p className="text-lg font-bold text-green-600">{formatCurrency(salary.totalPaid)}</p>
+                <span className="text-xs text-slate-500">Bonus</span>
+                <p className="text-lg font-bold text-green-600">{formatCurrency(totalBonus)}</p>
               </div>
               <div>
-                <span className="text-xs text-slate-500">Remaining</span>
-                <p className={`text-lg font-bold ${salary.remainingBalance > 0 ? 'text-amber-600' : 'text-slate-600'}`}>
-                  {formatCurrency(salary.remainingBalance)}
-                </p>
+                <span className="text-xs text-slate-500">Cut</span>
+                <p className="text-lg font-bold text-red-500">{formatCurrency(totalCut)}</p>
+              </div>
+              <div>
+                <span className="text-xs text-slate-500">Net Salary</span>
+                <p className="text-lg font-bold text-slate-800">{formatCurrency(netSalary)}</p>
+              </div>
+              <div>
+                <span className="text-xs text-slate-500">Paid</span>
+                <p className="text-lg font-bold text-green-600">{formatCurrency(salary.totalPaid)}</p>
               </div>
             </div>
             {salary.status === 'active' && salary.remainingBalance === 0 && (
@@ -194,8 +241,70 @@ export default function SalaryDetailDialog({ open, salaryId, onClose }: SalaryDe
               No advances recorded yet
             </div>
           )}
+
+          {adjustments.length > 0 ? (
+            <div>
+              <h3 className="mb-3 text-sm font-semibold text-slate-700">
+                Adjustments <span className="text-xs font-normal text-slate-400">(Bonuses &amp; Cuts)</span>
+              </h3>
+              <div className="space-y-2">
+                {adjustments.map((adj) => (
+                  <div
+                    key={adj.id}
+                    className={`flex items-center justify-between rounded-xl border px-4 py-3 ${
+                      adj.type === 'bonus' ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'
+                    }`}
+                  >
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className={`text-sm font-semibold ${adj.type === 'bonus' ? 'text-green-600' : 'text-red-500'}`}>
+                          {adj.type === 'bonus' ? '+' : '-'}{formatCurrency(adj.amount)}
+                        </span>
+                        <Badge variant={adj.type === 'bonus' ? 'green' : 'red'}>
+                          {adj.type === 'bonus' ? 'Bonus' : 'Cut'}
+                        </Badge>
+                        <span className="text-xs text-slate-400">{formatDate(adj.date)}</span>
+                      </div>
+                      <p className="mt-0.5 text-xs text-slate-500">{adj.reason}</p>
+                      {adj.createdBy && (
+                        <p className="mt-0.5 text-xs text-slate-400">Recorded by {adj.createdBy.name}</p>
+                      )}
+                    </div>
+                    <PermissionGate module="expenses" action="edit">
+                      <button
+                        onClick={() => setEditingAdjustment(adj)}
+                        className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-blue-600"
+                        title="Edit adjustment"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                      </button>
+                    </PermissionGate>
+                    <PermissionGate module="expenses" action="delete">
+                      <button
+                        onClick={() => handleDeleteAdjustment(adj.id)}
+                        className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-red-500"
+                        title="Delete adjustment"
+                        disabled={deleteAdjustment.isPending}
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                      </button>
+                    </PermissionGate>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div className="rounded-xl border border-slate-200 bg-white px-4 py-8 text-center text-sm text-slate-400">
+              No bonuses or cuts recorded for this period
+            </div>
+          )}
         </div>
       )}
+      <SalaryAdjustmentDialog
+        open={!!editingAdjustment}
+        editAdjustment={editingAdjustment}
+        onClose={() => { setEditingAdjustment(null); refetchAdjustments(); }}
+      />
     </Dialog>
   );
 }

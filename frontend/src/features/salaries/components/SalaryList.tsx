@@ -1,11 +1,12 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { ChevronLeft, ChevronRight, Eye, Trash2, DollarSign, Plus } from 'lucide-react';
-import { useSalariesList, type SalaryResponse } from '../api';
+import { ChevronLeft, ChevronRight, Eye, Trash2, DollarSign, Plus, Gift, Minus } from 'lucide-react';
+import { useSalariesList, useAdjustmentsList, useDeleteAdjustment, type SalaryResponse, type AdjustmentResponse } from '../api';
 import { useEmployeesList } from '@/features/employees/api';
 import { Badge } from '@/components/ui/badge';
 import PermissionGate from '@/components/shared/PermissionGate';
+import { AppError } from '@/lib/utils';
 
 const MONTHS = [
   'January', 'February', 'March', 'April', 'May', 'June',
@@ -17,6 +18,8 @@ interface SalaryListProps {
   onViewDetail: (salary: SalaryResponse) => void;
   onDelete: (salary: SalaryResponse) => void;
   onPay: (employeeId: string) => void;
+  onAddBonus?: (employeeId: string, month: number, year: number) => void;
+  onAddCut?: (employeeId: string, month: number, year: number) => void;
 }
 
 interface EmployeeRow {
@@ -26,8 +29,10 @@ interface EmployeeRow {
   salary: SalaryResponse | null;
 }
 
-export default function SalaryList({ onAddAdvance, onViewDetail, onDelete, onPay }: SalaryListProps) {
+export default function SalaryList({ onAddAdvance, onViewDetail, onDelete, onPay, onAddBonus, onAddCut }: SalaryListProps) {
   const now = new Date();
+  const deleteAdjustment = useDeleteAdjustment();
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [monthFilter, setMonthFilter] = useState(now.getMonth() + 1);
   const [yearFilter, setYearFilter] = useState(now.getFullYear());
@@ -44,6 +49,30 @@ export default function SalaryList({ onAddAdvance, onViewDetail, onDelete, onPay
   };
 
   const { data, isLoading, isError } = useSalariesList(queryParams);
+
+  const { data: adjustmentsData } = useAdjustmentsList({
+    month: monthFilter,
+    year: yearFilter,
+    limit: 500,
+  });
+
+  const adjustmentTotals = useMemo(() => {
+    const map = new Map<string, { totalBonus: number; totalCut: number; bonuses: AdjustmentResponse[]; cuts: AdjustmentResponse[] }>();
+    if (adjustmentsData?.data) {
+      for (const adj of adjustmentsData.data) {
+        const current = map.get(adj.employeeId) ?? { totalBonus: 0, totalCut: 0, bonuses: [], cuts: [] };
+        if (adj.type === 'bonus') {
+          current.totalBonus += adj.amount;
+          current.bonuses.push(adj);
+        } else {
+          current.totalCut += adj.amount;
+          current.cuts.push(adj);
+        }
+        map.set(adj.employeeId, current);
+      }
+    }
+    return map;
+  }, [adjustmentsData]);
 
   const years = useMemo(() => {
     const y = now.getFullYear();
@@ -104,6 +133,34 @@ export default function SalaryList({ onAddAdvance, onViewDetail, onDelete, onPay
     return `৳${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   }
 
+  async function handleClearBonuses(employeeId: string) {
+    const adj = adjustmentTotals.get(employeeId);
+    if (!adj || adj.bonuses.length === 0) return;
+    if (!confirm(`Clear all ${adj.bonuses.length} bonus(es) for this employee?`)) return;
+    setDeleteError(null);
+    for (const bonus of adj.bonuses) {
+      try {
+        await deleteAdjustment.mutateAsync(bonus.id);
+      } catch (err) {
+        setDeleteError(err instanceof AppError ? err.message : 'Failed to delete bonus');
+      }
+    }
+  }
+
+  async function handleClearCuts(employeeId: string) {
+    const adj = adjustmentTotals.get(employeeId);
+    if (!adj || adj.cuts.length === 0) return;
+    if (!confirm(`Clear all ${adj.cuts.length} cut(s) for this employee?`)) return;
+    setDeleteError(null);
+    for (const cut of adj.cuts) {
+      try {
+        await deleteAdjustment.mutateAsync(cut.id);
+      } catch (err) {
+        setDeleteError(err instanceof AppError ? err.message : 'Failed to delete cut');
+      }
+    }
+  }
+
   function handlePageChange(newPage: number) {
     if (newPage < 1 || newPage > totalPages) return;
     setPage(newPage);
@@ -146,6 +203,12 @@ export default function SalaryList({ onAddAdvance, onViewDetail, onDelete, onPay
         </select>
       </div>
 
+      {deleteError && (
+        <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {deleteError}
+        </div>
+      )}
+
       {isLoadingAll ? (
         <div className="flex items-center justify-center rounded-2xl border border-slate-200 bg-white py-16 shadow-sm">
           <div className="h-10 w-10 animate-spin rounded-full border-4 spinner-smooth" />
@@ -166,6 +229,9 @@ export default function SalaryList({ onAddAdvance, onViewDetail, onDelete, onPay
                 <tr className="border-b border-slate-200 bg-slate-50 text-xs font-semibold uppercase text-slate-500">
                   <th className="px-4 py-3">Employee</th>
                   <th className="px-4 py-3 text-right">Base Salary</th>
+                  <th className="px-4 py-3 text-right">Bonus</th>
+                  <th className="px-4 py-3 text-right">Cut</th>
+                  <th className="px-4 py-3 text-right">Net</th>
                   <th className="px-4 py-3 text-right">Total Paid</th>
                   <th className="px-4 py-3 text-right">Remaining</th>
                   <th className="px-4 py-3">Advances</th>
@@ -178,6 +244,11 @@ export default function SalaryList({ onAddAdvance, onViewDetail, onDelete, onPay
                   const salary = row.salary;
 
                   if (!salary) {
+                    const empBonuses = adjustmentTotals.get(row.employeeId);
+                    const totalBonus = empBonuses?.totalBonus ?? 0;
+                    const totalCut = empBonuses?.totalCut ?? 0;
+                    const netSalary = row.employeeBaseSalary + totalBonus - totalCut;
+
                     return (
                       <tr key={row.employeeId} className="transition-colors hover:bg-slate-50">
                         <td className="px-4 py-3">
@@ -185,6 +256,41 @@ export default function SalaryList({ onAddAdvance, onViewDetail, onDelete, onPay
                         </td>
                         <td className="px-4 py-3 text-right font-semibold text-slate-800 whitespace-nowrap">
                           {formatCurrency(row.employeeBaseSalary)}
+                        </td>
+                        <td className="px-4 py-3 text-right font-semibold text-green-600 whitespace-nowrap">
+                          {totalBonus > 0 ? (
+                            <span className="inline-flex items-center gap-1">
+                              {formatCurrency(totalBonus)}
+                              <PermissionGate module="expenses" action="delete">
+                                <button
+                                  onClick={() => handleClearBonuses(row.employeeId)}
+                                  className="rounded p-0.5 text-green-400 transition-colors hover:bg-green-100 hover:text-red-500"
+                                  title="Clear bonuses"
+                                >
+                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                                </button>
+                              </PermissionGate>
+                            </span>
+                          ) : <span className="text-xs text-slate-400">&mdash;</span>}
+                        </td>
+                        <td className="px-4 py-3 text-right font-semibold text-red-500 whitespace-nowrap">
+                          {totalCut > 0 ? (
+                            <span className="inline-flex items-center gap-1">
+                              {formatCurrency(totalCut)}
+                              <PermissionGate module="expenses" action="delete">
+                                <button
+                                  onClick={() => handleClearCuts(row.employeeId)}
+                                  className="rounded p-0.5 text-red-400 transition-colors hover:bg-red-100 hover:text-red-600"
+                                  title="Clear cuts"
+                                >
+                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                                </button>
+                              </PermissionGate>
+                            </span>
+                          ) : <span className="text-xs text-slate-400">&mdash;</span>}
+                        </td>
+                        <td className="px-4 py-3 text-right font-semibold text-slate-800 whitespace-nowrap">
+                          {formatCurrency(netSalary)}
                         </td>
                         <td className="px-4 py-3 text-right text-slate-400 whitespace-nowrap">
                           <span className="text-xs">—</span>
@@ -199,7 +305,7 @@ export default function SalaryList({ onAddAdvance, onViewDetail, onDelete, onPay
                           <Badge variant="red">Unpaid</Badge>
                         </td>
                         <td className="px-4 py-3">
-                          <div className="flex items-center justify-end gap-2">
+                          <div className="flex items-center justify-end gap-1">
                             <PermissionGate module="expenses" action="create">
                               <button
                                 onClick={() => onPay(row.employeeId)}
@@ -209,11 +315,38 @@ export default function SalaryList({ onAddAdvance, onViewDetail, onDelete, onPay
                                 <Plus className="h-4 w-4" />
                               </button>
                             </PermissionGate>
-                          </div>
+                            {onAddBonus && (
+                              <PermissionGate module="expenses" action="create">
+                                <button
+                                  onClick={() => onAddBonus(row.employeeId, monthFilter, yearFilter)}
+                                  className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-green-600"
+                                  title="Add bonus"
+                                >
+                                  <Gift className="h-4 w-4" />
+                                </button>
+                              </PermissionGate>
+                            )}
+                            {onAddCut && (
+                              <PermissionGate module="expenses" action="create">
+                                <button
+                                  onClick={() => onAddCut(row.employeeId, monthFilter, yearFilter)}
+                                  className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-red-500"
+                                  title="Add salary cut"
+                                >
+                                  <Minus className="h-4 w-4" />
+                                </button>
+                              </PermissionGate>
+                            )}
+                            </div>
                         </td>
                       </tr>
                     );
                   }
+
+                  const empBonuses = adjustmentTotals.get(salary.employeeId._id);
+                  const totalBonus = empBonuses?.totalBonus ?? 0;
+                  const totalCut = empBonuses?.totalCut ?? 0;
+                  const netSalary = salary.baseSalary + totalBonus - totalCut;
 
                   return (
                     <tr key={salary.id} className="transition-colors hover:bg-slate-50">
@@ -222,6 +355,41 @@ export default function SalaryList({ onAddAdvance, onViewDetail, onDelete, onPay
                       </td>
                       <td className="px-4 py-3 text-right font-semibold text-slate-800 whitespace-nowrap">
                         {formatCurrency(salary.baseSalary)}
+                      </td>
+                      <td className="px-4 py-3 text-right font-semibold text-green-600 whitespace-nowrap">
+                        {totalBonus > 0 ? (
+                          <span className="inline-flex items-center gap-1">
+                            {formatCurrency(totalBonus)}
+                            <PermissionGate module="expenses" action="delete">
+                              <button
+                                onClick={() => handleClearBonuses(salary.employeeId._id)}
+                                className="rounded p-0.5 text-green-400 transition-colors hover:bg-green-100 hover:text-red-500"
+                                title="Clear bonuses"
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                              </button>
+                            </PermissionGate>
+                          </span>
+                        ) : <span className="text-xs text-slate-400">&mdash;</span>}
+                      </td>
+                      <td className="px-4 py-3 text-right font-semibold text-red-500 whitespace-nowrap">
+                        {totalCut > 0 ? (
+                          <span className="inline-flex items-center gap-1">
+                            {formatCurrency(totalCut)}
+                            <PermissionGate module="expenses" action="delete">
+                              <button
+                                onClick={() => handleClearCuts(salary.employeeId._id)}
+                                className="rounded p-0.5 text-red-400 transition-colors hover:bg-red-100 hover:text-red-600"
+                                title="Clear cuts"
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                              </button>
+                            </PermissionGate>
+                          </span>
+                        ) : <span className="text-xs text-slate-400">&mdash;</span>}
+                      </td>
+                      <td className="px-4 py-3 text-right font-semibold text-slate-800 whitespace-nowrap">
+                        {formatCurrency(netSalary)}
                       </td>
                       <td className="px-4 py-3 text-right font-semibold text-green-600 whitespace-nowrap">
                         {formatCurrency(salary.totalPaid)}
@@ -240,7 +408,7 @@ export default function SalaryList({ onAddAdvance, onViewDetail, onDelete, onPay
                         </Badge>
                       </td>
                       <td className="px-4 py-3">
-                        <div className="flex items-center justify-end gap-2">
+                        <div className="flex items-center justify-end gap-1">
                           <button
                             onClick={() => onViewDetail(salary)}
                             className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-blue-600"
@@ -267,6 +435,28 @@ export default function SalaryList({ onAddAdvance, onViewDetail, onDelete, onPay
                                 title="Add advance"
                               >
                                 <DollarSign className="h-4 w-4" />
+                              </button>
+                            </PermissionGate>
+                          )}
+                          {onAddBonus && (
+                            <PermissionGate module="expenses" action="create">
+                              <button
+                                onClick={() => onAddBonus(salary.employeeId._id, salary.month, salary.year)}
+                                className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-green-600"
+                                title="Add bonus"
+                              >
+                                <Gift className="h-4 w-4" />
+                              </button>
+                            </PermissionGate>
+                          )}
+                          {onAddCut && (
+                            <PermissionGate module="expenses" action="create">
+                              <button
+                                onClick={() => onAddCut(salary.employeeId._id, salary.month, salary.year)}
+                                className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-red-500"
+                                title="Add salary cut"
+                              >
+                                <Minus className="h-4 w-4" />
                               </button>
                             </PermissionGate>
                           )}

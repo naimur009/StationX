@@ -36,6 +36,8 @@ export default function OrderEditForm({ order, open, onClose, onSaved }: OrderEd
   const [transactionId, setTransactionId] = useState(order.payment.transactionId || '');
   const [discountPercent, setDiscountPercent] = useState(order.discountPercent);
   const [extraPaid, setExtraPaid] = useState(0);
+  const [cashReturned, setCashReturned] = useState(0);
+  const [returnedTouched, setReturnedTouched] = useState(false);
   const [productCatalog, setProductCatalog] = useState<CatalogProduct[]>([]);
   const [catalogError, setCatalogError] = useState('');
   const [productSearch, setProductSearch] = useState('');
@@ -85,13 +87,24 @@ export default function OrderEditForm({ order, open, onClose, onSaved }: OrderEd
 
   const originalGrandTotal = order.grandTotal;
   const originalCashTendered = order.cashTendered || 0;
-  const extraDue = paymentMethod === 'cash' && grandTotal > originalCashTendered
-    ? round2(grandTotal - originalCashTendered)
+  const itemsChanged = JSON.stringify(items) !== JSON.stringify(order.items.map((i) => ({ productId: i.productId, quantity: i.quantity })));
+  const discountChanged = discountPercent !== order.discountPercent;
+  const previousTotal = (order.previousPayments || []).reduce((s, p) => s + p.amount, 0);
+  const alreadyPaid = previousTotal > 0
+    ? previousTotal
+    : (order.payment.method === 'cash' ? originalCashTendered : originalGrandTotal);
+  const extraDue = grandTotal > alreadyPaid
+    ? round2(grandTotal - alreadyPaid)
     : 0;
   const effectiveCashTendered = round2(originalCashTendered + extraPaid);
-  const changeAmount = paymentMethod === 'cash' && effectiveCashTendered >= grandTotal
-    ? round2(effectiveCashTendered - grandTotal)
+  const computedReturned = round2(Math.max(0, extraPaid - (extraDue > 0 ? extraDue : 0)));
+  const totalCollected = order.payment.method === 'cash'
+    ? effectiveCashTendered
+    : originalGrandTotal + extraPaid;
+  const changeAmount = paymentMethod === 'cash' && totalCollected > grandTotal
+    ? round2(totalCollected - grandTotal)
     : 0;
+  const displayReturned = returnedTouched ? cashReturned : computedReturned;
 
   const filteredProducts = productCatalog.filter(
     (p) => !items.some((i) => i.productId === p.id) && p.name.toLowerCase().includes(productSearch.toLowerCase())
@@ -122,16 +135,17 @@ export default function OrderEditForm({ order, open, onClose, onSaved }: OrderEd
         setError(`Extra pay must be at least ${formatBdt(extraDue)} to cover the increased total.`);
         return;
       }
-      if (effectiveCashTendered < grandTotal) {
+      const totalCollected = order.payment.method === 'cash'
+        ? effectiveCashTendered
+        : originalGrandTotal + extraPaid;
+      if (totalCollected < grandTotal) {
         setError('Total payment must be greater than or equal to the grand total.');
         return;
       }
     }
     const payload: Record<string, unknown> = {};
     if (tableNumber !== (order.tableNumber || '')) payload.tableNumber = tableNumber || undefined;
-    if (JSON.stringify(items) !== JSON.stringify(order.items.map((i) => ({ productId: i.productId, quantity: i.quantity })))) {
-      payload.items = items;
-    }
+    if (itemsChanged) payload.items = items;
     if (paymentMethod !== order.payment.method || transactionId !== (order.payment.transactionId || '')) {
       payload.payment = { method: paymentMethod, ...(transactionId ? { transactionId } : {}) };
     }
@@ -156,11 +170,11 @@ export default function OrderEditForm({ order, open, onClose, onSaved }: OrderEd
 
   const hasChanges =
     tableNumber !== (order.tableNumber || '') ||
-    JSON.stringify(items) !== JSON.stringify(order.items.map((i) => ({ productId: i.productId, quantity: i.quantity }))) ||
+    itemsChanged ||
     paymentMethod !== order.payment.method ||
     transactionId !== (order.payment.transactionId || '') ||
     (paymentMethod === 'cash' && extraPaid > 0) ||
-    discountPercent !== order.discountPercent;
+    discountChanged;
 
   return (
     <Dialog open={open} onClose={onClose} title={`Edit ${order.orderNumber}`} size="lg">
@@ -282,67 +296,108 @@ export default function OrderEditForm({ order, open, onClose, onSaved }: OrderEd
           {/* Payment */}
         <div className="pb-3">
           <h3 className="mb-2.5 text-sm font-bold text-slate-800">Payment</h3>
-          <div className="flex flex-wrap gap-2">
-            {['cash', 'card', 'bkash', 'nagad'].map((method) => (
-              <button
-                key={method}
-                onClick={() => setPaymentMethod(method)}
-                className={`rounded-xl px-4 py-2 text-xs font-semibold transition-colors ${
-                  paymentMethod === method
-                    ? 'bg-primary text-primary-foreground shadow-blue-500/25'
-                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                }`}
-              >
-                {method.charAt(0).toUpperCase() + method.slice(1)}
-              </button>
-            ))}
-          </div>
 
-          {paymentMethod !== 'cash' && (
-            <div className="mt-3">
-              <label className="mb-1 block text-sm font-medium text-slate-700">Transaction ID</label>
-              <Input
-                placeholder="Last 3-4 digits"
-                value={transactionId}
-                onChange={(e) => setTransactionId(e.target.value)}
-                maxLength={20}
-              />
+          {order.previousPayments && order.previousPayments.length > 0 && (
+            <div className="mb-4 space-y-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Already Paid</p>
+                <span className="text-xs text-slate-400">
+                  Total: {formatBdt(order.previousPayments.reduce((s, p) => s + p.amount, 0))}
+                </span>
+              </div>
+              <div className="border-t border-slate-200 pt-1.5" />
+              {order.previousPayments.map((p, i) => (
+                <div key={i} className="flex items-center justify-between text-sm">
+                  <span className="font-medium capitalize text-slate-600">{p.method}</span>
+                  <span className="text-xs text-slate-400">{formatBdt(p.amount)}</span>
+                </div>
+              ))}
             </div>
           )}
-          {paymentMethod === 'cash' && (
-            <div className="mt-3 grid grid-cols-2 gap-3">
-              <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700">Cash Tendered (prev)</label>
-                <div className="flex h-10 items-center rounded-xl border border-slate-200 bg-slate-50 px-3.5 text-sm font-medium text-slate-600">
-                  {formatBdt(originalCashTendered)}
-                </div>
-              </div>
-              <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700">Change</label>
-                <div className="flex h-10 items-center rounded-xl border border-slate-200 bg-slate-50 px-3.5 text-sm font-medium text-green-600">
-                  {formatBdt(changeAmount)}
-                </div>
-              </div>
-              {extraDue > 0 && (
-                <div className="col-span-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2">
-                  <p className="text-xs font-medium text-amber-700">
-                    Extra due: {formatBdt(extraDue)}
-                  </p>
-                </div>
-              )}
-              <div className="col-span-2">
-                <label className="mb-1 block text-sm font-medium text-slate-700">Extra Pay</label>
-                <Input
-                  type="number"
-                  inputMode="decimal"
-                  step="0.01"
-                  min="0"
-                  placeholder="0.00"
-                  value={extraPaid || ''}
-                  onChange={(e) => setExtraPaid(parseFloat(e.target.value) || 0)}
-                />
+
+          <div className="space-y-3">
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-slate-700">New Payment Method</label>
+              <div className="flex flex-wrap gap-2">
+                {['cash', 'card', 'bkash', 'nagad'].map((method) => (
+                  <button
+                    key={method}
+                    onClick={() => setPaymentMethod(method)}
+                    className={`rounded-xl px-4 py-2 text-xs font-semibold transition-colors ${
+                      paymentMethod === method
+                        ? 'bg-primary text-primary-foreground shadow-blue-500/25'
+                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                    }`}
+                  >
+                    {method.charAt(0).toUpperCase() + method.slice(1)}
+                  </button>
+                ))}
               </div>
             </div>
+
+            {extraDue > 0 && (
+              <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2">
+                <p className="text-xs font-medium text-amber-700">
+                  Extra due: {formatBdt(extraDue)}
+                </p>
+              </div>
+            )}
+
+            {paymentMethod !== 'cash' && (
+              <div>
+                <label className="mb-1 block text-sm font-medium text-slate-700">Transaction ID</label>
+                <Input
+                  placeholder="Last 3-4 digits"
+                  value={transactionId}
+                  onChange={(e) => setTransactionId(e.target.value)}
+                  maxLength={20}
+                />
+              </div>
+            )}
+            {paymentMethod === 'cash' && (
+              <div className="space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
+                <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-white px-3.5 py-2.5">
+                  <span className="text-xs font-medium text-slate-600">Previously Tendered</span>
+                  <span className="text-sm font-medium text-slate-600">{formatBdt(originalCashTendered)}</span>
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-slate-600">Extra Pay</label>
+                  <Input
+                    type="number"
+                    inputMode="decimal"
+                    step="0.01"
+                    min="0"
+                    placeholder="0.00"
+                    value={extraPaid || ''}
+                    onChange={(e) => {
+                      setExtraPaid(parseFloat(e.target.value) || 0);
+                      setReturnedTouched(false);
+                    }}
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-slate-600">Cash Returned</label>
+                  <Input
+                    type="number"
+                    inputMode="decimal"
+                    step="0.01"
+                    min="0"
+                    placeholder="0.00"
+                    value={displayReturned || ''}
+                    onChange={(e) => {
+                      setCashReturned(parseFloat(e.target.value) || 0);
+                      setReturnedTouched(true);
+                    }}
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+
+          {extraDue > 0 && paymentMethod !== 'cash' && (
+            <p className="mt-2 text-xs text-slate-500">
+              Charge <strong>{formatBdt(extraDue)}</strong> to {paymentMethod}.
+            </p>
           )}
         </div>
 

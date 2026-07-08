@@ -413,8 +413,8 @@ describe('renderBillHtml', () => {
     const html = renderBillHtml(sampleOrder as never);
     expect(html).toContain('Cash Tendered');
     expect(html).toContain('\u09F3500.00');
-    expect(html).toContain('Returned Amount');
-    expect(html).toContain('\u09F3474.00');
+    expect(html).toContain('Returned');
+    expect(html).toContain('\u09F3471.50');
   });
 
   it('includes auto-round when grand total is not round', () => {

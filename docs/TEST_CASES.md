@@ -548,7 +548,34 @@ These apply to **every** module below; listed once here and referenced by ID rat
 | SAL-H-07 | Happy | `GET /salaries?month=&year=` | Correctly filtered list |
 | SAL-H-08 | Happy | `GET /salaries/:id` | Detail with advance history |
 
-## 20. Employees
+## 20. Salary Adjustments (Bonus / Cut)
+
+| ID | Type | Case | Expected |
+|---|---|---|---|
+| ADJ-H-01 | Happy | `POST /salary-adjustments` valid bonus | `201`, adjustment created with type `bonus` |
+| ADJ-H-02 | Happy | `POST /salary-adjustments` valid cut | `201`, adjustment created with type `cut` |
+| ADJ-V-01 | Validation | Missing `employeeId` | `400 VALIDATION_ERROR` |
+| ADJ-V-02 | Validation | Negative `amount` | `400 VALIDATION_ERROR` |
+| ADJ-V-03 | Validation | Empty `reason` | `400 VALIDATION_ERROR` |
+| ADJ-V-04 | Validation | Invalid `type` (not `bonus` or `cut`) | `400 VALIDATION_ERROR` |
+| ADJ-E-01 | Error | `employeeId` references nonexistent employee | `404 EMPLOYEE_NOT_FOUND` |
+| ADJ-H-03 | Happy | `GET /salary-adjustments?employeeId=&month=&year=` | Correctly filtered list |
+| ADJ-H-04 | Happy | `GET /salary-adjustments/:id` | Single adjustment detail |
+| ADJ-H-05 | Happy | `DELETE /salary-adjustments/:id` | Hard delete succeeds |
+| ADJ-E-02 | Error | `DELETE /salary-adjustments/:id` nonexistent | `404 NOT_FOUND` |
+
+## 21. Salary Summary
+
+| ID | Type | Case | Expected |
+|---|---|---|---|
+| SUM-H-01 | Happy | `GET /salary-summary?employeeId=&month=&year=` for employee with salary + adjustments | Returns computed summary with `totalSalary`, `totalBonus`, `totalCut`, `totalPaid`, `netSalary` |
+| SUM-H-02 | Happy | `GET /salary-summary` for employee with no salary record | Returns summary with zero values (no salary, no bonus, no cut) |
+| SUM-V-01 | Validation | Missing `employeeId` | `400 VALIDATION_ERROR` |
+| SUM-V-02 | Validation | Missing `month` | `400 VALIDATION_ERROR` |
+| SUM-E-01 | Error | `employeeId` references nonexistent employee | `404 EMPLOYEE_NOT_FOUND` |
+| SUM-H-03 | Happy | Auto-creation on first query | Summary document created in DB, subsequent queries return cached version |
+
+## 22. Employees
 
 | ID | Type | Case | Expected |
 |---|---|---|---|
@@ -572,7 +599,7 @@ These apply to **every** module below; listed once here and referenced by ID rat
 
 ---
 
-## 21. Shared Uploads
+## 23. Shared Uploads
 
 ### `POST /uploads/image`
 
@@ -587,7 +614,7 @@ These apply to **every** module below; listed once here and referenced by ID rat
 
 ---
 
-## 22. Cross-Module Data Integrity Tests
+## 24. Cross-Module Data Integrity Tests
 
 These verify rules that span multiple collections/modules and are easy to silently break during iterative feature development.
 
@@ -604,7 +631,7 @@ These verify rules that span multiple collections/modules and are easy to silent
 
 ---
 
-## 23. Open Items Requiring Sign-Off Before Full Coverage
+## 25. Open Items Requiring Sign-Off Before Full Coverage
 
 These test areas can't be fully specified yet because the underlying behavior is itself an open item in `API.md`/`DATABASE.md`. Listed here so they aren't silently skipped — each should convert into real test cases once the linked decision is made.
 
