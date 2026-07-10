@@ -60,6 +60,7 @@ interface AttendanceListParams {
   status?: string;
   from?: string;
   to?: string;
+  search?: string;
   page?: number;
   limit?: number;
 }
@@ -113,6 +114,7 @@ export function useAttendanceList(params: AttendanceListParams) {
   if (params.status) searchParams.set('status', params.status);
   if (params.from) searchParams.set('from', params.from);
   if (params.to) searchParams.set('to', params.to);
+  if (params.search) searchParams.set('search', params.search);
   const qs = searchParams.toString();
 
   return useQuery({

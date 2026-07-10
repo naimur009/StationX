@@ -10,7 +10,7 @@ export interface ExpenseResponse {
   description: string;
   category: string;
   vendorId?: { _id: string; name: string } | null;
-  paidBy: { _id: string; name: string; email: string };
+  paidBy: { _id: string; name: string };
   paidTo: string;
   paymentMethod: 'cash' | 'card' | 'bkash' | 'nagad';
   createdBy: { _id: string; name: string };
@@ -127,16 +127,15 @@ export interface ReferenceDataVendor {
   name: string;
 }
 
-export interface ReferenceDataUser {
+export interface ReferenceDataEmployee {
   id: string;
   name: string;
-  email: string;
 }
 
 interface ReferenceDataResponse {
   data: {
     vendors: ReferenceDataVendor[];
-    users: ReferenceDataUser[];
+    employees: ReferenceDataEmployee[];
   };
 }
 

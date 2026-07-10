@@ -1,23 +1,19 @@
 'use client';
 
 import { useState } from 'react';
-import { ClipboardCheck, CalendarDays, Clock, History } from 'lucide-react';
+import { ClipboardCheck, CalendarDays, Clock } from 'lucide-react';
 import PermissionGate from '@/components/shared/PermissionGate';
 import TodayAttendanceSheet from '@/features/attendance/components/TodayAttendanceSheet';
-import AttendanceHistoryList from '@/features/attendance/components/AttendanceHistoryList';
 import AttendanceCalendar from '@/features/attendance/components/AttendanceCalendar';
-import AttendanceCorrectionForm from '@/features/attendance/components/AttendanceCorrectionForm';
 
-type Tab = 'roll-call' | 'history' | 'calendar';
+type Tab = 'roll-call' | 'calendar';
 
 const TABS: { key: Tab; label: string; icon: React.ElementType }[] = [
   { key: 'roll-call', label: 'Roll Call', icon: Clock },
-  { key: 'history', label: 'History', icon: History },
   { key: 'calendar', label: 'Monthly Report', icon: CalendarDays },
 ];
 
 export default function AttendancePage() {
-  const [correctionRecordId, setCorrectionRecordId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<Tab>('roll-call');
 
   return (
@@ -61,18 +57,7 @@ export default function AttendancePage() {
 
         {/* Tab content */}
         {activeTab === 'roll-call' && <TodayAttendanceSheet />}
-
-        {activeTab === 'history' && (
-          <AttendanceHistoryList onCorrect={(id) => setCorrectionRecordId(id)} />
-        )}
-
         {activeTab === 'calendar' && <AttendanceCalendar />}
-
-        {/* Correction dialog */}
-        <AttendanceCorrectionForm
-          recordId={correctionRecordId}
-          onClose={() => setCorrectionRecordId(null)}
-        />
       </div>
     </PermissionGate>
   );

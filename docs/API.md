@@ -284,7 +284,7 @@ Valid transitions: `pending → completed`, `pending → cancelled`, `completed 
 
 ## 11. Coupons
 
-Base path: `/coupons`. **Permission module key:** `coupons`. Hard-deletable per `DATABASE.md` §1, with the in-use guard from §3.5.
+Base path: `/coupons`. **Permission module key:** `coupons`. Hard-deletable per `DATABASE.md` §1.
 
 | Method | Path | Action | Description |
 |---|---|---|---|
@@ -293,7 +293,7 @@ Base path: `/coupons`. **Permission module key:** `coupons`. Hard-deletable per 
 | POST | `/coupons` | `create` | Create |
 | PUT | `/coupons/:id` | `edit` | Full edit |
 | PATCH | `/coupons/:id/toggle` | `edit` | Flip `isEnabled` — single-purpose action endpoint for the common "quickly disable a coupon" case, instead of requiring a full `PUT` body |
-| DELETE | `/coupons/:id` | `delete` | Hard delete — blocked with `409 COUPON_IN_USE` if `usageCount > 0` per `DATABASE.md` §3.5; the error message suggests `PATCH /coupons/:id/toggle` instead |
+| DELETE | `/coupons/:id` | `delete` | Hard delete |
 
 ---
 
@@ -318,20 +318,22 @@ Base path: `/attendance`. **Permission module key:** `attendance`. No `delete` a
 
 | Method | Path | Action | Description |
 |---|---|---|---|
-| GET | `/attendance/today?date=` | `view` | Returns all active staff (employees + managers) with their attendance status for the given date (defaults to server's today). Staff without a record have `attendance: null`. Includes a `summary` with counts. |
-| GET | `/attendance` | `view` | History list with filters: `?userId=&status=&from=&to=&page=&limit=` |
+| GET | `/attendance/today?date=` | `view` | Returns all employees with their attendance status for the given date (defaults to server's today). Staff without a record have `attendance: null`. Includes a `summary` with counts. |
+| GET | `/attendance` | `view` | List with filters: `?employeeId=&status=&from=&to=&page=&limit=&search=` |
 | GET | `/attendance/:id` | `view` | Single record |
-| POST | `/attendance` | `create` | Mark attendance for one staff member — `{ userId, status, date?, checkInAt?, checkOutAt?, notes? }` |
-| POST | `/attendance/batch` | `create` | Mark attendance for multiple staff — `{ date?, records: [{ userId, status, checkInAt?, checkOutAt?, notes? }] }` |
+| POST | `/attendance` | `create` | Mark attendance for one employee — `{ employeeId, status, date?, checkInAt?, checkOutAt?, notes? }` |
+| POST | `/attendance/batch` | `create` | Mark attendance for multiple employees — `{ date?, records: [{ employeeId, status, checkInAt?, checkOutAt?, notes? }] }` |
 | PUT | `/attendance/:id` | `edit` | Correct an existing record — `{ status?, checkInAt?, checkOutAt?, notes? }` |
 
 ```json
 // POST /attendance request
-{ "userId": "...", "status": "present", "date": "2026-06-27", "checkInAt": "2026-06-27T09:00:00Z" }
+{ "employeeId": "...", "status": "present", "date": "2026-06-27", "checkInAt": "2026-06-27T09:00:00Z" }
 // Response 201
-{ "data": { "id": "...", "userId": { "_id": "...", "name": "Alice" }, "date": "2026-06-27", "status": "present", "checkInAt": "2026-06-27T09:00:00Z", "checkOutAt": null, "notes": "", "markedBy": { "_id": "...", "name": "Bob" } } }
+{ "data": { "id": "...", "employee": { "_id": "...", "name": "Alice" }, "date": "2026-06-27", "status": "present", "checkInAt": "2026-06-27T09:00:00Z", "checkOutAt": null, "notes": "", "markedBy": { "_id": "...", "name": "Bob" } } }
 ```
-`409 ALREADY_CHECKED_IN` if the `{userId, date}` unique index would be violated. `hoursWorked` is computed on read, never stored.
+`409 ALREADY_CHECKED_IN` if the `{employee, date}` unique index would be violated. `hoursWorked` is computed on read, never stored.
+
+> **Cascade delete:** When an Employee is deleted from the Employees module, all associated Attendance records are automatically removed.
 
 ---
 
@@ -746,8 +748,8 @@ Single namespace, all authenticated dashboard clients join one shared room — n
 | `order:statusChanged` | `PATCH /orders/:id/status` succeeds | `{ orderId, status }` | Orders list, Dashboard |
 | `dashboard:metricsInvalidate` | Any revenue-affecting event (order created/status changed, expense created) | *(signal only, no payload)* | Dashboard triggers a React Query `invalidateQueries(['dashboard'])`, per `ARCHITECTURE.md` §8 |
 | `task:assigned` | Task created/reassigned | `{ taskId, assignedTo }` | Assignee's live task badge |
-| `attendance:marked` | `POST /attendance` or `POST /attendance/batch` succeeds | `{ userId, date, status }` | Live attendance view |
-| `attendance:updated` | `PUT /attendance/:id` succeeds | `{ userId, date, status }` | Live attendance view |
+| `attendance:marked` | `POST /attendance` or `POST /attendance/batch` succeeds | `{ employeeId, date, status }` | Live attendance view |
+| `attendance:updated` | `PUT /attendance/:id` succeeds | `{ employeeId, date, status }` | Live attendance view |
 
 ---
 
@@ -769,7 +771,7 @@ Single namespace, all authenticated dashboard clients join one shared room — n
 | 401 | `INVALID_CREDENTIALS` | Login failed |
 | 403 | `FORBIDDEN` | Valid token, but `authorize(module, action)` denied it |
 | 404 | `NOT_FOUND` | Resource doesn't exist (or is soft-deleted and the route doesn't opt into `includeInactive`) |
-| 409 | `COUPON_IN_USE` | Hard-delete blocked, `usageCount > 0` |
+| 409 | `COUPON_IN_USE` | (reserved — not currently used; coupons are unconditionally hard-deletable) |
 | 409 | `COUPON_USAGE_LIMIT_REACHED` | Lost a race at order-commit time |
 | 409 | `ALREADY_CHECKED_IN` | Attendance unique-index violation (duplicate mark for same user+date) |
 | 409 | `LAST_ADMIN_PROTECTED` / `CANNOT_DEACTIVATE_SELF` | User-deactivation guard rails |

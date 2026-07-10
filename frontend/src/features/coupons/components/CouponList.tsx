@@ -150,11 +150,7 @@ export default function CouponList({ onEdit, onDelete }: CouponListProps) {
                           {coupon.discountType === 'flat' ? 'off' : 'off'}
                         </span>
                       </div>
-                      {coupon.maxDiscountAmount && coupon.discountType === 'percentage' && (
-                        <div className="mt-0.5 text-xs text-slate-500">
-                          Max discount TK {coupon.maxDiscountAmount.toFixed(2)}
-                        </div>
-                      )}
+                      
                     </div>
                     <Badge variant={config.variant}>{config.label}</Badge>
                   </div>
@@ -172,12 +168,8 @@ export default function CouponList({ onEdit, onDelete }: CouponListProps) {
                         {new Date(coupon.validFrom).toLocaleDateString()} &ndash; {new Date(coupon.validUntil).toLocaleDateString()}
                       </span>
                     </div>
-                    {coupon.minOrderAmount && (
-                      <div className="flex items-center justify-between text-xs text-slate-500">
-                        <span>Min. order</span>
-                        <span className="font-medium text-slate-700">TK {coupon.minOrderAmount.toFixed(2)}</span>
-                      </div>
-                    )}
+                    
+
                   </div>
 
                   <div className="flex items-center justify-end gap-1 border-t border-slate-100 px-5 py-2.5">
@@ -247,10 +239,7 @@ export default function CouponList({ onEdit, onDelete }: CouponListProps) {
                         {coupon.discountType === 'flat'
                           ? `TK ${coupon.value.toFixed(2)}`
                           : `${coupon.value}%`}
-                        {coupon.maxDiscountAmount && coupon.discountType === 'percentage'
-                          ? <span className="text-xs text-slate-400"> (max TK {coupon.maxDiscountAmount.toFixed(2)})</span>
-                          : ''}
-                      </td>
+                        </td>
                       <td className="px-5 py-3.5 text-slate-600">
                         {coupon.usageCount}
                         {coupon.usageLimit ? <span className="text-slate-400"> / {coupon.usageLimit}</span> : ''}

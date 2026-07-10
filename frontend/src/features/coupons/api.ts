@@ -8,8 +8,6 @@ export interface CouponResponse {
   code: string;
   discountType: 'flat' | 'percentage';
   value: number;
-  maxDiscountAmount: number | null;
-  minOrderAmount: number | null;
   validFrom: string;
   validUntil: string;
   isEnabled: boolean;
@@ -73,8 +71,6 @@ export function useCreateCoupon() {
       code: string;
       discountType: 'flat' | 'percentage';
       value: number;
-      maxDiscountAmount?: number;
-      minOrderAmount?: number;
       validFrom: string;
       validUntil: string;
       usageLimit?: number;
@@ -98,8 +94,6 @@ export function useUpdateCoupon() {
       code?: string;
       discountType?: 'flat' | 'percentage';
       value?: number;
-      maxDiscountAmount?: number | null;
-      minOrderAmount?: number | null;
       validFrom?: string;
       validUntil?: string;
       isEnabled?: boolean;
@@ -144,3 +138,5 @@ export function useDeleteCoupon() {
     },
   });
 }
+
+

@@ -140,7 +140,7 @@ export default function AttendanceCorrectionForm({ recordId, onClose }: Attendan
               <User className="h-4 w-4 text-slate-400" />
               <div>
                 <p className="text-xs text-slate-500">Staff</p>
-                <p className="text-sm font-medium text-slate-800">{record.employee.name}</p>
+                <p className="text-sm font-medium text-slate-800">{record.employee?.name || 'Unknown'}</p>
               </div>
             </div>
             <div className="flex items-center gap-3 rounded-lg border border-slate-200 bg-slate-50/50 px-3.5 py-3">

@@ -51,6 +51,7 @@ export default function AttendanceHistoryList({ onCorrect }: AttendanceHistoryLi
     status: status || undefined,
     from: from || undefined,
     to: to || undefined,
+    search: debouncedSearch || undefined,
   });
 
   const records = data?.data || [];

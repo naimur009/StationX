@@ -28,7 +28,6 @@
 ```text
 User ──┬─< ActivityLog (actor)
        ├─< Task (assignedTo, assignedBy)
-       ├─< Attendance (userId)
        ├─< Order (createdBy)
        ├─< Expense (createdBy)
        └─< PasswordResetToken (userId)
@@ -42,7 +41,10 @@ Coupon ──< Order (couponId, optional)
 
 Vendor ──< Expense (vendorId, optional)
 
-User ──< Salary (employeeId)
+Employee ──┬─< Attendance (employee)
+           ├─< Salary (employeeId)
+           ├─< SalaryAdjustment (employeeId)
+           └─< SalarySummary (employeeId)
 
 Order ── embeds OrderItem[]
 Order ── customerId → Customer (optional, walk-ins omit it)
@@ -144,7 +146,7 @@ Not explicitly modeled in `ARCHITECTURE.md` §5's collection list, but required 
 
 **Indexes:** `code` (unique), compound `{ isEnabled: 1, validUntil: 1 }` (fast POS lookup of currently-usable coupons).
 
-> Hard-delete is allowed per §1 conventions, but if a Coupon has `usageCount > 0`, **block hard delete at the service layer** even though the schema permits it — Orders reference it by `couponId`, and removing it would orphan that reference. Prefer `isEnabled: false` for coupons that have ever been used; reserve hard delete for never-used coupons only.
+> Hard-delete is allowed per §1 conventions. Coupons may be permanently deleted regardless of `usageCount`. Historical orders that referenced the coupon will still exist with their `couponId` intact — the coupon document itself is removed. This is acceptable for v1 because the order's `discountAmount` is a frozen snapshot, not re-derived from the coupon document.
 
 ---
 
@@ -258,19 +260,23 @@ Internal helper collection (not in `ARCHITECTURE.md` §5's diagram — small, st
 
 ### 3.11 Attendance
 
+Tracks daily attendance per employee with status-based marking (present/absent/late/half-day).
+
 | Field | Type | Required | Notes |
 |---|---|---|---|
-| `userId` | ObjectId → User | ✓ | The staff member |
-| `date` | Date | ✓ | normalized to midnight — one record per staff per day |
+| `employee` | ObjectId → Employee | ✓ | The employee being marked |
+| `date` | Date | ✓ | normalized to midnight UTC — one record per employee per day |
 | `status` | String (enum) | ✓ | `'present'` \| `'absent'` \| `'late'` \| `'half-day'` |
 | `checkInAt` | Date | — | Optional — when they arrived (meaningful for present/late) |
 | `checkOutAt` | Date | — | Optional — when they left |
 | `notes` | String | — | e.g. "called in sick", "left early — approved by manager" |
 | `markedBy` | ObjectId → User | ✓ | Who marked/took this attendance |
 
-**Indexes:** unique compound `{ userId: 1, date: 1 }` — guarantees one attendance record per staff member per day.
+**Indexes:** unique compound `{ employee: 1, date: 1 }` — guarantees one attendance record per employee per day.
 
 > `hoursWorked` is intentionally **not stored** — derived from `checkOutAt - checkInAt` at query/report time.
+>
+> **Cascade delete:** When an Employee document is deleted, all Attendance records referencing that employee are automatically removed. See `Employees` module deletion logic.
 
 ---
 
@@ -404,7 +410,7 @@ Singleton — exactly one document for the whole restaurant (single-tenant per `
 | Vendor | `name` | list/search |
 | Order | `orderNumber` (unique), `{status, createdAt}`, `customerId`, `createdBy`, `items.productId` | listing, date-range reports, top-sellers |
 | Task | `{assignedTo, status}`, `priority`, `deadline` | assignee views, filters |
-| Attendance | `{userId, date}` (unique) | one record/day, history queries |
+| Attendance | `{employee, date}` (unique) | one record/day per employee |
 | Salary | `{employeeId, month, year}` (unique), `{month, year}`, `{status}` | per-employee monthly records, reports |
 | SalaryAdjustment | `{employeeId, month, year}`, `{salaryId}`, `{type}` | lookups by employee, period, or type |
 | SalarySummary | `{employeeId, month, year}` (unique), `{month, year}` | monthly summary queries |
@@ -422,7 +428,7 @@ All `isActive`-bearing collections additionally get an index on `isActive` where
 3. **Snapshot pricing** (3.8): protects historical financial accuracy against later Product price edits — the single most important rule in this schema, called out again here because it touches both Reports and Income accuracy (NFR: "no rounding/discount errors").
 4. **Cancelled orders excluded from revenue:** every aggregation pipeline (Dashboard metrics, Income, Sales Report) must filter `status: { $ne: 'cancelled' }` — this is a query-discipline rule, not a schema constraint, and should be centralized in one shared aggregation helper rather than repeated per endpoint to avoid one module forgetting it.
 5. **Referential soft-delete:** Product/Customer/Category soft-deletes never cascade-delete or null-out the foreign key on existing Orders/Expenses — old documents keep pointing at the (now-inactive) referenced document so historical detail views and reports remain fully reconstructable. Vendor hard-deletes naturally null-populate references (Mongoose `.populate()` returns `null` for deleted refs); existing Expense data remains intact via the `paidTo` snapshot.
-6. **Attendance uniqueness:** the `{userId, date}` unique index is the actual guard against duplicate check-ins (not just service-layer logic), so it holds even under a retried/duplicated request.
+6. **Attendance uniqueness:** the `{employee, date}` unique index is the actual guard against duplicate check-ins (not just service-layer logic), so it holds even under a retried/duplicated request.
 
 ---
 

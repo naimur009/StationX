@@ -7,6 +7,8 @@
     "build": "tsc",
     "start": "node dist/server.js",
     "seed:admin": "tsx src/seed/seed-admin.ts",
+    "clear:attendance": "tsx src/seed/clear-attendance.ts",
+    "fix:indexes": "tsx src/seed/fix-indexes.ts",
     "lint": "eslint src/ --ext .ts",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"

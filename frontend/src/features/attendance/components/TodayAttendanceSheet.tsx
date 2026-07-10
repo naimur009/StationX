@@ -10,7 +10,10 @@ import { AppError } from '@/lib/utils';
 
 function getDateString(d?: Date): string {
   const date = d || new Date();
-  return date.toISOString().split('T')[0];
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
 }
 
 const statusConfig: Record<string, { active: string; inactive: string; icon: React.ElementType; label: string }> = {
@@ -48,6 +51,7 @@ export default function TodayAttendanceSheet() {
   const markMutation = useMarkAttendance();
   const batchMutation = useBatchMarkAttendance();
   const [pendingEmployeeId, setPendingEmployeeId] = useState<string | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
@@ -65,10 +69,20 @@ export default function TodayAttendanceSheet() {
     }, 3000);
   };
 
+  const refreshAfterMutation = useCallback(async () => {
+    setIsRefreshing(true);
+    try {
+      await refetch();
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, [refetch]);
+
   const handleMark = useCallback(async (employeeId: string, status: 'present' | 'absent' | 'late' | 'half-day') => {
     setPendingEmployeeId(employeeId);
     try {
       await markMutation.mutateAsync({ employeeId, status, date: selectedDate });
+      await refreshAfterMutation();
       showTempMessage('Attendance marked successfully');
     } catch (err) {
       const msg = err instanceof AppError ? err.message : 'Failed to mark attendance';
@@ -76,7 +90,7 @@ export default function TodayAttendanceSheet() {
     } finally {
       setPendingEmployeeId(null);
     }
-  }, [markMutation, selectedDate]);
+  }, [markMutation, selectedDate, refreshAfterMutation]);
 
   const handleQuickStatus = useCallback(async (employeeId: string, currentStatus: string | undefined) => {
     const next = currentStatus === 'present' ? 'absent' : 'present';
@@ -95,16 +109,17 @@ export default function TodayAttendanceSheet() {
         date: selectedDate,
         records: unmarked.map((s) => ({ employeeId: s.employee._id, status: 'present' as const })),
       });
+      await refreshAfterMutation();
       showTempMessage(`${unmarked.length} staff marked present`);
     } catch (err) {
       const msg = err instanceof AppError ? err.message : 'Failed to mark all present';
       showTempMessage(msg, true);
     }
-  }, [batchMutation, data, selectedDate]);
+  }, [batchMutation, data, selectedDate, refreshAfterMutation]);
 
   const summary = data?.summary;
   const staff = data?.staff || [];
-  const isMutating = markMutation.isPending || batchMutation.isPending;
+  const isMutating = markMutation.isPending || batchMutation.isPending || isRefreshing;
   const isToday = selectedDate === getDateString();
 
   return (

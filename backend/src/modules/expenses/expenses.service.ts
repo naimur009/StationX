@@ -1,7 +1,7 @@
 import mongoose from 'mongoose';
 import Expense from '../../models/Expense';
 import Vendor from '../../models/Vendor';
-import User from '../../models/User';
+import Employee from '../../models/Employee';
 import { createError } from '../../middleware/errorHandler';
 import { escapeRegex } from '../../lib/escapeRegex';
 import { normalizeDateRange } from '../../lib/date-range';
@@ -16,10 +16,9 @@ interface PopulatedVendor {
   name: string;
 }
 
-interface PopulatedUser {
+interface PopulatedEmployee {
   _id: string;
   name: string;
-  email: string;
 }
 
 interface PopulatedCreator {
@@ -34,7 +33,7 @@ interface ExpenseData {
   description: string;
   category: string;
   vendorId?: PopulatedVendor | null;
-  paidBy: PopulatedUser;
+  paidBy: PopulatedEmployee;
   paidTo: string;
   paymentMethod: string;
   createdBy: PopulatedCreator;
@@ -50,7 +49,7 @@ function toData(expense: Record<string, unknown>): ExpenseData {
     description: expense.description as string,
     category: expense.category as string,
     vendorId: expense.vendorId as PopulatedVendor | null | undefined,
-    paidBy: expense.paidBy as PopulatedUser,
+    paidBy: expense.paidBy as PopulatedEmployee,
     paidTo: expense.paidTo as string,
     paymentMethod: expense.paymentMethod as string,
     createdBy: expense.createdBy as PopulatedCreator,
@@ -89,7 +88,7 @@ export async function listExpenses(query: ListExpensesQuery) {
     Expense.find(filter)
       .sort({ date: -1, createdAt: -1 })
       .populate('vendorId', 'name')
-      .populate('paidBy', 'name email')
+      .populate('paidBy', 'name')
       .populate('createdBy', 'name')
       .skip(skip)
       .limit(query.limit)
@@ -127,9 +126,9 @@ export async function createExpense(dto: CreateExpenseDto, userId: string) {
     }
   }
 
-  const paidByUser = await User.findById(dto.paidBy);
-  if (!paidByUser) {
-    throw createError(404, 'USER_NOT_FOUND', 'Referenced paidBy user not found');
+  const paidByEmployee = await Employee.findById(dto.paidBy);
+  if (!paidByEmployee) {
+    throw createError(404, 'EMPLOYEE_NOT_FOUND', 'Referenced paidBy employee not found');
   }
 
   const expense = await Expense.create({
@@ -156,9 +155,9 @@ export async function updateExpense(id: string, dto: UpdateExpenseDto) {
   }
 
   if (dto.paidBy) {
-    const paidByUser = await User.findById(dto.paidBy);
-    if (!paidByUser) {
-      throw createError(404, 'USER_NOT_FOUND', 'Referenced paidBy user not found');
+    const paidByEmployee = await Employee.findById(dto.paidBy);
+    if (!paidByEmployee) {
+      throw createError(404, 'EMPLOYEE_NOT_FOUND', 'Referenced paidBy employee not found');
     }
   }
 
@@ -180,14 +179,14 @@ export async function updateExpense(id: string, dto: UpdateExpenseDto) {
 }
 
 export async function getReferenceData() {
-  const [vendors, users] = await Promise.all([
+  const [vendors, employees] = await Promise.all([
     Vendor.find({}).select('name').sort({ name: 1 }).lean(),
-    User.find({ isActive: true }).select('name email').sort({ name: 1 }).lean(),
+    Employee.find({}).select('name').sort({ name: 1 }).lean(),
   ]);
 
   return {
     vendors: vendors.map((v) => ({ id: String(v._id), name: v.name })),
-    users: users.map((u) => ({ id: String(u._id), name: u.name, email: u.email })),
+    employees: employees.map((e) => ({ id: String(e._id), name: e.name })),
   };
 }
 

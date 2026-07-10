@@ -41,8 +41,6 @@ export default function CouponForm({ open, coupon, onClose }: CouponFormProps) {
           code: coupon.code,
           discountType: coupon.discountType,
           value: coupon.value,
-          maxDiscountAmount: coupon.maxDiscountAmount ?? undefined,
-          minOrderAmount: coupon.minOrderAmount ?? undefined,
           validFrom: coupon.validFrom.slice(0, 16),
           validUntil: coupon.validUntil.slice(0, 16),
           usageLimit: coupon.usageLimit ?? undefined,
@@ -51,9 +49,7 @@ export default function CouponForm({ open, coupon, onClose }: CouponFormProps) {
         reset({
           code: '',
           discountType: 'flat',
-          value: 0,
-          maxDiscountAmount: undefined,
-          minOrderAmount: undefined,
+          value: '' as unknown as number,
           validFrom: '',
           validUntil: '',
           usageLimit: undefined,
@@ -71,19 +67,18 @@ export default function CouponForm({ open, coupon, onClose }: CouponFormProps) {
     if (isPending) return;
     setError(null);
 
+    if (data.value === '' as unknown as number || isNaN(Number(data.value))) {
+      setError('Value is required');
+      return;
+    }
+
     const payload: Record<string, unknown> = {
       code: data.code,
       discountType: data.discountType,
-      value: data.value,
+      value: Number(data.value),
       validFrom: data.validFrom,
       validUntil: data.validUntil,
     };
-
-    const maxDiscount = toNumber(data.maxDiscountAmount);
-    if (maxDiscount !== undefined) payload.maxDiscountAmount = maxDiscount;
-
-    const minOrder = toNumber(data.minOrderAmount);
-    if (minOrder !== undefined) payload.minOrderAmount = minOrder;
 
     const usageLimit = toNumber(data.usageLimit);
     if (usageLimit !== undefined) payload.usageLimit = usageLimit;
@@ -191,48 +186,9 @@ export default function CouponForm({ open, coupon, onClose }: CouponFormProps) {
               className={`w-full rounded-xl border bg-white px-3.5 py-2.5 text-sm text-slate-800 placeholder-slate-400 ring-ring focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 ${
                 errors.value ? 'border-red-400' : 'border-slate-300'
               }`}
-              {...register('value', { valueAsNumber: true })}
+              {...register('value', { setValueAs: (v) => (v === '' ? '' : Number(v)) })}
             />
             {errors.value && <p className="mt-1 text-xs text-red-500">{errors.value.message}</p>}
-          </div>
-        </div>
-
-        <div className="grid grid-cols-2 gap-4">
-          {discountType === 'percentage' && (
-            <div>
-              <label htmlFor="coupon-max-discount" className="mb-1.5 block text-sm font-medium text-secondary-foreground">
-                Max Discount (optional)
-              </label>
-              <input
-                id="coupon-max-discount"
-                type="number"
-                step="0.01"
-                inputMode="decimal"
-                placeholder="No limit"
-                className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-800 placeholder-slate-400 ring-ring focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
-                {...register('maxDiscountAmount', { valueAsNumber: true })}
-              />
-              {errors.maxDiscountAmount && <p className="mt-1 text-xs text-red-500">{errors.maxDiscountAmount.message}</p>}
-            </div>
-          )}
-
-          <div>
-            <label htmlFor="coupon-min-order" className="mb-1.5 block text-sm font-medium text-secondary-foreground">
-              Min Order Amount (optional)
-            </label>
-            <div className="relative">
-              <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-sm text-slate-500">TK</span>
-              <input
-                id="coupon-min-order"
-                type="number"
-                step="0.01"
-                inputMode="decimal"
-                placeholder="0.00"
-                className="w-full rounded-xl border border-slate-300 bg-white py-2.5 pl-9 pr-3.5 text-sm text-slate-800 placeholder-slate-400 ring-ring focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
-                {...register('minOrderAmount', { valueAsNumber: true })}
-              />
-            </div>
-            {errors.minOrderAmount && <p className="mt-1 text-xs text-red-500">{errors.minOrderAmount.message}</p>}
           </div>
         </div>
 
@@ -279,7 +235,7 @@ export default function CouponForm({ open, coupon, onClose }: CouponFormProps) {
             inputMode="numeric"
             placeholder="Unlimited"
             className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-800 placeholder-slate-400 ring-ring focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
-            {...register('usageLimit', { valueAsNumber: true })}
+            {...register('usageLimit', { setValueAs: (v) => (v === '' ? undefined : Number(v)) })}
           />
           {errors.usageLimit && <p className="mt-1 text-xs text-red-500">{errors.usageLimit.message}</p>}
           <p className="mt-1 text-xs text-slate-400">

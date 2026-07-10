@@ -1,4 +1,8 @@
 import Employee, { IEmployee } from '../../models/Employee';
+import Attendance from '../../models/Attendance';
+import Salary from '../../models/Salary';
+import SalaryAdjustment from '../../models/SalaryAdjustment';
+import SalarySummary from '../../models/SalarySummary';
 import { createError } from '../../middleware/errorHandler';
 import type {
   CreateEmployeeDto,
@@ -96,6 +100,13 @@ export async function deleteEmployee(id: string) {
   if (!employee) {
     throw createError(404, 'NOT_FOUND', 'Employee not found');
   }
+
+  await Promise.all([
+    Attendance.deleteMany({ employee: id }),
+    Salary.deleteMany({ employeeId: id }),
+    SalaryAdjustment.deleteMany({ employeeId: id }),
+    SalarySummary.deleteMany({ employeeId: id }),
+  ]);
 
   await Employee.findByIdAndDelete(id);
 

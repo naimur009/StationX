@@ -15,8 +15,6 @@ interface CouponResponse {
   code: string;
   discountType: 'flat' | 'percentage';
   value: number;
-  maxDiscountAmount: number | null;
-  minOrderAmount: number | null;
   validFrom: Date;
   validUntil: Date;
   isEnabled: boolean;
@@ -43,8 +41,6 @@ function toResponse(coupon: ICoupon): CouponResponse {
     code: coupon.code,
     discountType: coupon.discountType,
     value: coupon.value,
-    maxDiscountAmount: coupon.maxDiscountAmount ?? null,
-    minOrderAmount: coupon.minOrderAmount ?? null,
     validFrom: coupon.validFrom,
     validUntil: coupon.validUntil,
     isEnabled: coupon.isEnabled,
@@ -128,8 +124,6 @@ export async function updateCoupon(id: string, dto: UpdateCouponDto) {
   if (dto.code !== undefined) updates.code = dto.code;
   if (dto.discountType !== undefined) updates.discountType = dto.discountType;
   if (dto.value !== undefined) updates.value = dto.value;
-  if (dto.maxDiscountAmount !== undefined) updates.maxDiscountAmount = dto.maxDiscountAmount;
-  if (dto.minOrderAmount !== undefined) updates.minOrderAmount = dto.minOrderAmount;
   if (dto.validFrom !== undefined) updates.validFrom = dto.validFrom;
   if (dto.validUntil !== undefined) updates.validUntil = dto.validUntil;
   if (dto.isEnabled !== undefined) updates.isEnabled = dto.isEnabled;
@@ -167,14 +161,6 @@ export async function deleteCoupon(id: string) {
 
   if (!coupon) {
     throw createError(404, 'NOT_FOUND', 'Coupon not found');
-  }
-
-  if (coupon.usageCount > 0) {
-    throw createError(
-      409,
-      'COUPON_IN_USE',
-      'Cannot delete a coupon that has been used in orders. Use PATCH /coupons/:id/toggle to disable it instead.'
-    );
   }
 
   await Coupon.findByIdAndDelete(id);

@@ -210,8 +210,7 @@ export default function ExpenseDetail({ expenseId, onEdit }: ExpenseDetailProps)
             <div className="min-w-0">
               <p className="text-xs font-medium text-slate-500">Paid By</p>
               <p className="truncate text-sm text-slate-700">
-                {expense.paidBy.name}
-                <span className="text-slate-400"> ({expense.paidBy.email})</span>
+                {expense.paidBy?.name ?? 'Unknown'}
               </p>
             </div>
           </div>

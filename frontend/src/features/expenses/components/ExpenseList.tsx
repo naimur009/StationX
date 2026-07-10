@@ -30,7 +30,7 @@ export default function ExpenseList({ onEdit, onDelete }: ExpenseListProps) {
   const { data: refData, isError: refError } = useExpenseReferenceData();
 
   const vendors = refData?.data.vendors ?? [];
-  const users = refData?.data.users ?? [];
+  const employees = refData?.data.employees ?? [];
 
   useEffect(() => {
     mountedRef.current = true;
@@ -150,8 +150,8 @@ export default function ExpenseList({ onEdit, onDelete }: ExpenseListProps) {
             className="rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-700 ring-ring focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-ring min-w-[160px]"
           >
             <option value="">All Staff</option>
-            {users.map((u) => (
-              <option key={u.id} value={u.id}>{u.name}</option>
+            {employees.map((employee) => (
+              <option key={employee.id} value={employee.id}>{employee.name}</option>
             ))}
           </select>
         </div>
@@ -195,7 +195,7 @@ export default function ExpenseList({ onEdit, onDelete }: ExpenseListProps) {
                   <span className="text-slate-300">|</span>
                   <span>{paymentMethodLabels[expense.paymentMethod] ?? expense.paymentMethod}</span>
                   <span className="text-slate-300">|</span>
-                  <span>{expense.paidBy.name}</span>
+                  <span>{expense.paidBy?.name ?? 'Unknown'}</span>
                 </div>
                 <div className="mt-3 flex items-center justify-end gap-1.5">
                   <button
@@ -283,7 +283,7 @@ export default function ExpenseList({ onEdit, onDelete }: ExpenseListProps) {
                       {paymentMethodLabels[expense.paymentMethod] ?? expense.paymentMethod}
                     </td>
                     <td className="px-4 py-3 text-slate-600">
-                      {expense.paidBy.name}
+                      {expense.paidBy?.name ?? 'Unknown'}
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-end gap-2">

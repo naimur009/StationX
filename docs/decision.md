@@ -284,6 +284,34 @@
 - `decision.md` (this entry)
 **Reasoning:** The activity log accumulates entries indefinitely with no pruning mechanism. Adding a clear-all endpoint gives admins a way to purge the log when needed (e.g., before a fresh audit period, or to reclaim storage). The operation is gated by the `delete` action on the `activity-log` module, which realistically only admin accounts will have. The endpoint skips its own activity log write to avoid meta-logging issues.
 
+### [—] Attendance Redesign — Stale Index Fix, History Removal, Cascade Delete — 2026-07-10
+
+**Open item resolved:** `database.md §3.11` (Attendance schema field `userId` vs actual `employee`), `API.md §13` (request field `userId` vs actual `employeeId`), stale MongoDB index `{ user: 1, date: 1 }` causing E11000 for all employees after first mark.
+
+**Decision:**
+1. **Stale index fix:** Created `fix-indexes.ts` script to drop the stale `{ user: 1, date: 1 }` unique index from the Attendance collection. Updated `clear-attendance.ts` to also clean stale indexes. The `{ employee: 1, date: 1 }` index from the schema is the only attendance unique index.
+2. **Cascade delete on employee removal:** When an Employee document is deleted (`DELETE /employees/:id`), all related Attendance, Salary, SalaryAdjustment, and SalarySummary records are automatically removed before deleting the employee.
+3. **History section removed:** The "History" tab and its `AttendanceHistoryList` component are removed from the Attendance page. The `AttendanceCorrectionForm` (only accessible via history) is also removed. The "Roll Call" (TodayAttendanceSheet) and "Monthly Report" (AttendanceCalendar) tabs remain.
+4. **Docs updated:** `database.md`, `API.md`, and `TEST_CASES.md` updated to reflect the correct field names (`employee`/`employeeId` instead of `userId`), the new cascade-delete behavior, and the simplified attendance UI.
+
+**Doc(s) updated:**
+- `database.md` §2 (ER diagram: Employee → Attendance/Salary/SalaryAdjustment/SalarySummary), §3.11 (Attendance schema: `employee` field, cascade delete note), §4 (Attendance index: `{employee, date}`), §5 (data integrity: cascade delete rule)
+- `API.md` §13 (request/response fields: `employeeId`/`employee`, removed history description, added cascade delete note), §23 (real-time events: `employeeId`)
+- `TEST_CASES.md` §9 (field names: `employeeId`, removed `userId` references, added cascade delete tests)
+- `decision.md` (this entry)
+
+**Files changed:**
+- `backend/src/seed/fix-indexes.ts` (new — stale index fix script)
+- `backend/src/seed/clear-attendance.ts` (updated — also drops stale indexes + syncIndexes)
+- `backend/package.json` (added `fix:indexes` script)
+- `backend/src/modules/employees/employees.service.ts` (cascade delete)
+- `frontend/src/app/(dashboard)/attendance/page.tsx` (removed history tab, correction dialog)
+
+**Reasoning:**
+- The stale `{ user: 1, date: 1 }` index was a leftover from a previous schema version and caused E11000 errors for all employees after the first daily mark — the`user` field doesn't exist on current documents, so MongoDB indexed it as `null` for every document, making all subsequent inserts on the same date violate the unique constraint.
+- Cascade delete prevents orphaned records when employees are removed, keeping the database clean without manual cleanup.
+- Removing the History section simplifies the attendance UI to two focused tabs: today's roll call and the monthly report calendar.
+
 ### [20] Home Page (Public) — Live Settings Branding — 2026-07-04
 
 **Open item resolved:** N/A — new feature extending existing Settings module.

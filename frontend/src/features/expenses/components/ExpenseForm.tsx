@@ -26,7 +26,7 @@ export default function ExpenseForm({ open, expense, onClose }: ExpenseFormProps
   const { data: refData, isError: refError } = useExpenseReferenceData();
 
   const vendors = refData?.data.vendors ?? [];
-  const users = refData?.data.users ?? [];
+  const employees = refData?.data.employees ?? [];
 
   const {
     register,
@@ -69,7 +69,7 @@ export default function ExpenseForm({ open, expense, onClose }: ExpenseFormProps
           description: expense.description,
           category: expense.category,
           vendorId: expense.vendorId?._id ?? '',
-          paidBy: expense.paidBy._id,
+          paidBy: expense.paidBy?._id ?? '',
           paidTo: expense.paidTo,
           paymentMethod: expense.paymentMethod,
         });
@@ -310,9 +310,9 @@ export default function ExpenseForm({ open, expense, onClose }: ExpenseFormProps
               {...register('paidBy')}
             >
               <option value="">Select a staff member</option>
-              {users.map((user) => (
-                <option key={user.id} value={user.id}>
-                  {user.name} ({user.email})
+              {employees.map((employee) => (
+                <option key={employee.id} value={employee.id}>
+                  {employee.name}
                 </option>
               ))}
             </select>

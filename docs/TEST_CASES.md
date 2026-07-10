@@ -293,8 +293,7 @@ These apply to **every** module below; listed once here and referenced by ID rat
 | CPN-E-03 | Edge | Coupon with `isEnabled: true`, `validUntil` passed | `status: "expired"` |
 | CPN-E-04 | Edge | Coupon with `isEnabled: false`, otherwise in-window | `status: "disabled"` (disabled takes precedence over window state — confirm computed-status priority order) |
 | CPN-H-04 | Happy | `PATCH /coupons/:id/toggle` | Flips `isEnabled`, no full body required |
-| CPN-H-05 | Happy | `DELETE /coupons/:id` with `usageCount: 0` | Hard-deleted successfully |
-| CPN-E-05 | Error | `DELETE /coupons/:id` with `usageCount > 0` | `409 COUPON_IN_USE`, message suggests `PATCH /coupons/:id/toggle` instead |
+| CPN-H-05 | Happy | `DELETE /coupons/:id` | Hard-deleted successfully regardless of `usageCount` |
 | CPN-AUTH-01 | Security | User lacks `coupons:delete` | `403 FORBIDDEN` |
 
 ---
@@ -337,10 +336,9 @@ These apply to **every** module below; listed once here and referenced by ID rat
 | ATT-H-04 | Happy | Mark staff as `absent` with `notes: "Sick leave"` | `201`, notes persisted |
 | ATT-H-05 | Happy | Mark staff as `late` with `checkInAt` timestamp | `201`, checkInAt set |
 | ATT-E-03 | Error | Same staff + date already has a record | `409 ALREADY_CHECKED_IN` |
-| ATT-E-04 | Error | `userId` references a nonexistent user | `404 NOT_FOUND` |
-| ATT-E-05 | Error | `userId` references a deactivated user | `404 NOT_FOUND` |
+| ATT-E-04 | Error | `employeeId` references a nonexistent employee | `404 NOT_FOUND` |
 | ATT-V-02 | Validation | `status` has invalid value | `400 VALIDATION_ERROR` |
-| ATT-V-03 | Validation | Missing `userId` | `400 VALIDATION_ERROR` |
+| ATT-V-03 | Validation | Missing `employeeId` | `400 VALIDATION_ERROR` |
 | ATT-V-04 | Validation | `notes` exceeds 500 characters | `400 VALIDATION_ERROR` |
 
 ### `POST /attendance/batch`
@@ -348,7 +346,7 @@ These apply to **every** module below; listed once here and referenced by ID rat
 | ID | Type | Case | Expected |
 |---|---|---|---|
 | ATT-H-06 | Happy | 5 valid records, all new | `201`, `created: 5, skipped: 0, errors: []` |
-| ATT-H-07 | Happy | 5 records, 3 valid + 2 already exist | `201`, `created: 3, skipped: 2, errors: [{ userId, code: "ALREADY_CHECKED_IN" }, ...]` |
+| ATT-H-07 | Happy | 5 records, 3 valid + 2 already exist | `201`, `created: 3, skipped: 2, errors: [{ employeeId, code: "ALREADY_CHECKED_IN" }, ...]` |
 | ATT-V-05 | Validation | `records` array empty | `400 VALIDATION_ERROR` |
 | ATT-V-06 | Validation | `records` array exceeds 100 items | `400 VALIDATION_ERROR` |
 
@@ -371,6 +369,8 @@ These apply to **every** module below; listed once here and referenced by ID rat
 | ATT-RT-02 | Real-time | Update attendance succeeds | Emits `attendance:updated` |
 | ATT-AUTH-01 | Security | No `DELETE /attendance/:id` route exists | Confirm at router level |
 | ATT-CONCUR-01 | Concurrency | Duplicate mark request sent twice rapidly | Second fails with `409 ALREADY_CHECKED_IN` |
+| ATT-CASCADE-01 | Integrity | Delete an employee with existing attendance records | Employee deleted, all associated attendance records also removed |
+| ATT-CASCADE-02 | Integrity | Delete an employee with existing salary/salary-adjustment/salary-summary records | Employee deleted, all associated salary records also removed |
 
 ---
 

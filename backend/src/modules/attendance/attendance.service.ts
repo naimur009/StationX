@@ -81,8 +81,15 @@ function toResponse(record: IAttendance): AttendanceResponse {
 }
 
 function normalizeDate(input?: Date | string): Date {
-  const d = input ? new Date(input) : new Date();
-  return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  if (!input) {
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  }
+  if (typeof input === 'string') {
+    const parts = input.split('T')[0].split('-');
+    return new Date(+parts[0], +parts[1] - 1, +parts[2]);
+  }
+  return new Date(input.getUTCFullYear(), input.getUTCMonth(), input.getUTCDate());
 }
 
 function tryEmit(event: string, data: Record<string, unknown>): void {
@@ -157,36 +164,42 @@ export async function getTodayStaff(queryDate?: string): Promise<TodayResponse> 
 export async function markAttendance(dto: CreateAttendanceDto, authenticatedUserId: string) {
   const date = dto.date ? normalizeDate(dto.date) : normalizeDate();
 
+  console.log('[markAttendance] Request employeeId:', dto.employeeId, 'date:', date.toISOString());
+
   const employee = await Employee.findById(dto.employeeId);
   if (!employee) {
     throw createError(404, 'NOT_FOUND', 'Employee not found');
   }
 
-  const existing = await Attendance.findOne({ employee: dto.employeeId, date });
-  if (existing) {
-    throw createError(409, 'ALREADY_CHECKED_IN', 'Attendance already marked for this employee on this date');
+  try {
+    const record = await Attendance.create({
+      employee: dto.employeeId,
+      date,
+      status: dto.status,
+      checkInAt: dto.checkInAt || undefined,
+      checkOutAt: dto.checkOutAt || undefined,
+      notes: dto.notes || undefined,
+      markedBy: authenticatedUserId,
+    });
+
+    await record.populate('employee', 'name');
+    await record.populate('markedBy', 'name');
+
+    tryEmit('attendance:marked', {
+      employeeId: dto.employeeId,
+      date: date.toISOString(),
+      status: dto.status,
+    });
+
+    return toResponse(record);
+  } catch (error: unknown) {
+    const mongoError = error as { code?: number; keyValue?: Record<string, unknown> };
+    if (mongoError.code === 11000) {
+      console.error('[E11000] Duplicate key. employeeId:', dto.employeeId, 'date:', date.toISOString(), 'keyValue:', JSON.stringify(mongoError.keyValue));
+      throw createError(409, 'ALREADY_CHECKED_IN', 'Attendance already marked for this employee on this date');
+    }
+    throw error;
   }
-
-  const record = await Attendance.create({
-    employee: dto.employeeId,
-    date,
-    status: dto.status,
-    checkInAt: dto.checkInAt || undefined,
-    checkOutAt: dto.checkOutAt || undefined,
-    notes: dto.notes || undefined,
-    markedBy: authenticatedUserId,
-  });
-
-  await record.populate('employee', 'name');
-  await record.populate('markedBy', 'name');
-
-  tryEmit('attendance:marked', {
-    employeeId: dto.employeeId,
-    date: date.toISOString(),
-    status: dto.status,
-  });
-
-  return toResponse(record);
 }
 
 export async function batchMarkAttendance(dto: BatchAttendanceDto, authenticatedUserId: string): Promise<BatchResult> {
@@ -207,17 +220,6 @@ export async function batchMarkAttendance(dto: BatchAttendanceDto, authenticated
         continue;
       }
 
-      const existing = await Attendance.findOne({ employee: record.employeeId, date });
-      if (existing) {
-        result.skipped++;
-        result.errors.push({
-          employeeId: record.employeeId,
-          code: 'ALREADY_CHECKED_IN',
-          message: 'Attendance already marked for this date',
-        });
-        continue;
-      }
-
       await Attendance.create({
         employee: record.employeeId,
         date,
@@ -230,11 +232,16 @@ export async function batchMarkAttendance(dto: BatchAttendanceDto, authenticated
 
       result.created++;
     } catch (error) {
+      const mongoError = error as { code?: number };
+      const code = mongoError.code === 11000 ? 'ALREADY_CHECKED_IN' : 'INTERNAL_ERROR';
+      const message = mongoError.code === 11000
+        ? 'Attendance already marked for this date'
+        : 'Failed to process record';
       result.skipped++;
       result.errors.push({
         employeeId: record.employeeId,
-        code: 'INTERNAL_ERROR',
-        message: 'Failed to process record',
+        code,
+        message,
       });
     }
   }
@@ -281,6 +288,19 @@ export async function listAttendance(query: ListAttendanceQueryDto) {
 
   if (query.employeeId) {
     filter.employee = query.employeeId;
+  }
+
+  if (query.search) {
+    const matchedEmployees = await Employee.find({
+      name: { $regex: query.search, $options: 'i' },
+    })
+      .select('_id')
+      .lean();
+    const ids = matchedEmployees.map((e) => e._id);
+    if (ids.length === 0) {
+      return { data: [], meta: { total: 0, page: query.page, limit: query.limit } };
+    }
+    filter.employee = { $in: ids };
   }
 
   if (query.status) {
