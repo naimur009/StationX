@@ -1,5 +1,5 @@
 import { PipelineStage, Types } from 'mongoose';
-import { buildCancelledExcludedMatch } from '../../lib/aggregation';
+import { buildRevenueMatch } from '../../lib/aggregation';
 
 export type ReportType = 'sales' | 'profit';
 
@@ -7,7 +7,7 @@ export const REPORT_TYPES: ReportType[] = ['sales', 'profit'];
 
 export function salesAggregation(from: Date, to: Date): PipelineStage[] {
   return [
-    { $match: { ...buildCancelledExcludedMatch(), createdAt: { $gte: from, $lte: to } } },
+    { $match: { ...buildRevenueMatch(), createdAt: { $gte: from, $lte: to } } },
     {
       $addFields: {
         paymentSplits: {

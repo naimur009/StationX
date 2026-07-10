@@ -4,20 +4,27 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import PermissionGate from '@/components/shared/PermissionGate';
 import OrderCancelDialog from './OrderCancelDialog';
+import OrderPaymentCaptureDialog from './OrderPaymentCaptureDialog';
 import type { OrderDetail } from '../api';
 
 interface OrderStatusActionsProps {
   order: OrderDetail;
-  onStatusChange: (status: string, cancelReason?: string) => void;
+  onStatusChange: (status: string, cancelReason?: string, paymentData?: Record<string, unknown>) => void;
   isLoading: boolean;
 }
 
 export default function OrderStatusActions({ order, onStatusChange, isLoading }: OrderStatusActionsProps) {
   const [cancelOpen, setCancelOpen] = useState(false);
+  const [captureOpen, setCaptureOpen] = useState(false);
 
   const handleCancel = (reason: string) => {
     onStatusChange('cancelled', reason);
     setCancelOpen(false);
+  };
+
+  const handleCapture = (data: Record<string, unknown>) => {
+    onStatusChange('completed', undefined, data);
+    setCaptureOpen(false);
   };
 
   if (order.status === 'cancelled') {
@@ -42,6 +49,17 @@ export default function OrderStatusActions({ order, onStatusChange, isLoading }:
           </Button>
         )}
 
+        {(order.status === 'completed' && order.paymentStatus !== 'paid') && (
+          <Button
+            variant="primary"
+            size="md"
+            disabled={isLoading}
+            onClick={() => setCaptureOpen(true)}
+          >
+            Capture Payment
+          </Button>
+        )}
+
         {(order.status === 'pending' || order.status === 'completed') && (
           <Button
             variant={order.status === 'completed' ? 'destructive' : 'warning'}
@@ -59,6 +77,14 @@ export default function OrderStatusActions({ order, onStatusChange, isLoading }:
         onClose={() => setCancelOpen(false)}
         onConfirm={handleCancel}
         isCompleted={order.status === 'completed'}
+        isLoading={isLoading}
+      />
+
+      <OrderPaymentCaptureDialog
+        open={captureOpen}
+        order={order}
+        onClose={() => setCaptureOpen(false)}
+        onCapture={handleCapture}
         isLoading={isLoading}
       />
     </PermissionGate>

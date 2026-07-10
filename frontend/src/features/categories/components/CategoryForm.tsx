@@ -45,22 +45,22 @@ export default function CategoryForm({ open, category, onClose }: CategoryFormPr
   useEffect(() => {
     if (open) {
       if (category) {
-        reset({ name: category.name, taxRate: category.taxRate });
+        reset({ name: category.name, vatRate: category.vatRate });
       } else {
-        reset({ name: '', taxRate: 5 });
+        reset({ name: '', vatRate: 5 });
       }
       setError(null);
     }
   }, [open, category, reset]);
 
-  async function onSubmit(data: { name: string; taxRate: number }) {
+  async function onSubmit(data: { name: string; vatRate: number }) {
     setError(null);
 
     try {
       if (isEdit && category) {
-        await updateCategory.mutateAsync({ id: category.id, name: data.name, taxRate: data.taxRate });
+        await updateCategory.mutateAsync({ id: category.id, name: data.name, vatRate: data.vatRate });
       } else {
-        await createCategory.mutateAsync({ name: data.name, taxRate: data.taxRate });
+        await createCategory.mutateAsync({ name: data.name, vatRate: data.vatRate });
       }
       reset();
       onClose();
@@ -132,11 +132,11 @@ export default function CategoryForm({ open, category, onClose }: CategoryFormPr
           {errors.name && <p className="mt-1 text-xs text-red-500">{errors.name.message}</p>}
         </div>
         <div>
-          <label htmlFor="category-taxRate" className="mb-1.5 block text-sm font-medium text-slate-700">
-            Tax Rate (%)
+          <label htmlFor="category-vatRate" className="mb-1.5 block text-sm font-medium text-slate-700">
+            VAT Rate (%)
           </label>
           <input
-            id="category-taxRate"
+            id="category-vatRate"
             type="number"
             inputMode="decimal"
             step="0.01"
@@ -144,11 +144,11 @@ export default function CategoryForm({ open, category, onClose }: CategoryFormPr
             max="100"
             placeholder="e.g. 5"
             className={`w-full rounded-xl border bg-white px-3.5 py-2.5 text-sm text-slate-800 placeholder-slate-400 ring-ring focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-ring ${
-              errors.taxRate ? 'border-red-400' : 'border-slate-300'
+              errors.vatRate ? 'border-red-400' : 'border-slate-300'
             }`}
-            {...register('taxRate', { valueAsNumber: true })}
+            {...register('vatRate', { valueAsNumber: true })}
           />
-          {errors.taxRate && <p className="mt-1 text-xs text-red-500">{errors.taxRate.message}</p>}
+          {errors.vatRate && <p className="mt-1 text-xs text-red-500">{errors.vatRate.message}</p>}
         </div>
       </form>
     </Dialog>

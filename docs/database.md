@@ -198,11 +198,12 @@ The highest-traffic, highest-stakes collection — embeds line items per the rea
 | `customerId` | ObjectId → Customer | — | optional; walk-ins omit it |
 | `items` | Array of `OrderItem` (embedded, see below) | ✓ (min 1) | |
 | `couponId` | ObjectId → Coupon | — | |
-| `discountAmount` | Number | ✓ (default `0`) | resolved amount, computed once at order time — never recomputed from a live coupon later |
-| `taxAmount` | Number | ✓ (default `0`) | computed from `Settings.taxConfig` at order time, then frozen |
+| `paymentStatus` | String enum `unpaid \| paid` | ✓ (default `unpaid`) | independent axis from `status`; an order can be `status: completed, paymentStatus: unpaid` (fulfilled, not yet paid). Revenue aggregations require `paymentStatus: 'paid'` |
+| `discountAmount` | Number | ✓ (default `0`) | resolved amount, computed at order creation and recomputed on every pre-payment item edit — frozen once `paymentStatus` becomes `paid` |
+| `taxAmount` | Number | ✓ (default `0`) | computed from per-category `vatRate` at order creation, recomputed on pre-payment item edits — frozen once `paymentStatus` becomes `paid` |
 | `subtotal` | Number | ✓ | sum of `items[].lineTotal` before discount/tax |
 | `grandTotal` | Number | ✓ | `subtotal - discountAmount + taxAmount` |
-| `payment` | `{ method: enum(cash\|card\|bkash\|nagad\|split), splits?: [{ method: enum(cash\|card\|bkash\|nagad), amount: Number }] }` | ✓ | `splits` required and must sum to `grandTotal` only when `method: 'split'` (Zod `.refine`) |
+| `payment` | `{ method: enum(cash\|card\|bkash\|nagad\|split), splits?: [{ method: enum(cash\|card\|bkash\|nagad), amount: Number }] }` | — | optional at order creation; required at payment capture step |
 | `status` | String enum `pending \| completed \| cancelled` | ✓ (default `pending`) | per §1; cancelled orders excluded from all revenue aggregations |
 | `createdBy` | ObjectId → User | ✓ | staff member who created the order |
 | `completedAt` | Date | — | set on transition to `completed` |

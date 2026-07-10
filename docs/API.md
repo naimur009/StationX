@@ -209,7 +209,7 @@ This is a **read-only preview** — `Coupon.usageCount` is *not* incremented her
 
 ### 9.3 Order Creation
 `POST /pos/orders`
-This is where `ARCHITECTURE.md` §4's `pos.service.ts` ("order total calc, coupon application") lives. The server **recalculates** `subtotal`, `discountAmount`, and `taxAmount` from the submitted `items` + `couponCode` + `Settings.taxConfig` — client-submitted totals are never trusted directly, satisfying the NFR "no rounding/discount errors in billing." The request only sends what the cashier chose; the response is the source of truth for what was charged.
+This is where `ARCHITECTURE.md` §4's `pos.service.ts` ("order total calc, coupon application") lives. The server **recalculates** `subtotal`, `discountAmount`, and `taxAmount` from the submitted `items` + `couponCode` + per-category `vatRate` — client-submitted totals are never trusted directly, satisfying the NFR "no rounding/discount errors in billing." The request only sends what the cashier chose; the response is the source of truth for what was charged.
 
 ```json
 // Request
@@ -219,26 +219,26 @@ This is where `ARCHITECTURE.md` §4's `pos.service.ts` ("order total calc, coupo
   "customerId": null,
   "items": [{ "productId": "...", "quantity": 2 }, { "productId": "...", "quantity": 1 }],
   "couponCode": "WELCOME10",
-  "payment": { "method": "split", "splits": [{ "method": "cash", "amount": 300 }, { "method": "card", "amount": 186 }] },
-  "status": "completed"
+  "status": "pending"
 }
 ```
+
+`payment` is optional at creation. When omitted, the order is created with `paymentStatus: 'unpaid'`. When provided, the order is created with `paymentStatus: 'paid'` (legacy quick-checkout path).
+
 ```json
 // Response 201
 { "data": {
     "id": "...", "orderNumber": "ORD-000482", "orderType": "dine-in", "tableNumber": "12",
     "items": [{ "productId": "...", "nameSnapshot": "Chicken Fry", "priceSnapshot": 220, "quantity": 2, "lineTotal": 440 }],
     "subtotal": 540, "discountAmount": 54, "taxAmount": 0, "grandTotal": 486,
-    "payment": { "method": "split", "splits": [...] },
-    "status": "completed", "createdBy": "...", "completedAt": "2026-06-20T10:32:00Z"
+    "paymentStatus": "unpaid",
+    "status": "pending", "createdBy": "..."
 } }
 ```
 
-**`status` field — assumption made here, flag if wrong:** every POS order requires `payment` upfront (it's a required field per `DATABASE.md` §3.8), which implies payment is captured at the moment of sale in v1 — there's no separate kitchen/fulfillment workflow yet (KDS is `ARCHITECTURE.md` §13 Future Scope). So `status` **defaults to `completed`** if omitted. Staff may explicitly pass `status: "pending"` to represent a dine-in tab taken but not yet finalized; pending orders transition via `PATCH /orders/:id/status` (§10) like any other order.
+Internally this delegates to the transaction described in `DATABASE.md` §5.1 (`Counter` increment, `Order` insert, `ActivityLog` write) — POS is the route, not a separate code path. `Coupon.usageCount` `$inc` is deferred to a separate transaction at payment capture time. On success it also emits `order:created` and `dashboard:metricsInvalidate` (§23).
 
-Internally this delegates to the same transaction described in `DATABASE.md` §5.1 (`Counter` increment, `Order` insert, `Coupon.usageCount` `$inc`, `ActivityLog` write) — POS is the route, not a separate code path. On success it also emits `order:created` and `dashboard:metricsInvalidate` (§23).
-
-Errors: `400 VALIDATION_ERROR`, `409 COUPON_USAGE_LIMIT_REACHED` (if a race lost between validate-preview and submit — rare, but the transaction re-checks per `DATABASE.md` §5.2), `409 PRODUCT_UNAVAILABLE` (a submitted `productId` was deactivated between catalog load and submit).
+Errors: `400 VALIDATION_ERROR`, `409 PRODUCT_UNAVAILABLE` (a submitted `productId` was deactivated between catalog load and submit).
 
 ### 9.4 Bill / Print
 Intentionally **not** duplicated under `/pos` — once an order exists, printing or reprinting its bill is an Orders concern regardless of whether the request originates from the POS screen's "print" button or the Orders detail page. See `GET /orders/:id/bill` in §10.
@@ -746,6 +746,8 @@ Single namespace, all authenticated dashboard clients join one shared room — n
 |---|---|---|---|
 | `order:created` | `POST /pos/orders` succeeds | `{ orderId, orderNumber, grandTotal, status, createdBy }` | Orders list (live row insert), future KDS |
 | `order:statusChanged` | `PATCH /orders/:id/status` succeeds | `{ orderId, status }` | Orders list, Dashboard |
+| `order:itemsUpdated` | `PUT /orders/:id` succeeds with item changes on a completed order | `{ orderId, orderNumber }` | Kitchen display (re-notification for added items) |
+| `order:paid` | `PATCH /orders/:id/status` with `paymentStatus: 'paid'` succeeds | `{ orderId, orderNumber, paymentStatus }` | Orders list, Dashboard |
 | `dashboard:metricsInvalidate` | Any revenue-affecting event (order created/status changed, expense created) | *(signal only, no payload)* | Dashboard triggers a React Query `invalidateQueries(['dashboard'])`, per `ARCHITECTURE.md` §8 |
 | `task:assigned` | Task created/reassigned | `{ taskId, assignedTo }` | Assignee's live task badge |
 | `attendance:marked` | `POST /attendance` or `POST /attendance/batch` succeeds | `{ employeeId, date, status }` | Live attendance view |
@@ -766,6 +768,7 @@ Single namespace, all authenticated dashboard clients join one shared room — n
 | 400 | `INVALID_ACTION` | Permission action is not valid for the given module |
 | 400 | `INVALID_CATEGORY` | Referenced category does not exist |
 | 400 | `COUPON_CODE_EXISTS` | A coupon with this code already exists |
+| 400 | `ORDER_ALREADY_PAID` | Attempt to edit items or financial fields on a paid order |
 | 400 | `PRODUCT_IS_ACTIVE` | Attempt to permanently delete an active product without deactivating first |
 | 401 | `UNAUTHORIZED` | Missing/invalid/expired access token |
 | 401 | `INVALID_CREDENTIALS` | Login failed |

@@ -40,11 +40,36 @@ export const updateOrderSchema = z.object({
 }).strict();
 
 export const updateOrderStatusSchema = z.object({
-  status: z.enum(['pending', 'completed', 'cancelled']),
+  status: z.enum(['pending', 'completed', 'cancelled']).optional(),
   cancelReason: z.string().max(500).trim().optional(),
+  paymentStatus: z.enum(['paid']).optional(),
+  payment: z.object({
+    method: z.enum(['cash', 'card', 'bkash', 'nagad']),
+    transactionId: z.string().max(20).optional(),
+  }).optional(),
+  cashTendered: z.number().nonnegative().multipleOf(0.01).optional(),
+  changeAmount: z.number().nonnegative().multipleOf(0.01).optional(),
 }).strict().refine(
-  (data) => data.status !== 'cancelled' || (data.cancelReason && data.cancelReason.length > 0),
+  (data) => {
+    if (data.paymentStatus === 'paid' && data.payment) {
+      if (data.payment.method === 'cash' && (data.cashTendered === undefined || data.cashTendered <= 0)) {
+        return false;
+      }
+    }
+    return true;
+  },
+  { message: 'Cash tendered is required and must be > 0 for cash payments', path: ['cashTendered'] }
+).refine(
+  (data) => {
+    if (data.status === 'cancelled' && !data.cancelReason) {
+      return false;
+    }
+    return true;
+  },
   { message: 'Cancel reason is required when cancelling an order', path: ['cancelReason'] }
+).refine(
+  (data) => data.status || data.paymentStatus,
+  { message: 'Either status or paymentStatus must be provided', path: ['status'] }
 );
 
 export const billQuerySchema = z.object({

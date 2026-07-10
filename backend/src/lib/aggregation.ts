@@ -1,3 +1,3 @@
-export function buildCancelledExcludedMatch() {
-  return { status: { $ne: 'cancelled' } };
+export function buildRevenueMatch() {
+  return { status: 'completed', paymentStatus: 'paid' };
 }

@@ -1,12 +1,12 @@
 import { create } from 'zustand';
-import type { PaymentMethod, CustomerInfo, PosState } from './schema';
+import type { CustomerInfo, PosState } from './schema';
 
 function round2(n: number): number {
   return Math.round(n * 100) / 100;
 }
 
 interface PosActions {
-  addItem: (product: { productId: string; name: string; price: number; taxRate: number }) => void;
+  addItem: (product: { productId: string; name: string; price: number; vatRate: number }) => void;
   removeItem: (productId: string) => void;
   updateQuantity: (productId: string, quantity: number) => void;
   setCoupon: (code: string, discount: number, type: 'flat' | 'percentage') => void;
@@ -16,10 +16,7 @@ interface PosActions {
   setCustomerPhone: (phone: string) => void;
   setTableNumber: (table: string) => void;
   setServedBy: (userId: string) => void;
-  setPaymentMethod: (method: PaymentMethod) => void;
-  setTransactionId: (id: string) => void;
   setDiscountPercent: (percent: number) => void;
-  setCashTendered: (amount: string) => void;
   setSubmitting: (submitting: boolean) => void;
   reset: () => void;
 }
@@ -34,10 +31,7 @@ const initialState: PosState = {
   couponCode: '',
   couponDiscount: 0,
   couponType: null,
-  paymentMethod: 'cash',
-  transactionId: '',
   discountPercent: 0,
-  cashTendered: '',
   submitting: false,
 };
 
@@ -56,7 +50,7 @@ export const usePosStore = create<PosState & PosActions>((set) => ({
         };
       }
       return {
-        items: [...state.items, { ...product, quantity: 1, lineTotal: product.price, taxRate: product.taxRate }],
+        items: [...state.items, { ...product, quantity: 1, lineTotal: product.price, vatRate: product.vatRate }],
       };
     }),
   removeItem: (productId) => set((state) => ({ items: state.items.filter((i) => i.productId !== productId) })),
@@ -75,10 +69,7 @@ export const usePosStore = create<PosState & PosActions>((set) => ({
   setCustomerPhone: (customerPhone) => set({ customerPhone }),
   setTableNumber: (tableNumber) => set({ tableNumber }),
   setServedBy: (servedBy) => set({ servedBy }),
-  setPaymentMethod: (paymentMethod) => set({ paymentMethod }),
   setDiscountPercent: (discountPercent) => set({ discountPercent }),
-  setTransactionId: (transactionId) => set({ transactionId }),
-  setCashTendered: (cashTendered) => set({ cashTendered }),
   setSubmitting: (submitting) => set({ submitting }),
   reset: () => set(initialState),
 }));

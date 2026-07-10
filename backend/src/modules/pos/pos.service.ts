@@ -41,7 +41,7 @@ export async function getEmployees() {
 
 export async function getCatalog() {
   const products = await Product.find({ isActive: true })
-    .populate('categoryId', 'name taxRate')
+    .populate('categoryId', 'name vatRate')
     .sort({ name: 1 });
 
   return products.map((p) => ({
@@ -51,7 +51,7 @@ export async function getCatalog() {
     image: p.image,
     category: p.categoryId ? (p.categoryId as unknown as { _id: string; name: string }).name : null,
     categoryId: p.categoryId ? (p.categoryId as unknown as { _id: string })._id.toString() : null,
-    taxRate: p.categoryId ? (p.categoryId as unknown as { _id: string; taxRate: number }).taxRate ?? 0 : 0,
+    vatRate: p.categoryId ? (p.categoryId as unknown as { _id: string; vatRate: number }).vatRate ?? 0 : 0,
   }));
 }
 
@@ -85,7 +85,7 @@ export async function saveOrFindCustomer(dto: CreateCustomerDto) {
 
 export async function createOrder(dto: CreateOrderDto, userId: string) {
   const { items: itemDtos, payment, couponCode, ...rest } = dto;
-  const paymentMethod = payment.method;
+  const paymentMethod = payment?.method;
 
   const productIds = [...new Set(itemDtos.map((i) => i.productId))];
   const products = await Product.find({ _id: { $in: productIds }, isActive: true });
@@ -125,13 +125,6 @@ export async function createOrder(dto: CreateOrderDto, userId: string) {
     }
     couponId = coupon._id.toString();
 
-    if (coupon.usageLimit != null) {
-      const usageCount = await Order.countDocuments({ couponId: coupon._id });
-      if (usageCount >= coupon.usageLimit) {
-        throw createError(400, 'VALIDATION_ERROR', 'Coupon usage limit reached');
-      }
-    }
-
     const info = getDiscountInfo(coupon, computedSubtotal);
     discountAmount = info.discountAmount;
     couponId = info.couponId;
@@ -145,13 +138,13 @@ export async function createOrder(dto: CreateOrderDto, userId: string) {
 
   const categoryIds = [...new Set(products.map((p) => p.categoryId?.toString()).filter(Boolean))] as string[];
   const categories = categoryIds.length > 0 ? await Category.find({ _id: { $in: categoryIds } }) : [];
-  const categoryTaxMap = new Map(categories.map((c) => [c._id.toString(), c.taxRate]));
+  const categoryTaxMap = new Map(categories.map((c) => [c._id.toString(), c.vatRate]));
   const totalTaxAmount = round2(
     items.reduce((sum, item, idx) => {
       const product = productMap.get(itemDtos[idx].productId)!;
       const catId = product.categoryId?.toString();
-      const taxRate = catId ? (categoryTaxMap.get(catId) ?? 0) : 0;
-      return sum + round2(item.lineTotal * (taxRate / 100));
+      const vatRate = catId ? (categoryTaxMap.get(catId) ?? 0) : 0;
+      return sum + round2(item.lineTotal * (vatRate / 100));
     }, 0)
   );
   const grandTotal = round2(computedSubtotal - discountAmount);
@@ -186,7 +179,7 @@ export async function createOrder(dto: CreateOrderDto, userId: string) {
 
   let cashTendered: number | undefined;
   let changeAmount: number | undefined;
-  if (rest.cashTendered != null) {
+  if (payment && rest.cashTendered != null) {
     cashTendered = rest.cashTendered;
     changeAmount = round2(Math.max(0, cashTendered - grandTotal));
   }
@@ -215,20 +208,19 @@ export async function createOrder(dto: CreateOrderDto, userId: string) {
         grandTotal,
         cashTendered,
         changeAmount,
-        payment: {
-          method: paymentMethod,
-          ...(dto.payment.transactionId ? { transactionId: dto.payment.transactionId } : {}),
-        },
+        ...(payment ? {
+          payment: {
+            method: paymentMethod!,
+            ...(payment.transactionId ? { transactionId: payment.transactionId } : {}),
+          },
+          paymentStatus: 'paid',
+        } : {}),
         status: rest.status || 'completed',
         createdBy: userId,
         ...(rest.status === 'completed' || !rest.status ? { completedAt: new Date() } : {}),
       }],
       { session }
     );
-
-    if (couponId) {
-      await Coupon.findByIdAndUpdate(couponId, { $inc: { usageCount: 1 } }, { session });
-    }
 
     await ActivityLog.create(
       [{
@@ -237,7 +229,7 @@ export async function createOrder(dto: CreateOrderDto, userId: string) {
         action: 'pos.order_created',
         targetId: order[0]._id.toString(),
         targetType: 'Order',
-        description: `Created order ${on} for BDT ${grandTotal.toFixed(2)} — ${paymentMethod}, ${rest.status || 'completed'}`,
+        description: `Created order ${on} for BDT ${grandTotal.toFixed(2)}${paymentMethod ? ` — ${paymentMethod}` : ''}, ${rest.status || 'pending'}`,
       }],
       { session }
     );

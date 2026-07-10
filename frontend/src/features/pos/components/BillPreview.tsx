@@ -14,7 +14,7 @@ export default function BillPreview() {
   const couponDiscountAmount = Math.min(rawDiscount, subtotal);
   const manualDiscountAmount = discountPercent > 0 ? Math.round((subtotal * (discountPercent / 100)) * 100) / 100 : 0;
   const totalDiscount = Math.min(couponDiscountAmount + manualDiscountAmount, subtotal);
-  const taxAmount = items.reduce((sum, i) => sum + Math.round(i.lineTotal * (i.taxRate / 100) * 100) / 100, 0);
+  const taxAmount = items.reduce((sum, i) => sum + Math.round(i.lineTotal * (i.vatRate / 100) * 100) / 100, 0);
   const grandTotal = Math.round((subtotal - totalDiscount) * 100) / 100;
   const tendered = parseFloat(cashTendered) || 0;
   const changeAmount = tendered >= grandTotal ? Math.round((tendered - grandTotal) * 100) / 100 : 0;

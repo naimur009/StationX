@@ -161,15 +161,15 @@ export default function SalaryReport() {
           </div>
 
           <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
-            <table className="w-full text-left text-sm">
+            <table className="w-full text-center text-sm border-collapse [&_th]:border-r [&_th]:border-slate-200 [&_td]:border-r [&_td]:border-slate-200">
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-50 text-xs font-semibold uppercase text-slate-500">
                   <th className="px-4 py-3">Employee</th>
-                  <th className="px-4 py-3 text-right">Base Salary</th>
-                  <th className="px-4 py-3 text-right">Bonus</th>
-                  <th className="px-4 py-3 text-right">Cut</th>
-                  <th className="px-4 py-3 text-right">Net</th>
-                  <th className="px-4 py-3 text-right">Paid</th>
+                  <th className="px-4 py-3">Base Salary</th>
+                  <th className="px-4 py-3">Bonus</th>
+                  <th className="px-4 py-3">Cut</th>
+                  <th className="px-4 py-3">Net</th>
+                  <th className="px-4 py-3">Paid</th>
                   <th className="px-4 py-3">Status</th>
                 </tr>
               </thead>
@@ -182,19 +182,19 @@ export default function SalaryReport() {
                   filteredEmployees.map((emp, idx) => (
                     <tr key={emp.employeeId + '-' + idx} className="transition-colors hover:bg-slate-50">
                       <td className="px-4 py-3 font-medium text-slate-800">{emp.employeeName}</td>
-                      <td className="px-4 py-3 text-right font-semibold text-slate-800 whitespace-nowrap">
+                      <td className="px-4 py-3 font-semibold text-slate-800 whitespace-nowrap">
                         {emp.baseSalary > 0 ? formatCurrency(emp.baseSalary) : <span className="text-xs text-slate-400">&mdash;</span>}
                       </td>
-                      <td className="px-4 py-3 text-right font-semibold text-green-600 whitespace-nowrap">
+                      <td className="px-4 py-3 font-semibold text-green-600 whitespace-nowrap">
                         {emp.totalBonus > 0 ? formatCurrency(emp.totalBonus) : <span className="text-xs text-slate-400">&mdash;</span>}
                       </td>
-                      <td className="px-4 py-3 text-right font-semibold text-red-500 whitespace-nowrap">
+                      <td className="px-4 py-3 font-semibold text-red-500 whitespace-nowrap">
                         {emp.totalCut > 0 ? formatCurrency(emp.totalCut) : <span className="text-xs text-slate-400">&mdash;</span>}
                       </td>
-                      <td className="px-4 py-3 text-right font-semibold text-slate-800 whitespace-nowrap">
+                      <td className="px-4 py-3 font-semibold text-slate-800 whitespace-nowrap">
                         {emp.netSalary > 0 ? formatCurrency(emp.netSalary) : <span className="text-xs text-slate-400">&mdash;</span>}
                       </td>
-                      <td className="px-4 py-3 text-right font-semibold text-green-600 whitespace-nowrap">
+                      <td className="px-4 py-3 font-semibold text-green-600 whitespace-nowrap">
                         {emp.totalPaid > 0 ? formatCurrency(emp.totalPaid) : <span className="text-xs text-slate-400">&mdash;</span>}
                       </td>
                       <td className="px-4 py-3"><StatusBadge status={emp.salaryStatus} /></td>
@@ -251,40 +251,40 @@ export default function SalaryReport() {
             </div>
           ) : (
             <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
-              <table className="w-full text-left text-sm">
-                <thead>
-                  <tr className="border-b border-slate-200 bg-slate-50 text-xs font-semibold uppercase text-slate-500">
-                    <th className="px-4 py-3">Month</th>
-                    <th className="px-4 py-3 text-right">Salary</th>
-                    <th className="px-4 py-3 text-right">Bonus</th>
-                    <th className="px-4 py-3 text-right">Cut</th>
-                    <th className="px-4 py-3 text-right">Net</th>
-                    <th className="px-4 py-3 text-right">Paid</th>
-                    <th className="px-4 py-3 text-right">Remaining</th>
-                    <th className="px-4 py-3">Status</th>
-                    <th className="px-4 py-3">Adjustments</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {empReport.months.map((m) => (
+            <table className="w-full text-center text-sm border-collapse [&_th]:border-r [&_th]:border-slate-200 [&_td]:border-r [&_td]:border-slate-200">
+              <thead>
+                <tr className="border-b border-slate-200 bg-slate-50 text-xs font-semibold uppercase text-slate-500">
+                  <th className="px-4 py-3">Month</th>
+                  <th className="px-4 py-3">Salary</th>
+                  <th className="px-4 py-3">Bonus</th>
+                  <th className="px-4 py-3">Cut</th>
+                  <th className="px-4 py-3">Net</th>
+                  <th className="px-4 py-3">Paid</th>
+                  <th className="px-4 py-3">Remaining</th>
+                  <th className="px-4 py-3">Status</th>
+                  <th className="px-4 py-3">Adjustments</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {empReport.months.map((m) => (
                     <tr key={m.month} className="transition-colors hover:bg-slate-50">
                       <td className="px-4 py-3 font-medium text-slate-800">{MONTHS[m.month - 1]}</td>
-                      <td className="px-4 py-3 text-right font-semibold text-slate-800 whitespace-nowrap">
+                      <td className="px-4 py-3 font-semibold text-slate-800 whitespace-nowrap">
                         {m.baseSalary > 0 ? formatCurrency(m.baseSalary) : <span className="text-xs text-slate-400">&mdash;</span>}
                       </td>
-                      <td className="px-4 py-3 text-right font-semibold text-green-600 whitespace-nowrap">
+                      <td className="px-4 py-3 font-semibold text-green-600 whitespace-nowrap">
                         {m.totalBonus > 0 ? formatCurrency(m.totalBonus) : <span className="text-xs text-slate-400">&mdash;</span>}
                       </td>
-                      <td className="px-4 py-3 text-right font-semibold text-red-500 whitespace-nowrap">
+                      <td className="px-4 py-3 font-semibold text-red-500 whitespace-nowrap">
                         {m.totalCut > 0 ? formatCurrency(m.totalCut) : <span className="text-xs text-slate-400">&mdash;</span>}
                       </td>
-                      <td className="px-4 py-3 text-right font-semibold text-slate-800 whitespace-nowrap">
+                      <td className="px-4 py-3 font-semibold text-slate-800 whitespace-nowrap">
                         {m.netSalary > 0 ? formatCurrency(m.netSalary) : <span className="text-xs text-slate-400">&mdash;</span>}
                       </td>
-                      <td className="px-4 py-3 text-right font-semibold text-green-600 whitespace-nowrap">
+                      <td className="px-4 py-3 font-semibold text-green-600 whitespace-nowrap">
                         {m.totalPaid > 0 ? formatCurrency(m.totalPaid) : <span className="text-xs text-slate-400">&mdash;</span>}
                       </td>
-                      <td className="px-4 py-3 text-right font-semibold whitespace-nowrap">
+                      <td className="px-4 py-3 font-semibold whitespace-nowrap">
                         {m.remainingBalance > 0 ? (
                           <span className="text-amber-600">{formatCurrency(m.remainingBalance)}</span>
                         ) : m.baseSalary > 0 ? (
@@ -309,8 +309,8 @@ export default function SalaryReport() {
                       </td>
                     </tr>
                   ))}
-                </tbody>
-              </table>
+              </tbody>
+            </table>
             </div>
           )}
         </div>

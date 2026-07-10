@@ -67,8 +67,8 @@ export default function OrderDetailView({ order }: OrderDetailViewProps) {
 
   const statusConfig = ORDER_STATUS_CONFIG[order.status];
 
-  const handleStatusChange = (status: string, cancelReason?: string) => {
-    statusMutation.mutate({ id: order.id, status, cancelReason });
+  const handleStatusChange = (status: string, cancelReason?: string, paymentData?: Record<string, unknown>) => {
+    statusMutation.mutate({ id: order.id, status, cancelReason, ...paymentData } as Parameters<typeof statusMutation.mutate>[0]);
   };
 
   const handleDelete = () => {
@@ -214,23 +214,39 @@ export default function OrderDetailView({ order }: OrderDetailViewProps) {
                 <div className="border-t border-dashed border-slate-200 pt-1" />
               </div>
             )}
-            <div className="flex justify-between">
-              <span className="text-slate-500">Method</span>
-              <span className="font-medium capitalize text-slate-800">{order.payment.method}</span>
-            </div>
-            {order.payment.method !== 'cash' && (() => {
-              const prevTotal = (order.previousPayments || []).reduce((s, p) => s + p.amount, 0);
-              return (
+            {order.payment && (
+              <>
                 <div className="flex justify-between">
-                  <span className="text-slate-500">Amount</span>
-                  <span className="font-medium text-slate-800">{formatBdt(order.grandTotal - prevTotal)}</span>
+                  <span className="text-slate-500">Method</span>
+                  <span className="font-medium capitalize text-slate-800">{order.payment.method}</span>
                 </div>
-              );
-            })()}
-            {order.payment.transactionId && (
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Payment Status</span>
+                  <span className={`font-medium ${order.paymentStatus === 'paid' ? 'text-green-600' : 'text-amber-600'}`}>
+                    {order.paymentStatus === 'paid' ? 'Paid' : 'Unpaid'}
+                  </span>
+                </div>
+                {order.payment.method !== 'cash' && (() => {
+                  const prevTotal = (order.previousPayments || []).reduce((s, p) => s + p.amount, 0);
+                  return (
+                    <div className="flex justify-between">
+                      <span className="text-slate-500">Amount</span>
+                      <span className="font-medium text-slate-800">{formatBdt(order.grandTotal - prevTotal)}</span>
+                    </div>
+                  );
+                })()}
+                {order.payment.transactionId && (
+                  <div className="flex justify-between">
+                    <span className="text-slate-500">Transaction ID</span>
+                    <span className="font-medium text-slate-800">{order.payment.transactionId}</span>
+                  </div>
+                )}
+              </>
+            )}
+            {!order.payment && (
               <div className="flex justify-between">
-                <span className="text-slate-500">Transaction ID</span>
-                <span className="font-medium text-slate-800">{order.payment.transactionId}</span>
+                <span className="text-slate-500">Payment Status</span>
+                <span className="font-medium text-amber-600">Unpaid</span>
               </div>
             )}
             {order.cashTendered !== undefined && order.cashTendered !== null && (

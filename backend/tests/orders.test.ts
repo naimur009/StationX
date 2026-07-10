@@ -328,6 +328,7 @@ describe('renderBillHtml', () => {
     cashTendered: 500,
     changeAmount: 471.5,
     payment: { method: 'cash' },
+    paymentStatus: 'paid',
     status: 'completed',
     createdAt: new Date('2026-06-15T12:00:00Z'),
   };
@@ -635,8 +636,8 @@ describe('updateOrder', () => {
       { _id: { toString: () => 'pid-2' }, name: 'Juice', price: 3, categoryId: { toString: () => 'cat-2' } },
     ] as never);
     vi.mocked(Category.find).mockResolvedValueOnce([
-      { _id: { toString: () => 'cat-1' }, taxRate: 5 },
-      { _id: { toString: () => 'cat-2' }, taxRate: 5 },
+      { _id: { toString: () => 'cat-1' }, vatRate: 5 },
+      { _id: { toString: () => 'cat-2' }, vatRate: 5 },
     ] as never);
     vi.mocked(Order.findByIdAndUpdate).mockResolvedValueOnce({ ...mockExistingOrder } as never);
     vi.mocked(Order.findById).mockReturnValue({
@@ -663,7 +664,7 @@ describe('updateOrder', () => {
       { _id: { toString: () => 'pid-1' }, name: 'Product 1', price: 10, categoryId: { toString: () => 'cat-1' } },
     ] as never);
     vi.mocked(Category.find).mockResolvedValueOnce([
-      { _id: { toString: () => 'cat-1' }, taxRate: 5 },
+      { _id: { toString: () => 'cat-1' }, vatRate: 5 },
     ] as never);
     vi.mocked(Order.findByIdAndUpdate).mockResolvedValueOnce({ ...mockExistingOrder } as never);
     vi.mocked(Order.findById).mockReturnValue({

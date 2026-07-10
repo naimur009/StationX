@@ -42,7 +42,7 @@ function MobileOrderCard({ item, onView, onDelete, deletePending }: { item: Orde
           <Badge variant={config?.variant || 'slate'}>{config?.label || item.status}</Badge>
         </div>
         <div className="mt-2 flex items-center justify-between text-sm">
-          <span className="text-slate-500">{item.customerName || 'Walk-in'}</span>
+          <span className="text-slate-500">{item.tableNumber ? `Table ${item.tableNumber}` : 'Walk-in'}</span>
           <span className="font-semibold text-slate-800">{formatBdt(item.grandTotal)}</span>
         </div>
         <div className="mt-1 text-xs text-slate-400">{formatDate(item.createdAt)}</div>
@@ -70,10 +70,10 @@ export default function OrderList({ data, isLoading, isError, onView, onDelete, 
       ),
     },
     {
-      key: 'customerPhone',
-      label: 'Customer',
+      key: 'tableNumber',
+      label: 'Table',
       render: (item) => (
-        <span className="text-slate-700">{item.customerPhone || '-'}</span>
+        <span className="text-slate-700">{item.tableNumber || '-'}</span>
       ),
       hideOnMobile: true,
     },
@@ -87,6 +87,13 @@ export default function OrderList({ data, isLoading, isError, onView, onDelete, 
       key: 'status',
       label: 'Status',
       render: (item) => {
+        if (item.status === 'completed') {
+          return (
+            <Badge variant={item.paymentStatus === 'paid' ? 'green' : 'yellow'}>
+              {item.paymentStatus === 'paid' ? 'Paid' : 'Unpaid'}
+            </Badge>
+          );
+        }
         const config = ORDER_STATUS_CONFIG[item.status];
         return <Badge variant={config?.variant || 'slate'}>{config?.label || item.status}</Badge>;
       },

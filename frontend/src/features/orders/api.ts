@@ -12,6 +12,7 @@ export interface OrderListItem {
   customerPhone?: string;
   servedBy?: string | null;
   grandTotal: number;
+  paymentStatus: 'unpaid' | 'paid';
   status: 'pending' | 'completed' | 'cancelled';
   createdAt: string;
   createdBy: string;
@@ -42,7 +43,7 @@ export interface OrderDetail {
   grandTotal: number;
   cashTendered?: number;
   changeAmount?: number;
-  payment: {
+  payment?: {
     method: string;
     transactionId?: string;
   };
@@ -51,6 +52,7 @@ export interface OrderDetail {
     amount: number;
     transactionId?: string;
   }>;
+  paymentStatus: 'unpaid' | 'paid';
   status: 'pending' | 'completed' | 'cancelled';
   createdBy: { _id: string; name: string } | string;
   completedAt?: string;
@@ -146,7 +148,15 @@ export function useUpdateOrderStatus() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (data: { id: string; status: string; cancelReason?: string }) => {
+    mutationFn: (data: {
+      id: string;
+      status: string;
+      cancelReason?: string;
+      paymentStatus?: string;
+      payment?: { method: string; transactionId?: string };
+      cashTendered?: number;
+      changeAmount?: number;
+    }) => {
       const { id, ...body } = data;
       return apiClient<{ data: OrderDetail }>(`/orders/${id}/status`, {
         method: 'PATCH',

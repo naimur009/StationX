@@ -28,12 +28,9 @@ export const createOrderSchema = z.object({
   subtotal: z.number().min(0).optional(),
   grandTotal: z.number().min(0).optional(),
   cashTendered: z.number().min(0).optional(),
-  payment: paymentSchema,
+  payment: paymentSchema.optional(),
   status: z.enum(['pending', 'completed', 'cancelled']).optional(),
-}).refine(
-  (data) => data.payment.method !== 'cash' || (data.cashTendered !== undefined && data.cashTendered > 0),
-  { message: 'Cash tendered is required for cash payments', path: ['cashTendered'] }
-);
+});
 
 export const createCustomerSchema = z.object({
   name: z.string().min(1, 'Name is required').max(100).trim(),

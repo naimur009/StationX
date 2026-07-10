@@ -1,6 +1,7 @@
 import { PipelineStage } from 'mongoose';
 import Order from '../../models/Order';
 import { normalizeDateRange } from '../../lib/date-range';
+import { buildRevenueMatch } from '../../lib/aggregation';
 import type { DashboardMetricsQueryDto, DashboardTopItemsQueryDto } from './dashboard.validation';
 
 export async function getMetrics(query: DashboardMetricsQueryDto) {
@@ -10,7 +11,7 @@ export async function getMetrics(query: DashboardMetricsQueryDto) {
   const pipeline: PipelineStage[] = [
     {
       $match: {
-        status: 'completed',
+        ...buildRevenueMatch(),
         createdAt: { $gte: dateRange.from, $lte: dateRange.to },
       },
     },
@@ -49,7 +50,7 @@ export async function getTopItems(query: DashboardTopItemsQueryDto) {
   const pipeline: PipelineStage[] = [
     {
       $match: {
-        status: 'completed',
+        ...buildRevenueMatch(),
         createdAt: { $gte: dateRange.from, $lte: dateRange.to },
       },
     },

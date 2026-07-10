@@ -129,7 +129,7 @@ export default function CategoryList({ onEdit, onDelete, onPermanentDelete }: Ca
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0 flex-1">
                       <p className="truncate font-medium text-slate-800">{category.name}</p>
-                      <p className="text-sm text-slate-500">{category.productCount} product{category.productCount !== 1 ? 's' : ''} &middot; Tax: {category.taxRate}%</p>
+                      <p className="text-sm text-slate-500">{category.productCount} product{category.productCount !== 1 ? 's' : ''} &middot; VAT: {category.vatRate}%</p>
                     </div>
                   <div className="shrink-0">
                     {category.isActive ? (
@@ -181,7 +181,7 @@ export default function CategoryList({ onEdit, onDelete, onPermanentDelete }: Ca
               <thead>
                   <tr className="border-b border-slate-200 bg-slate-50 text-xs font-semibold uppercase text-slate-500">
                     <th className="px-4 py-3">Name</th>
-                    <th className="hidden sm:table-cell px-4 py-3">Tax Rate</th>
+                    <th className="hidden sm:table-cell px-4 py-3">VAT Rate</th>
                     <th className="hidden sm:table-cell px-4 py-3">Products</th>
                     <th className="px-4 py-3">Status</th>
                     <th className="px-4 py-3 text-right">Actions</th>
@@ -199,7 +199,7 @@ export default function CategoryList({ onEdit, onDelete, onPermanentDelete }: Ca
                       {category.name}
                     </td>
                     <td className="hidden sm:table-cell px-4 py-3 text-slate-600">
-                      {category.taxRate}%
+                      {category.vatRate}%
                     </td>
                     <td className="hidden sm:table-cell px-4 py-3 text-slate-600">
                       {category.productCount}

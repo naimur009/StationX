@@ -1,12 +1,10 @@
-export type PaymentMethod = 'cash' | 'card' | 'bkash' | 'nagad';
-
 export interface CartItem {
   productId: string;
   name: string;
   price: number;
   quantity: number;
   lineTotal: number;
-  taxRate: number;
+  vatRate: number;
 }
 
 export interface CustomerInfo {
@@ -31,9 +29,6 @@ export interface PosState {
   couponCode: string;
   couponDiscount: number;
   couponType: 'flat' | 'percentage' | null;
-  paymentMethod: PaymentMethod;
-  transactionId: string;
   discountPercent: number;
-  cashTendered: string;
   submitting: boolean;
 }

@@ -9,6 +9,8 @@
     "seed:admin": "tsx src/seed/seed-admin.ts",
     "clear:attendance": "tsx src/seed/clear-attendance.ts",
     "fix:indexes": "tsx src/seed/fix-indexes.ts",
+    "migrate:rename-taxrate-to-vatrate": "tsx src/migrations/rename-taxrate-to-vatrate.ts",
+    "migrate:add-paymentstatus-to-orders": "tsx src/migrations/add-paymentstatus-to-orders.ts",
     "lint": "eslint src/ --ext .ts",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"

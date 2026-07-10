@@ -36,7 +36,8 @@ export interface IOrder extends Document {
   grandTotal: number;
   cashTendered?: number;
   changeAmount?: number;
-  payment: IPayment;
+  paymentStatus: 'unpaid' | 'paid';
+  payment?: IPayment;
   previousPayments: IPreviousPayment[];
   status: 'pending' | 'completed' | 'cancelled';
   createdBy: mongoose.Types.ObjectId;
@@ -100,7 +101,8 @@ const orderSchema = new Schema<IOrder>(
     grandTotal: { type: Number, required: true },
     cashTendered: { type: Number, required: false },
     changeAmount: { type: Number, required: false },
-    payment: { type: paymentSchema, required: true },
+    paymentStatus: { type: String, enum: ['unpaid', 'paid'], default: 'unpaid', required: true },
+    payment: { type: paymentSchema, required: false },
     previousPayments: { type: [previousPaymentSchema], default: [] },
     status: {
       type: String,
@@ -119,6 +121,8 @@ orderSchema.index({ status: 1, createdAt: -1 });
 orderSchema.index({ customerId: 1 });
 orderSchema.index({ createdBy: 1 });
 orderSchema.index({ 'items.productId': 1 });
+orderSchema.index({ paymentStatus: 1 });
+orderSchema.index({ status: 1, paymentStatus: 1, createdAt: -1 });
 
 const Order = mongoose.model<IOrder>('Order', orderSchema);
 

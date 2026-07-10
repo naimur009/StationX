@@ -7,6 +7,7 @@ import Settings from '../../models/Settings';
 import ActivityLog from '../../models/ActivityLog';
 import { createError } from '../../middleware/errorHandler';
 import { getIO } from '../../config/socket';
+import { withTransaction } from '../../lib/transaction';
 import { renderPdf } from '../../lib/pdf';
 import { escapeRegex } from '../../lib/escapeRegex';
 import type {
@@ -30,6 +31,7 @@ interface OrderListItem {
   customerPhone?: string;
   servedBy: string | null;
   grandTotal: number;
+  paymentStatus: string;
   status: string;
   createdAt: Date;
   createdBy: string;
@@ -58,7 +60,8 @@ interface OrderDetailItem {
   grandTotal: number;
   cashTendered?: number;
   changeAmount?: number;
-  payment: {
+  paymentStatus: string;
+  payment?: {
     method: string;
     transactionId?: string;
   };
@@ -91,6 +94,7 @@ function toListItem(order: Record<string, unknown>): OrderListItem {
     customerPhone: order.customerPhone as string | undefined,
     servedBy: (order.servedBy as { name?: string } | null)?.name ?? (order.servedBy ? String(order.servedBy) : null),
     grandTotal: order.grandTotal as number,
+    paymentStatus: order.paymentStatus as string,
     status: order.status as string,
     createdAt: order.createdAt as Date,
     createdBy: (order.createdBy as { _id?: string })?._id?.toString() ?? String(order.createdBy),
@@ -121,7 +125,8 @@ function toDetail(order: Record<string, unknown>): OrderDetailItem {
     grandTotal: order.grandTotal as number,
     cashTendered: order.cashTendered as number | undefined,
     changeAmount: order.changeAmount as number | undefined,
-    payment: order.payment as { method: string; transactionId?: string },
+    paymentStatus: order.paymentStatus as string,
+    payment: order.payment as { method: string; transactionId?: string } | undefined,
     previousPayments: ((order.previousPayments as Array<Record<string, unknown>>) || []).map((p) => ({
       method: p.method as string,
       amount: p.amount as number,
@@ -181,6 +186,7 @@ export function renderBillHtml(order: Record<string, unknown>, settings?: BillSe
   const roundedGrand = Math.floor(grandTotal);
   const autoRound = +(roundedGrand - grandTotal).toFixed(2);
 
+  const paymentStatus = order.paymentStatus as string | undefined;
   const payment = order.payment as { method: string; transactionId?: string } | undefined;
   const previousPayments = (order.previousPayments as Array<{ method: string; amount: number; transactionId?: string }>) || [];
   const previousPaymentsTotal = previousPayments.reduce((s, p) => s + p.amount, 0);
@@ -281,7 +287,8 @@ export function renderBillHtml(order: Record<string, unknown>, settings?: BillSe
   <div class="grand-total"><span>Grand Total</span><span>${formatBdt(roundedGrand)}</span></div>
 </div>
 
-<div class="payments">
+${paymentStatus === 'paid'
+  ? `<div class="payments">
   <h3>Payments</h3>
   ${previousPayments.map((p) => `
   <div class="total-line"><span class="label">${p.method.toUpperCase()}</span><span>${formatBdt(p.amount)}</span></div>
@@ -290,7 +297,10 @@ export function renderBillHtml(order: Record<string, unknown>, settings?: BillSe
   ${payment && payment.method === 'cash' ? `<div class="total-line" style="font-weight:600"><span class="label">CASH</span></div>` : ''}
   ${cashTendered != null ? `<div class="total-line"><span class="label">Cash Tendered</span><span>${formatBdt(cashTendered)}</span></div>` : ''}
   ${changeAmountStored != null && changeAmountStored > 0 ? `<div class="total-line change"><span class="label">Returned</span><span>${formatBdt(changeAmountStored)}</span></div>` : ''}
-</div>
+</div>`
+  : `<div class="payments" style="text-align: center; font-weight: bold; font-size: 14px; color: #c00;">
+  — UNPAID —
+</div>`}
 
 ${cancelledLine}
 
@@ -376,6 +386,7 @@ export async function listOrders(query: ListOrdersQuery) {
     customerName: 1,
     customerPhone: 1,
     grandTotal: 1,
+    paymentStatus: 1,
     status: 1,
     createdAt: 1,
     createdBy: 1,
@@ -418,6 +429,13 @@ export async function updateOrder(id: string, dto: UpdateOrderDto) {
     throw createError(404, 'NOT_FOUND', 'Order not found');
   }
 
+  if (order.paymentStatus === 'paid') {
+    const financialFields = dto.items || dto.discountPercent !== undefined || dto.payment || dto.cashTendered !== undefined || dto.changeAmount !== undefined;
+    if (financialFields) {
+      throw createError(400, 'ORDER_ALREADY_PAID', 'Cannot edit items or financial fields on a paid order');
+    }
+  }
+
   const updates: Record<string, unknown> = {};
   if (dto.tableNumber !== undefined) updates.tableNumber = dto.tableNumber;
   if (dto.customerId !== undefined) updates.customerId = dto.customerId;
@@ -454,13 +472,13 @@ export async function updateOrder(id: string, dto: UpdateOrderDto) {
 
     const categoryIds = [...new Set(products.map((p) => p.categoryId?.toString()).filter(Boolean))] as string[];
     const categories = categoryIds.length > 0 ? await Category.find({ _id: { $in: categoryIds } }) : [];
-    const categoryTaxMap = new Map(categories.map((c) => [c._id.toString(), c.taxRate]));
+    const categoryTaxMap = new Map(categories.map((c) => [c._id.toString(), c.vatRate]));
     const taxAmount = round2(
       newItems.reduce((sum, item, idx) => {
         const product = products[idx];
         const catId = product.categoryId?.toString();
-        const taxRate = catId ? (categoryTaxMap.get(catId) ?? 0) : 0;
-        return sum + round2(item.lineTotal * (taxRate / 100));
+        const vatRate = catId ? (categoryTaxMap.get(catId) ?? 0) : 0;
+        return sum + round2(item.lineTotal * (vatRate / 100));
       }, 0)
     );
     updates.taxAmount = taxAmount;
@@ -504,9 +522,10 @@ export async function updateOrder(id: string, dto: UpdateOrderDto) {
   }
 
   if (dto.payment) {
-    const oldMethod = order.payment.method;
+    const oldPayment = order.payment;
+    const oldMethod = oldPayment?.method;
     const newMethod = dto.payment.method;
-    if (newMethod && newMethod !== oldMethod) {
+    if (newMethod && oldMethod && newMethod !== oldMethod) {
       const oldGrandTotal = order.grandTotal;
       const sumPreviousPayment = (order.previousPayments || []).reduce(
         (s, p) => s + p.amount, 0
@@ -515,8 +534,8 @@ export async function updateOrder(id: string, dto: UpdateOrderDto) {
         ? round2((order.cashTendered ?? oldGrandTotal) - (order.changeAmount ?? 0))
         : round2(Math.max(0, oldGrandTotal - sumPreviousPayment));
       const entry: Record<string, unknown> = { method: oldMethod, amount: round2(oldAmount) };
-      if (order.payment.transactionId) {
-        entry.transactionId = order.payment.transactionId;
+      if (oldPayment?.transactionId) {
+        entry.transactionId = oldPayment.transactionId;
       }
       await Order.updateOne({ _id: id }, { $push: { previousPayments: entry } });
     }
@@ -526,12 +545,12 @@ export async function updateOrder(id: string, dto: UpdateOrderDto) {
 
   if (dto.cashTendered !== undefined) {
     const effectiveGrandTotal = (updates.grandTotal ?? order.grandTotal) as number;
-    const effectivePaymentMethod = (dto.payment?.method ?? order.payment.method) as string;
+    const effectivePaymentMethod = (dto.payment?.method ?? order.payment?.method ?? 'cash') as string;
     if (effectivePaymentMethod === 'cash') {
-      const alreadyCollected = order.payment.method === 'cash'
+      const alreadyCollected = order.payment?.method === 'cash'
         ? (order.cashTendered ?? 0)
         : order.grandTotal;
-      const totalCollected = order.payment.method === 'cash'
+      const totalCollected = order.payment?.method === 'cash'
         ? dto.cashTendered
         : order.grandTotal + dto.cashTendered;
       if (totalCollected < effectiveGrandTotal) {
@@ -565,6 +584,17 @@ export async function updateOrder(id: string, dto: UpdateOrderDto) {
     // socket not available
   }
 
+  if (dto.items && updated.status === 'completed') {
+    try {
+      getIO().emit('order:itemsUpdated', {
+        orderId: updated._id.toString(),
+        orderNumber: updated.orderNumber,
+      });
+    } catch {
+      // socket not available
+    }
+  }
+
     const populated = await Order.findById(updated._id)
       .populate('customerId', 'name phone')
       .populate('servedBy', 'name')
@@ -581,8 +611,82 @@ export async function updateOrderStatus(id: string, dto: UpdateOrderStatusDto) {
     throw createError(404, 'NOT_FOUND', 'Order not found');
   }
 
+  if (dto.paymentStatus === 'paid') {
+    if (order.paymentStatus === 'paid') {
+      const populated = await Order.findById(order._id)
+        .populate('customerId', 'name phone')
+        .populate('servedBy', 'name')
+        .populate('createdBy', 'name')
+        .lean();
+      return { data: toDetail(populated as unknown as Record<string, unknown>) };
+    }
+
+    if (!dto.payment || !dto.payment.method) {
+      throw createError(400, 'VALIDATION_ERROR', 'Payment method is required when marking an order as paid');
+    }
+
+    const grandTotal = order.grandTotal;
+    const cashTendered = dto.cashTendered;
+    const changeAmount = dto.changeAmount;
+
+    if (dto.payment.method === 'cash') {
+      if (cashTendered == null || cashTendered < grandTotal) {
+        throw createError(400, 'VALIDATION_ERROR', 'Cash tendered must cover the grand total');
+      }
+    }
+
+    await withTransaction(async (session) => {
+      const setFields: Record<string, unknown> = {
+        paymentStatus: 'paid',
+        'payment.method': dto.payment!.method,
+      };
+
+      if (dto.payment!.transactionId) {
+        setFields['payment.transactionId'] = dto.payment!.transactionId;
+      }
+
+      if (cashTendered != null) {
+        setFields.cashTendered = cashTendered;
+        setFields.changeAmount = changeAmount != null ? changeAmount : round2(Math.max(0, cashTendered - grandTotal));
+      }
+
+      await Order.findByIdAndUpdate(id, { $set: setFields }, { session });
+
+      if (order.couponId) {
+        await Coupon.findByIdAndUpdate(order.couponId, { $inc: { usageCount: 1 } }, { session });
+      }
+
+      await ActivityLog.create([{
+        actor: new mongoose.Types.ObjectId(order.createdBy.toString()),
+        module: 'orders',
+        action: 'pos.order_paid',
+        targetId: order._id.toString(),
+        targetType: 'Order',
+        description: `Payment captured for ${order.orderNumber} — ${dto.payment!.method.toUpperCase()}, BDT ${grandTotal.toFixed(2)}`,
+      }], { session });
+    });
+
+    try {
+      getIO().emit('order:paid', {
+        orderId: order._id.toString(),
+        orderNumber: order.orderNumber,
+        paymentStatus: 'paid',
+      });
+    } catch {
+      // socket not available
+    }
+
+    const populated = await Order.findById(order._id)
+      .populate('customerId', 'name phone')
+      .populate('servedBy', 'name')
+      .populate('createdBy', 'name')
+      .lean();
+
+    return { data: toDetail(populated as unknown as Record<string, unknown>) };
+  }
+
   const currentStatus = order.status;
-  const targetStatus = dto.status;
+  const targetStatus = dto.status!;
 
   if (currentStatus === targetStatus) {
     const populated = await Order.findById(order._id)

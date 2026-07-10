@@ -75,7 +75,7 @@ export default function ProductGrid() {
         {filtered.map((product) => (
           <button
             key={product.id}
-            onClick={() => addItem({ productId: product.id, name: product.name, price: product.price, taxRate: product.taxRate })}
+            onClick={() => addItem({ productId: product.id, name: product.name, price: product.price, vatRate: product.vatRate })}
             className="group relative flex flex-col overflow-hidden rounded-2xl border border-border bg-white text-left shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-primary hover:shadow-md active:scale-[0.97]"
           >
             <div className="relative aspect-square overflow-hidden bg-slate-50">
