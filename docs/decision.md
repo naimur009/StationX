@@ -333,6 +333,32 @@
 
 **Reasoning:** The existing `GET /settings` is authenticated and returns the full document including sensitive fields (`vatInfo`). A separate public endpoint with a whitelist of exposed fields is safer and self-documenting. The frontend degrades gracefully on API error or empty fields — the page remains fully functional with hardcoded defaults.
 
+### [—] Per-Category VAT Calculation & Bill Display — 2026-07-10
+
+**Open item resolved:** `AI_rules.md` §13.5 (Settings.taxConfig.mode: itemized — previously resolved as `mode: 'none'`; now superseded by per-category `vatRate` on Category model).
+
+**Decision:**
+1. **Per-category VAT rate:** Each `Category` has a `vatRate` field (0–100%). All products in a category inherit that rate. VAT is calculated per product line: `item.lineTotal × category.vatRate / 100`. The total VAT (`taxAmount` on Order) is the sum of all per-line VAT amounts.
+2. **Grand total formula changed:** `grandTotal = subtotal - discountAmount` (previously `subtotal + taxAmount - discountAmount`). VAT is **informational only** — it does not affect the amount the customer pays.
+3. **Bill display:** The bill shows `Subtotal`, `VAT` (if > 0), `Subtotal + VAT`, then `Discount` which is `discountAmount + taxAmount` (the total discount includes the VAT amount), arriving at `Grand Total = subtotal - discountAmount`. When `discountAmount = 0` but `taxAmount > 0`, the discount line still shows (equal to the VAT amount), effectively canceling out the VAT.
+4. **`taxAmount` stored on Order:** The total VAT is stored as `taxAmount` on the Order document for future VAT reporting. It is recomputed on pre-payment item edits and frozen once `paymentStatus` becomes `paid`.
+
+**Doc(s) updated:**
+- `database.md` §3.8 (updated `taxAmount` and `grandTotal` field descriptions)
+- `decision.md` (this entry)
+
+**Files changed:**
+- `backend/src/modules/pos/pos.service.ts` (grandTotal formula: removed `+ totalTaxAmount`)
+- `backend/src/modules/orders/orders.service.ts` (bill template `totalDiscount = discountAmount + taxAmount`; order update grandTotal formulas: removed `+ taxAmount`)
+- `frontend/src/features/orders/components/OrderEditForm.tsx` (display: `totalDiscount = discountAmount + taxAmount`)
+- `frontend/src/features/pos/components/BillPreview.tsx` (removed stale `cashTendered` reference, updated to use `round2` consistently)
+- `backend/tests/orders.test.ts` (updated sampleOrder `grandTotal`/`changeAmount`, updated bill render test assertions for new discount-includes-VAT display)
+
+**Reasoning:**
+- The restaurant operates in Bangladesh where VAT is registered via BIN/Mushak numbers. The VAT is calculated per-product based on the product's category VAT rate (e.g., drinks 5%, snacks 10%), matching the National Board of Revenue (NBR) requirement.
+- The grand total formula `subtotal - discountAmount` means the VAT is shown on the bill for compliance/reporting but is not an additional charge to the customer — the total discount line (`discountAmount + taxAmount`) cancels out the VAT added in the `Subtotal + VAT` line.
+- This approach is common in Bangladeshi restaurant billing where prices are VAT-inclusive: the menu price already includes VAT, so the bill shows the VAT component for transparency without adding it on top of the subtotal.
+
 ### [4b] Settings — VAT Information (BIN & Mushak) — 2026-07-01
 
 **Open item resolved:** N/A — refinement of existing Settings feature.

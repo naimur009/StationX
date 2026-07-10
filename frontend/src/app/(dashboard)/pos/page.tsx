@@ -93,8 +93,12 @@ export default function PosPage() {
   const rawDiscount = couponType === 'percentage' ? subtotal * (couponDiscount / 100) : couponDiscount;
   const couponDiscountAmount = Math.min(rawDiscount, subtotal);
   const manualDiscountAmount = discountPercent > 0 ? Math.round((subtotal * (discountPercent / 100)) * 100) / 100 : 0;
-  const totalDiscount = Math.min(couponDiscountAmount + manualDiscountAmount, subtotal);
-  const grandTotal = Math.round((subtotal - totalDiscount) * 100) / 100;
+  
+  const discountAmount = Math.min(couponDiscountAmount + manualDiscountAmount, subtotal);
+  const taxAmount = Math.round(items.reduce((sum, i) => sum + Math.round((i.lineTotal * ((i.vatRate || 0) / 100)) * 100) / 100, 0) * 100) / 100;
+  const totalWithVat = Math.round((subtotal + taxAmount) * 100) / 100;
+  const totalDiscount = Math.round((discountAmount + taxAmount) * 100) / 100;
+  const grandTotal = Math.round((totalWithVat - totalDiscount) * 100) / 100;
 
   function handleCheckout() {
     setError('');
@@ -301,16 +305,20 @@ export default function PosPage() {
                   <span>Subtotal</span>
                   <span>BDT {subtotal.toFixed(2)}</span>
                 </div>
-                {couponDiscountAmount > 0 && (
-                  <div className="flex justify-between text-green-600">
-                    <span>Coupon</span>
-                    <span>-BDT {couponDiscountAmount.toFixed(2)}</span>
+                {taxAmount > 0 && (
+                  <div className="flex justify-between text-slate-600">
+                    <span>VAT</span>
+                    <span>BDT {taxAmount.toFixed(2)}</span>
                   </div>
                 )}
-                {manualDiscountAmount > 0 && (
-                  <div className="flex justify-between text-green-600">
-                    <span>Discount ({discountPercent}%)</span>
-                    <span>-BDT {manualDiscountAmount.toFixed(2)}</span>
+                <div className="flex justify-between text-slate-800 font-bold">
+                  <span>Subtotal + VAT</span>
+                  <span>BDT {totalWithVat.toFixed(2)}</span>
+                </div>
+                {totalDiscount > 0 && (
+                  <div className="flex justify-between text-green-600 font-bold">
+                    <span>Discount {discountPercent > 0 ? `(${discountPercent}%)` : ''}</span>
+                    <span>-BDT {totalDiscount.toFixed(2)}</span>
                   </div>
                 )}
                 <div className="flex justify-between border-t border-border pt-1 text-sm font-bold text-slate-800">
@@ -367,16 +375,20 @@ export default function PosPage() {
                 <span>Subtotal</span>
                 <span>BDT {subtotal.toFixed(2)}</span>
               </div>
-              {couponDiscountAmount > 0 && (
-                <div className="flex justify-between text-green-600">
-                  <span>Coupon ({couponCode})</span>
-                  <span>-BDT {couponDiscountAmount.toFixed(2)}</span>
+              {taxAmount > 0 && (
+                <div className="flex justify-between text-slate-600">
+                  <span>VAT</span>
+                  <span>BDT {taxAmount.toFixed(2)}</span>
                 </div>
               )}
-              {manualDiscountAmount > 0 && (
-                <div className="flex justify-between text-green-600">
-                  <span>Discount ({discountPercent}%)</span>
-                  <span>-BDT {manualDiscountAmount.toFixed(2)}</span>
+              <div className="flex justify-between text-slate-800 font-bold">
+                <span>Subtotal + VAT</span>
+                <span>BDT {totalWithVat.toFixed(2)}</span>
+              </div>
+              {totalDiscount > 0 && (
+                <div className="flex justify-between text-green-600 font-bold">
+                  <span>Discount {discountPercent > 0 ? `(${discountPercent}%)` : ''}</span>
+                  <span>-BDT {totalDiscount.toFixed(2)}</span>
                 </div>
               )}
             </div>

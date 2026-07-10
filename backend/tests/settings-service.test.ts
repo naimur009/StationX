@@ -62,6 +62,7 @@ describe('settingsService', () => {
       expect(result).toEqual({
         restaurantName: 'Test Cafe',
         logo: { url: 'https://example.com/logo.png', publicId: 'logo123' },
+        loyaltyOrderThreshold: 0,
       });
       expect(result).not.toHaveProperty('address');
       expect(result).not.toHaveProperty('vatInfo');
@@ -83,6 +84,7 @@ describe('settingsService', () => {
       expect(result).toEqual({
         restaurantName: 'Empty Logo Cafe',
         logo: null,
+        loyaltyOrderThreshold: undefined,
       });
     });
 

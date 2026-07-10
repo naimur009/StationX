@@ -268,6 +268,7 @@ export function renderBillHtml(order: Record<string, unknown>, settings?: BillSe
   <div class="info-row"><span>Date</span><span>${dateStr}</span></div>
   <div class="info-row"><span>Time</span><span>${timeStr}</span></div>
   <div class="info-row"><span>Invoice</span><span>${orderNumber}</span></div>
+  <div class="info-row"><span>Status</span><span style="font-weight:bold;">${paymentStatus === 'paid' ? 'PAID' : 'UNPAID'}</span></div>
   ${customer && typeof customer === 'object' ? `<div class="info-row"><span>Customer</span><span>${escapeHtml(customer.name || customer.phone || '')}</span></div>` : ''}
 </div>
 
@@ -289,6 +290,7 @@ export function renderBillHtml(order: Record<string, unknown>, settings?: BillSe
 
 ${paymentStatus === 'paid'
   ? `<div class="payments">
+  <div style="text-align: center; font-weight: bold; font-size: 14px; margin-bottom: 12px;">— PAID —</div>
   <h3>Payments</h3>
   ${previousPayments.map((p) => `
   <div class="total-line"><span class="label">${p.method.toUpperCase()}</span><span>${formatBdt(p.amount)}</span></div>
@@ -311,6 +313,7 @@ ${cancelledLine}
   <p>Have a Wonderful Day!</p>
 </div>
 
+${paymentStatus !== 'paid' ? `
 <div class="page-break"></div>
 
 <div class="kitchen-header">
@@ -338,6 +341,7 @@ ${cancelledLine}
     </tr>`).join('')}
   </tbody>
 </table>
+` : ''}
 
 </body></html>`;
 }
@@ -475,7 +479,8 @@ export async function updateOrder(id: string, dto: UpdateOrderDto) {
     const categoryTaxMap = new Map(categories.map((c) => [c._id.toString(), c.vatRate]));
     const taxAmount = round2(
       newItems.reduce((sum, item, idx) => {
-        const product = products[idx];
+        const dtoItem = dto.items![idx];
+        const product = productMap.get(dtoItem.productId)!;
         const catId = product.categoryId?.toString();
         const vatRate = catId ? (categoryTaxMap.get(catId) ?? 0) : 0;
         return sum + round2(item.lineTotal * (vatRate / 100));

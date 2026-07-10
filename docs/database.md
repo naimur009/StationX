@@ -104,6 +104,7 @@ Not explicitly modeled in `ARCHITECTURE.md` §5's collection list, but required 
 | Field | Type | Required | Notes |
 |---|---|---|---|
 | `name` | String | ✓ | unique |
+| `vatRate` | Number | ✓ (default `0`) | VAT percentage for this category (0-100) |
 | `isActive` | Boolean | ✓ (default `true`) | soft delete |
 
 **Indexes:** `name` (unique).
@@ -200,9 +201,9 @@ The highest-traffic, highest-stakes collection — embeds line items per the rea
 | `couponId` | ObjectId → Coupon | — | |
 | `paymentStatus` | String enum `unpaid \| paid` | ✓ (default `unpaid`) | independent axis from `status`; an order can be `status: completed, paymentStatus: unpaid` (fulfilled, not yet paid). Revenue aggregations require `paymentStatus: 'paid'` |
 | `discountAmount` | Number | ✓ (default `0`) | resolved amount, computed at order creation and recomputed on every pre-payment item edit — frozen once `paymentStatus` becomes `paid` |
-| `taxAmount` | Number | ✓ (default `0`) | computed from per-category `vatRate` at order creation, recomputed on pre-payment item edits — frozen once `paymentStatus` becomes `paid` |
+| `taxAmount` | Number | ✓ (default `0`) | total VAT, computed per-product as `sum(item.lineTotal × category.vatRate / 100)` at order creation, recomputed on pre-payment item edits — frozen once `paymentStatus` becomes `paid`. Stored for VAT reporting; does not affect `grandTotal` |
 | `subtotal` | Number | ✓ | sum of `items[].lineTotal` before discount/tax |
-| `grandTotal` | Number | ✓ | `subtotal - discountAmount + taxAmount` |
+| `grandTotal` | Number | ✓ | `subtotal - discountAmount` (VAT is informational — displayed on the bill as part of the total discount line, but does not affect the amount the customer pays) |
 | `payment` | `{ method: enum(cash\|card\|bkash\|nagad\|split), splits?: [{ method: enum(cash\|card\|bkash\|nagad), amount: Number }] }` | — | optional at order creation; required at payment capture step |
 | `status` | String enum `pending \| completed \| cancelled` | ✓ (default `pending`) | per §1; cancelled orders excluded from all revenue aggregations |
 | `createdBy` | ObjectId → User | ✓ | staff member who created the order |
@@ -460,7 +461,7 @@ Mirrors `ARCHITECTURE.md` §13 — listed here only where it has a *specific* sc
 ## 8. Open Items Carried Forward to `API.md`
 
 1. **ActivityLog `action` taxonomy** — the exact enum/string list (e.g. `order.completed`, `order.cancelled`, `user.created`, `product.deleted`, …) should be finalized when each module's endpoints are defined, so every mutating endpoint maps to exactly one action string.
-2. ~~**Settings.taxConfig mode** — confirm whether v1 needs `itemized` (per-category tax rates) or whether a single flat `rate` covers all current requirements; affects POS tax-calculation logic and `Order.taxAmount` derivation.~~ **RESOLVED:** v1 uses `mode: 'none'` — no tax calculation. POS `taxAmount` is always 0 for v1. See `decisions.md` and `tasks/implementation_plan.md`.
+2. ~~**Settings.taxConfig mode** — confirm whether v1 needs `itemized` (per-category tax rates) or whether a single flat `rate` covers all current requirements; affects POS tax-calculation logic and `Order.taxAmount` derivation.~~ **RESOLVED:** The system uses a per-category VAT model (`Category.vatRate`). The old `taxConfig` has been removed. VAT is calculated per line item and is informational (does not inflate `grandTotal`).
 3. ~~**Expense.category values** — confirm whether this should be a fixed enum (cleaner filtering, matches "Filter expenses by category" in PRD Feature 9) or free text (more flexible, harder to filter cleanly). Leaning enum; needs sign-off before `API.md` defines the validation schema.~~ **RESOLVED:** free text, not enum. Both `DATABASE.md` §3.12 (field definition) and the §6 normalization note already describe `category` as free-text; confirmed during Expense implementation planning. See `tasks/implementation_plan.md`.
 4. **Coupon `usageLimit` scope** — confirm whether the limit is global (current schema: total redemptions across all customers) or per-customer; the latter would require a `CouponRedemption` join collection instead of a single `usageCount` field.
 

@@ -2,22 +2,26 @@
 
 import { usePosStore } from '../store';
 
+function round2(n: number): number {
+  return Math.round(n * 100) / 100;
+}
+
 export default function BillPreview() {
   const items = usePosStore((s) => s.items);
   const couponDiscount = usePosStore((s) => s.couponDiscount);
   const couponType = usePosStore((s) => s.couponType);
   const discountPercent = usePosStore((s) => s.discountPercent);
-  const cashTendered = usePosStore((s) => s.cashTendered);
 
-  const subtotal = items.reduce((sum, i) => sum + i.lineTotal, 0);
-  const rawDiscount = couponType === 'percentage' ? subtotal * (couponDiscount / 100) : couponDiscount;
+  const subtotal = round2(items.reduce((sum, i) => sum + i.lineTotal, 0));
+  const rawDiscount = couponType === 'percentage' ? round2(subtotal * (couponDiscount / 100)) : couponDiscount;
   const couponDiscountAmount = Math.min(rawDiscount, subtotal);
-  const manualDiscountAmount = discountPercent > 0 ? Math.round((subtotal * (discountPercent / 100)) * 100) / 100 : 0;
-  const totalDiscount = Math.min(couponDiscountAmount + manualDiscountAmount, subtotal);
-  const taxAmount = items.reduce((sum, i) => sum + Math.round(i.lineTotal * (i.vatRate / 100) * 100) / 100, 0);
-  const grandTotal = Math.round((subtotal - totalDiscount) * 100) / 100;
-  const tendered = parseFloat(cashTendered) || 0;
-  const changeAmount = tendered >= grandTotal ? Math.round((tendered - grandTotal) * 100) / 100 : 0;
+  const manualDiscountAmount = discountPercent > 0 ? round2(subtotal * (discountPercent / 100)) : 0;
+  const discountAmount = Math.min(couponDiscountAmount + manualDiscountAmount, subtotal);
+  const taxAmount = round2(items.reduce((sum, i) => sum + round2(i.lineTotal * ((i.vatRate || 0) / 100)), 0));
+  
+  const totalWithVat = round2(subtotal + taxAmount);
+  const totalDiscount = round2(discountAmount + taxAmount);
+  const grandTotal = round2(totalWithVat - totalDiscount);
 
   return (
     <div className="space-y-2 text-sm">
@@ -26,36 +30,22 @@ export default function BillPreview() {
         <span>BDT {subtotal.toFixed(2)}</span>
       </div>
 
-      {couponDiscountAmount > 0 && (
-        <div className="flex justify-between text-green-600">
-          <span>Coupon</span>
-          <span>-BDT {couponDiscountAmount.toFixed(2)}</span>
+      {taxAmount > 0 && (
+        <div className="flex justify-between text-slate-600">
+          <span>VAT</span>
+          <span>BDT {taxAmount.toFixed(2)}</span>
         </div>
       )}
 
-      {manualDiscountAmount > 0 && (
-        <div className="flex justify-between text-green-600">
-          <span>Discount ({discountPercent}%)</span>
-          <span>-BDT {manualDiscountAmount.toFixed(2)}</span>
-        </div>
-      )}
-
-      <div className="flex justify-between text-slate-600">
-        <span>VAT</span>
-        <span>BDT {taxAmount.toFixed(2)}</span>
+      <div className="flex justify-between text-slate-800 font-bold">
+        <span>Subtotal + VAT</span>
+        <span>BDT {totalWithVat.toFixed(2)}</span>
       </div>
 
-      {tendered > 0 && (
-        <div className="flex justify-between text-slate-600">
-          <span>Cash Tendered</span>
-          <span>BDT {tendered.toFixed(2)}</span>
-        </div>
-      )}
-
-      {changeAmount > 0 && (
-        <div className="flex justify-between text-green-600">
-          <span>Change</span>
-          <span>BDT {changeAmount.toFixed(2)}</span>
+      {totalDiscount > 0 && (
+        <div className="flex justify-between text-green-600 font-bold">
+          <span>Discount {discountPercent > 0 ? `(${discountPercent}%)` : ''}</span>
+          <span>-BDT {totalDiscount.toFixed(2)}</span>
         </div>
       )}
 

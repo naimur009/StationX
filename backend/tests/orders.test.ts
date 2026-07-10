@@ -324,9 +324,9 @@ describe('renderBillHtml', () => {
     subtotal: 28,
     discountAmount: 2,
     taxAmount: 2.5,
-    grandTotal: 28.5,
+    grandTotal: 26,
     cashTendered: 500,
-    changeAmount: 471.5,
+    changeAmount: 474,
     payment: { method: 'cash' },
     paymentStatus: 'paid',
     status: 'completed',
@@ -346,7 +346,8 @@ describe('renderBillHtml', () => {
     expect(html).toContain('5');
     expect(html).toContain('THANK YOU FOR VISITING');
     expect(html).toContain('Have a Wonderful Day!');
-    expect(html).toContain('KITCHEN COPY');
+    expect(html).not.toContain('KITCHEN COPY');
+    expect(html).toContain('PAID');
   });
 
   it('includes VAT and combined Discount when taxAmount > 0', () => {
@@ -371,11 +372,12 @@ describe('renderBillHtml', () => {
     expect(html).toContain('-\u09F34.50');
   });
 
-  it('shows combined discount as VAT amount when discountAmount is 0 but taxAmount > 0', () => {
+  it('shows total discount including VAT when discountAmount is 0 but taxAmount > 0', () => {
     const noDiscount = { ...sampleOrder, discountAmount: 0 };
     const html = renderBillHtml(noDiscount as never);
     expect(html).toContain('>Discount</span><span>');
     expect(html).toContain('-\u09F32.50');
+    expect(html).toContain('\u09F328.00');
   });
 
   it('omits discount line when both discountAmount and taxAmount are 0', () => {
@@ -415,7 +417,7 @@ describe('renderBillHtml', () => {
     expect(html).toContain('Cash Tendered');
     expect(html).toContain('\u09F3500.00');
     expect(html).toContain('Returned');
-    expect(html).toContain('\u09F3471.50');
+    expect(html).toContain('\u09F3474.00');
   });
 
   it('includes auto-round when grand total is not round', () => {
@@ -432,7 +434,7 @@ describe('renderBillHtml', () => {
       contactNumber: '01700000000',
       vatInfo: { bin: '123456789', mushak: 'Mushak-6.3' },
     };
-    const html = renderBillHtml(sampleOrder as never, settings);
+    const html = renderBillHtml({ ...sampleOrder, paymentStatus: 'unpaid' } as never, settings);
     expect(html).toContain('123 Main St');
     expect(html).toContain('01700000000');
     expect(html).toContain('BIN: 123456789');
@@ -440,9 +442,10 @@ describe('renderBillHtml', () => {
     expect(html).toContain('Test Cafe');
   });
 
-  it('renders kitchen copy with items and quantity', () => {
+  it('renders kitchen copy with items and quantity for unpaid orders', () => {
     const withServer = {
       ...sampleOrder,
+      paymentStatus: 'unpaid',
       servedBy: { name: 'Alice' },
       createdBy: { name: 'Bob' },
     };
