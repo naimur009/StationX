@@ -17,7 +17,6 @@ const categorySchema = new Schema<ICategory>(
   { timestamps: true, toJSON: { versionKey: false } }
 );
 
-categorySchema.index({ name: 'text' });
 categorySchema.index({ isActive: 1 });
 
 const Category = mongoose.model<ICategory>('Category', categorySchema);

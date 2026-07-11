@@ -113,7 +113,7 @@ export async function refresh(refreshToken: string): Promise<{ accessToken: stri
     }
 
     if (!user.isActive) {
-      throw createError(401, 'UNAUTHORIZED', 'Account is deactivated');
+      throw createError(401, 'UNAUTHORIZED', 'Invalid or expired refresh token');
     }
 
     const accessToken = signAccessToken(user._id.toString(), user.role, user.permissions);

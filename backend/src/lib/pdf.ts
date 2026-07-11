@@ -4,6 +4,7 @@ export async function renderPdf(html: string): Promise<Buffer> {
   const browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox'] });
   try {
     const page = await browser.newPage();
+    page.setDefaultTimeout(30000);
     await page.setContent(html, { waitUntil: 'load' });
     const pdf = await page.pdf({
       format: 'A4',

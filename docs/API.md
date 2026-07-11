@@ -270,7 +270,7 @@ Base path: `/orders`. **Permission module key:** `orders`.
 | GET | `/orders/:id/bill?format=pdf\|html` | `view` | Puppeteer-rendered bill, same template POS would trigger |
 | DELETE | `/orders/:id` | `delete` | See open item below — not a true hard delete in most cases |
 
-**`PUT /orders/:id` is intentionally narrow:** only `tableNumber`, `orderType`, and `customerId` (e.g. attaching a walk-in to a customer record after the fact) are editable. `items`, `subtotal`, `discountAmount`, `taxAmount`, and `grandTotal` are **never** editable post-creation — they're the financial record of what was actually charged, and `DATABASE.md`'s entire snapshot-pricing rationale (§3.8) exists to protect exactly this. Editing line items after the fact is the "void/amend" extension point in §9.5, not a feature of generic edit.
+**`PUT /orders/:id` supports the following fields:** `tableNumber`, `customerId`, `items`, `payment`, `discountPercent`, `cashTendered`, `changeAmount`. `items` replacement triggers server-side recalculation of all financial fields (subtotal, tax, discount, grandTotal). Items are editable until `paymentStatus` becomes `paid`; once paid, any attempt to edit financial fields returns `400 ORDER_ALREADY_PAID`. `tableNumber` and `customerId` remain editable even after payment.
 
 ```json
 // PATCH /orders/:id/status request
@@ -815,7 +815,8 @@ The authoritative list referenced loosely by `DATABASE.md` §3.1 ("≤18 modules
 | `settings` | `view`, `edit` | |
 | `reports` | `view`, `create` | `create` gates PDF export, see §20 |
 | `uploads` | `create` | Utility — gates `POST /uploads/image` endpoint |
-| `activity-log` | `view` | Read-only by design |
+| `activity-log` | `view`, `delete` | `delete` clears all log entries; realistically admin-only |
+| `salary` | `view`, `create`, `edit`, `delete` | Reserved — not used by any backend route in v1. Listed for forward compatibility. |
 
 `Admin` bypasses all of the above (`ARCHITECTURE.md` §6); this table only matters for `manager`/`employee` accounts.
 

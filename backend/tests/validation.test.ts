@@ -34,15 +34,15 @@ describe('loginSchema', () => {
     expect(result.success).toBe(false);
   });
 
-  it('strips unknown fields from parsed output', () => {
+  it('rejects unknown fields', () => {
     const result = loginSchema.safeParse({
       email: 'user@example.com',
       password: 'secret',
-      extraField: 'should be stripped',
+      extraField: 'should be rejected',
     });
-    expect(result.success).toBe(true);
-    if (result.success) {
-      expect((result.data as any).extraField).toBeUndefined();
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues.some((i) => i.code === 'unrecognized_keys')).toBe(true);
     }
   });
 });

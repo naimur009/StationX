@@ -103,8 +103,17 @@ export async function getReport(type: string, query: ReportQueryDto) {
       const expenseSummaryRow = expenseData.summary[0] || {};
       const totalExpenses = expenseSummaryRow.totalExpenses || 0;
 
+      const fromYear = dateRange.from.getFullYear();
+      const fromMonth = dateRange.from.getMonth() + 1;
+      const toYear = dateRange.to.getFullYear();
+      const toMonth = dateRange.to.getMonth() + 1;
+
       const salaryRecords = await Salary.find({
-        createdAt: { $gte: dateRange.from, $lte: dateRange.to },
+        $or: [
+          { year: fromYear, month: { $gte: fromMonth } },
+          { year: toYear, month: { $lte: toMonth } },
+          ...(fromYear < toYear ? [{ year: { $gt: fromYear, $lt: toYear } }] : []),
+        ],
         status: { $ne: 'cancelled' },
       }).populate('employeeId', 'name');
 

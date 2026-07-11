@@ -218,7 +218,7 @@ These apply to **every** module below; listed once here and referenced by ID rat
 
 | ID | Type | Case | Expected |
 |---|---|---|---|
-| POS-H-05 | Happy | Valid items, no coupon, `payment.method: cash`, omitted `status` | `201`, `status` defaults to `completed`, totals correctly recalculated server-side |
+| POS-H-05 | Happy | Valid items, no coupon, `payment.method: cash`, omitted `status` | `201`, `status` defaults to `pending`, totals correctly recalculated server-side |
 | POS-H-06 | Happy | Valid order with coupon applied | `discountAmount` matches recalculated value, `Coupon.usageCount` incremented exactly once (verify via DB read after) |
 | POS-H-07 | Happy | `payment.method: split` with splits summing to `grandTotal` | `201`, order created |
 | POS-H-08 | Happy | `status: "pending"` explicitly passed | Order created as `pending`, not auto-completed |
@@ -261,11 +261,15 @@ These apply to **every** module below; listed once here and referenced by ID rat
 | ORD-H-07 | Happy | `PATCH /orders/:id/status` `pending → cancelled` | Succeeds, `cancelledAt` set, `cancelReason` required |
 | ORD-H-08 | Happy | `PATCH /orders/:id/status` `completed → cancelled` with `cancelReason` | Succeeds (refund acknowledgment path) |
 | ORD-V-02 | Validation | `completed → cancelled` without `cancelReason` | `400 VALIDATION_ERROR` (required for this specific transition) |
+| ORD-V-03 | Validation | `paymentStatus` filter has invalid value (e.g. `yes`) | `400 VALIDATION_ERROR` |
 | ORD-E-02 | Error | Invalid transition attempt, e.g. `cancelled → completed` | Rejected — `cancelled` is terminal |
 | ORD-E-03 | Error | Invalid transition `completed → pending` | Rejected — not in the allowed transition set |
 | ORD-RT-01 | Real-time | Status change succeeds | Emits `order:statusChanged` with `{ orderId, status }` |
+| ORD-RT-02 | Real-time | Order created via POS | Emits `order:created` with order payload |
 | ORD-H-09 | Happy | `GET /orders/:id/bill?format=pdf` | Returns valid PDF binary, `application/pdf` content-type |
 | ORD-H-10 | Happy | `GET /orders/:id/bill?format=html` | Returns rendered HTML, same template as PDF |
+| ORD-H-11 | Happy | `GET /orders?paymentStatus=paid` | Only orders with `paymentStatus: 'paid'` returned |
+| ORD-H-12 | Happy | `GET /orders?paymentStatus=unpaid` | Only orders with `paymentStatus: 'unpaid'` (or missing/null) returned |
 | ORD-E-04 | Error | Bill request for nonexistent order | `404 NOT_FOUND` |
 | ORD-DEL-01 | Happy | `DELETE /orders/:id` on a `pending`, same-day, no-coupon-used order | Succeeds, hard delete |
 | ORD-DEL-02 | Error | `DELETE /orders/:id` on a `completed` order | `409 ORDER_NOT_DELETABLE`, message points to `PATCH /orders/:id/status` |
@@ -628,6 +632,7 @@ These verify rules that span multiple collections/modules and are easy to silent
 | XMOD-06 | Integrity | Cancel a `completed` order after it was already counted in a previously-viewed Dashboard snapshot | New Dashboard fetch (post-cancel) excludes it; verify `dashboard:metricsInvalidate` actually triggers a refetch on the open Dashboard tab |
 | XMOD-07 | Integrity | Multi-document transaction failure simulation during order creation (e.g. forced DB disconnect mid-transaction) | No partial state: no Order without ActivityLog, no Coupon usageCount increment without an Order, no orderNumber consumed without an Order existing |
 | XMOD-08 | Integrity | Vendor hard-deleted, then a Report (Expense report) for a period including expenses from that vendor is generated | Report still shows the expense data correctly via `paidTo` snapshot — expense `vendorId` populates as `null` but the payee name is preserved independently |
+| XMOD-09 | Integrity | Category renamed after orders referencing it exist | Past orders' `categorySnapshot` retains the old category name — report `byCategory` aggregation uses the snapshot, not the live category name |
 
 ---
 

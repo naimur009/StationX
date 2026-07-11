@@ -5,27 +5,44 @@ import { usePosStore } from '../store';
 import { useCheckCoupon } from '../api';
 import { Input } from '@/components/ui/input';
 import { X } from 'lucide-react';
-import { AppError } from '@/lib/utils';
+
+const COUPON_ERROR_MESSAGES: Record<string, string> = {
+  NOT_FOUND: 'Coupon not found',
+  DISABLED: 'This coupon is disabled',
+  NOT_YET_VALID: 'Coupon is not yet valid',
+  EXPIRED: 'Coupon has expired',
+  BELOW_MIN_ORDER: 'Order does not meet minimum amount',
+  USAGE_LIMIT_REACHED: 'Coupon usage limit reached',
+};
 
 export default function CouponInput() {
   const couponCode = usePosStore((s) => s.couponCode);
   const couponDiscount = usePosStore((s) => s.couponDiscount);
   const couponType = usePosStore((s) => s.couponType);
+  const items = usePosStore((s) => s.items);
   const setCoupon = usePosStore((s) => s.setCoupon);
   const clearCoupon = usePosStore((s) => s.clearCoupon);
   const [code, setCode] = useState('');
   const [error, setError] = useState('');
   const { mutateAsync, isPending } = useCheckCoupon();
 
+  const subtotal = items.reduce((sum, i) => sum + i.lineTotal, 0);
+
   async function handleApply() {
     setError('');
     if (!code.trim()) return;
     try {
-      const result = await mutateAsync(code.trim());
-      setCoupon(code.trim(), result.data.value, result.data.type);
+      const result = await mutateAsync({ code: code.trim(), subtotal });
+
+      if (!result.data.valid) {
+        setError(COUPON_ERROR_MESSAGES[result.data.reason || ''] || 'Invalid coupon');
+        return;
+      }
+
+      setCoupon(code.trim(), result.data.discountAmount || 0, result.data.discountType || 'flat');
       setCode('');
-    } catch (e) {
-      setError(e instanceof AppError ? e.message : 'Invalid coupon');
+    } catch {
+      setError('Failed to validate coupon');
     }
   }
 
@@ -56,7 +73,7 @@ export default function CouponInput() {
         <button
           onClick={handleApply}
           disabled={isPending || !code.trim()}
-          className="rounded-xl bg-primary px-4 text-xs font-semibold text-primary-foreground disabled:opacity-50"
+          className="rounded-xl bg-primary px-4 max-sm:px-3 text-xs font-semibold text-primary-foreground disabled:opacity-50"
         >
           {isPending ? '...' : 'Apply'}
         </button>

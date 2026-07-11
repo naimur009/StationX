@@ -4,6 +4,7 @@ export interface IOrderItem {
   productId: mongoose.Types.ObjectId;
   nameSnapshot: string;
   priceSnapshot: number;
+  categorySnapshot?: string;
   quantity: number;
   lineTotal: number;
 }
@@ -74,6 +75,7 @@ const orderItemSchema = new Schema<IOrderItem>(
     productId: { type: Schema.Types.ObjectId, ref: 'Product', required: true },
     nameSnapshot: { type: String, required: true },
     priceSnapshot: { type: Number, required: true },
+    categorySnapshot: { type: String, required: false },
     quantity: { type: Number, required: true, min: 1 },
     lineTotal: { type: Number, required: true },
   }

@@ -25,6 +25,7 @@ export default function OrdersPage() {
     const invalidate = () => queryClient.invalidateQueries({ queryKey: ['orders'] });
 
     socket.on('pos:order_created', invalidate);
+    socket.on('order:created', invalidate);
     socket.on('order:statusChanged', invalidate);
     socket.on('order:updated', invalidate);
     socket.on('order:deleted', invalidate);
@@ -32,6 +33,7 @@ export default function OrdersPage() {
 
     return () => {
       socket.off('pos:order_created', invalidate);
+      socket.off('order:created', invalidate);
       socket.off('order:statusChanged', invalidate);
       socket.off('order:updated', invalidate);
       socket.off('order:deleted', invalidate);
@@ -41,6 +43,7 @@ export default function OrdersPage() {
 
   const { data, isLoading, isError } = useOrderList({
     status: filters.status,
+    paymentStatus: filters.paymentStatus,
     from: filters.from,
     to: filters.to,
     customerPhone: filters.customerPhone,

@@ -353,6 +353,10 @@ export async function listOrders(query: ListOrdersQuery) {
     filter.status = query.status;
   }
 
+  if (query.paymentStatus) {
+    filter.paymentStatus = query.paymentStatus;
+  }
+
   if (query.from || query.to) {
     const dateFilter: Record<string, Date> = {};
     if (query.from) dateFilter.$gte = new Date(query.from);
@@ -470,13 +474,27 @@ export async function updateOrder(id: string, dto: UpdateOrderDto) {
       };
     });
 
-    updates.items = newItems;
     const subtotal = round2(newItems.reduce((sum, i) => sum + i.lineTotal, 0));
     updates.subtotal = subtotal;
 
     const categoryIds = [...new Set(products.map((p) => p.categoryId?.toString()).filter(Boolean))] as string[];
     const categories = categoryIds.length > 0 ? await Category.find({ _id: { $in: categoryIds } }) : [];
+    const categoryMap = new Map(categories.map((c) => [c._id.toString(), c]));
     const categoryTaxMap = new Map(categories.map((c) => [c._id.toString(), c.vatRate]));
+    const productCategoryMap = new Map<string, string>();
+    for (const product of products) {
+      const catId = product.categoryId?.toString();
+      if (catId && categoryMap.has(catId)) {
+        productCategoryMap.set(product._id.toString(), categoryMap.get(catId)!.name);
+      } else {
+        productCategoryMap.set(product._id.toString(), 'Uncategorized');
+      }
+    }
+    const newItemsWithCategory = newItems.map((item) => ({
+      ...item,
+      categorySnapshot: productCategoryMap.get(item.productId.toString()) || 'Uncategorized',
+    }));
+    updates.items = newItemsWithCategory;
     const taxAmount = round2(
       newItems.reduce((sum, item, idx) => {
         const dtoItem = dto.items![idx];
@@ -638,6 +656,8 @@ export async function updateOrderStatus(id: string, dto: UpdateOrderStatusDto) {
       if (cashTendered == null || cashTendered < grandTotal) {
         throw createError(400, 'VALIDATION_ERROR', 'Cash tendered must cover the grand total');
       }
+    } else if (!dto.payment.transactionId) {
+      throw createError(400, 'VALIDATION_ERROR', 'Transaction ID is required for non-cash payments');
     }
 
     await withTransaction(async (session) => {
@@ -672,11 +692,13 @@ export async function updateOrderStatus(id: string, dto: UpdateOrderStatusDto) {
     });
 
     try {
-      getIO().emit('order:paid', {
+      const io = getIO();
+      io.emit('order:paid', {
         orderId: order._id.toString(),
         orderNumber: order.orderNumber,
         paymentStatus: 'paid',
       });
+      io.emit('dashboard:metricsInvalidate');
     } catch {
       // socket not available
     }

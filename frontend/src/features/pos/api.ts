@@ -20,9 +20,12 @@ export interface CatalogProduct {
 }
 
 export interface CouponCheckResult {
-  type: 'flat' | 'percentage';
-  value: number;
-  couponId: string;
+  valid: boolean;
+  couponId?: string;
+  discountType?: 'flat' | 'percentage';
+  value?: number;
+  discountAmount?: number;
+  reason?: 'NOT_FOUND' | 'DISABLED' | 'NOT_YET_VALID' | 'EXPIRED' | 'BELOW_MIN_ORDER' | 'USAGE_LIMIT_REACHED';
 }
 
 export interface CustomerResult {
@@ -50,8 +53,11 @@ export function useCatalog() {
 
 export function useCheckCoupon() {
   return useMutation({
-    mutationFn: (code: string) =>
-      apiClient<{ data: CouponCheckResult }>(`/pos/coupon?code=${encodeURIComponent(code)}`),
+    mutationFn: (data: { code: string; subtotal: number; customerId?: string }) =>
+      apiClient<{ data: CouponCheckResult }>('/pos/coupons/validate', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
   });
 }
 

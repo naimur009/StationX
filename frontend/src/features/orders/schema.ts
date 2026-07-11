@@ -4,6 +4,7 @@ import { z } from 'zod';
 
 export const ordersFilterSchema = z.object({
   status: z.enum(['pending', 'completed', 'cancelled']).optional(),
+  paymentStatus: z.enum(['unpaid', 'paid']).optional(),
   from: z.string().optional(),
   to: z.string().optional(),
   search: z.string().max(50).optional(),

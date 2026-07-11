@@ -10,6 +10,7 @@ interface OrderFiltersProps {
 
 export default function OrderFilters({ onFilter }: OrderFiltersProps) {
   const [status, setStatus] = useState<string>('all');
+  const [paymentStatus, setPaymentStatus] = useState<string>('all');
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
   const [search, setSearch] = useState('');
@@ -19,6 +20,7 @@ export default function OrderFilters({ onFilter }: OrderFiltersProps) {
     const timer = setTimeout(() => {
       onFilter({
         status: status === 'all' ? undefined : (status as OrdersFilterFormData['status']),
+        paymentStatus: paymentStatus === 'all' ? undefined : (paymentStatus as OrdersFilterFormData['paymentStatus']),
         from: from || undefined,
         to: to || undefined,
         search: search || undefined,
@@ -26,17 +28,18 @@ export default function OrderFilters({ onFilter }: OrderFiltersProps) {
       });
     }, 300);
     return () => clearTimeout(timer);
-  }, [status, from, to, search, customerPhone, onFilter]);
+  }, [status, paymentStatus, from, to, search, customerPhone, onFilter]);
 
   const clearFilters = () => {
     setStatus('all');
+    setPaymentStatus('all');
     setFrom('');
     setTo('');
     setSearch('');
     setCustomerPhone('');
   };
 
-  const hasFilters = status !== 'all' || from || to || search || customerPhone;
+  const hasFilters = status !== 'all' || paymentStatus !== 'all' || from || to || search || customerPhone;
 
   return (
     <div className="flex flex-wrap items-end gap-3">
@@ -51,6 +54,19 @@ export default function OrderFilters({ onFilter }: OrderFiltersProps) {
           <option value="pending">Pending</option>
           <option value="completed">Completed</option>
           <option value="cancelled">Cancelled</option>
+        </select>
+      </div>
+
+      <div className="w-40">
+        <label className="mb-1 block text-xs font-medium text-slate-500">Payment</label>
+        <select
+          value={paymentStatus}
+          onChange={(e) => setPaymentStatus(e.target.value)}
+          className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-ring"
+        >
+          <option value="all">All payments</option>
+          <option value="paid">Paid</option>
+          <option value="unpaid">Unpaid</option>
         </select>
       </div>
 

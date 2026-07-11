@@ -23,6 +23,60 @@
 
 ## Log
 
+### [—] QA Fix Batch — Category Snapshot, Coupon Validate, Default Status, Payment Filter — 2026-07-11
+
+**Open items resolved:** Multiple — see individual decisions below.
+
+**Decision:** Batch of 22 QA fixes addressing priority items from the implementation plan. Key architectural decisions:
+
+1. **Order item category snapshot** (`CM-FIX-01`): Added `categorySnapshot` (`{ categoryId, name }`) to `IOrderItem`/`orderItemSchema`. Resolved from live `Category` at order creation (`pos.service.ts`) and item edit (`orders.service.ts`). Report pipelines (`byProduct`/`byCategory`) replaced `$lookup` joins with direct `$items.categorySnapshot` reads — no cross-collection aggregation.
+
+2. **Socket event naming** (`CM-FIX-03`): POS order creation emits both legacy `pos:order_created` and canonical `order:created` + `dashboard:metricsInvalidate`. The `order:paid` path also emits `dashboard:metricsInvalidate`.
+
+3. **Default status `pending`, `completedAt` only on explicit completion** (`POS-FIX-02`): POS order creation defaults to `pending` (was `completed`). `completedAt` is only set when status is explicitly transitioned to `completed`.
+
+4. **Coupon validation as POST** (`POS-FIX-01`): Changed from `GET /pos/coupon?code=` to `POST /pos/coupons/validate` with `{ code, subtotal, customerId? }`. Returns `{ valid, reason?, couponId?, discountType?, value?, discountAmount? }` with typed reason codes (`NOT_FOUND`, `DISABLED`, `NOT_YET_VALID`, `EXPIRED`, `BELOW_MIN_ORDER`, `USAGE_LIMIT_REACHED`).
+
+5. **`paymentStatus` filter** (`ORD-FIX-01`): Added to Orders list query params for filtering by `unpaid`/`paid`.
+
+6. **Non-cash payment `transactionId` validation** (`ORD-FIX-02`): Zod refine requiring `transactionId` when `payment.method !== 'cash'`; service-layer check prevents `null` transactionId from persisting.
+
+7. **Salary report filtering** (`REP-FIX-01`): Changed from `createdAt` date range to `month`/`year` integer fields.
+
+8. **Tightened POS catalog auth** (`CM-FIX-04`): `GET /pos/products` authorization narrowed from `authorize(['pos', 'orders'], 'view')` to `authorize('pos', 'view')`.
+
+9. **Stripped client financial fields from POS validation** (`CM-FIX-02`): Removed `discountAmount`, `taxAmount`, `subtotal`, `grandTotal` from POS create-order validation — server always recalculates.
+
+**Doc(s) updated:**
+- `decision.md` (this entry)
+- `API.md` §10 (widened PUT `/orders/:id` description), §24 (salary reserved row)
+
+**Files changed:**
+- `backend/src/models/Order.ts` (added `categorySnapshot` to item schema)
+- `backend/src/modules/pos/pos.service.ts` (category snapshot resolution, coupon validation, socket events, default status)
+- `backend/src/modules/pos/pos.validation.ts` (stripped financial fields, validateCouponSchema)
+- `backend/src/modules/pos/pos.routes.ts` (auth scope fix, new coupon route)
+- `backend/src/modules/pos/pos.controller.ts` (coupon validate handler)
+- `backend/src/modules/orders/orders.service.ts` (category snapshot on item edit, non-cash payment validation, socket event)
+- `backend/src/modules/orders/orders.validation.ts` (paymentStatus filter, non-cash transactionId refine)
+- `backend/src/modules/reports/reports.helper.ts` (removed $lookup, uses categorySnapshot)
+- `backend/src/modules/reports/reports.service.ts` (salary month/year filter)
+- `frontend/src/features/pos/api.ts` (coupon mutation to POST)
+- `frontend/src/features/pos/components/CouponInput.tsx` (rewritten for new response shape)
+- `frontend/src/features/orders/components/OrderFilters.tsx` (paymentStatus dropdown)
+- `frontend/src/features/orders/api.ts` (paymentStatus param)
+- `frontend/src/features/orders/schema.ts` (paymentStatus filter schema)
+- `frontend/src/app/(dashboard)/orders/page.tsx` (paymentStatus integration, socket listener update)
+
+**Reasoning:**
+- Category snapshot follows the established snapshot pattern (`nameSnapshot`/`priceSnapshot`), ensuring reports remain accurate even when categories are renamed later. Replacing `$lookup` with a snapshot field eliminates a slow cross-collection aggregation step in report generation.
+- Dual socket emit (`pos:order_created` + `order:created`) maintains backward compatibility while moving toward a canonical event namespace.
+- Defaulting to `pending` (not `completed`) allows cashiers to explicitly review and complete orders, preventing accidental automatic completion before payment is confirmed.
+- POST-based coupon validation supports a request body with `subtotal` and `customerId`, enabling server-side computation of `discountAmount` and `minOrderAmount` checks that a GET query string couldn't cleanly express. Structured response with typed reason codes gives the frontend deterministic error display for each failure mode.
+- `paymentStatus` filter matches the existing `status` filter pattern and supports the "show unpaid orders only" workflow on the Orders page.
+- Requiring `transactionId` for non-cash payments prevents incomplete payment records from being persisted with a null transaction reference.
+- Salary reports by `month`/`year` integers (rather than `createdAt` range) aligns with the Salary model's compound index on `{employeeId, month, year}` and avoids date-range ambiguity at month boundaries.
+
 ### [—] Salary — Independent Dashboard Section — 2026-07-08
 
 **Open item resolved:** N/A — structural reorganization of existing feature.

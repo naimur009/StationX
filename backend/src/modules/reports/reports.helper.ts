@@ -91,29 +91,7 @@ export function salesAggregation(from: Date, to: Date): PipelineStage[] {
               unitsSold: { $sum: '$items.quantity' },
               income: { $sum: '$items.lineTotal' },
               orderCount: { $addToSet: '$_id' },
-            },
-          },
-          {
-            $lookup: {
-              from: 'products',
-              localField: '_id.productId',
-              foreignField: '_id',
-              as: 'product',
-            },
-          },
-          { $unwind: '$product' },
-          {
-            $lookup: {
-              from: 'categories',
-              localField: 'product.categoryId',
-              foreignField: '_id',
-              as: 'category',
-            },
-          },
-          { $unwind: { path: '$category', preserveNullAndEmptyArrays: true } },
-          {
-            $addFields: {
-              category: { $ifNull: ['$category.name', 'Uncategorized'] },
+              category: { $first: { $ifNull: ['$items.categorySnapshot', 'Uncategorized'] } },
             },
           },
           {
@@ -132,26 +110,8 @@ export function salesAggregation(from: Date, to: Date): PipelineStage[] {
         byCategory: [
           { $unwind: '$items' },
           {
-            $lookup: {
-              from: 'products',
-              localField: 'items.productId',
-              foreignField: '_id',
-              as: 'product',
-            },
-          },
-          { $unwind: '$product' },
-          {
-            $lookup: {
-              from: 'categories',
-              localField: 'product.categoryId',
-              foreignField: '_id',
-              as: 'category',
-            },
-          },
-          { $unwind: { path: '$category', preserveNullAndEmptyArrays: true } },
-          {
             $group: {
-              _id: { $ifNull: ['$category.name', 'Uncategorized'] },
+              _id: { $ifNull: ['$items.categorySnapshot', 'Uncategorized'] },
               unitsSold: { $sum: '$items.quantity' },
               income: { $sum: '$items.lineTotal' },
             },

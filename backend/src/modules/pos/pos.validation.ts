@@ -23,10 +23,6 @@ export const createOrderSchema = z.object({
   items: z.array(orderItemSchema).min(1, 'Order must have at least one item'),
   couponCode: z.string().max(50).optional(),
   discountPercent: z.number().min(0).max(100).optional(),
-  discountAmount: z.number().min(0).optional(),
-  taxAmount: z.number().min(0).optional(),
-  subtotal: z.number().min(0).optional(),
-  grandTotal: z.number().min(0).optional(),
   cashTendered: z.number().min(0).optional(),
   payment: paymentSchema.optional(),
   status: z.enum(['pending', 'completed', 'cancelled']).optional(),
@@ -39,5 +35,12 @@ export const createCustomerSchema = z.object({
   address: z.string().max(500).optional(),
 }).strict();
 
+export const validateCouponSchema = z.object({
+  code: z.string().min(1, 'Coupon code is required').max(50),
+  subtotal: z.number().nonnegative().multipleOf(0.01),
+  customerId: z.string().optional(),
+}).strict();
+
 export type CreateOrderDto = z.infer<typeof createOrderSchema>;
 export type CreateCustomerDto = z.infer<typeof createCustomerSchema>;
+export type ValidateCouponDto = z.infer<typeof validateCouponSchema>;

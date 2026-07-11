@@ -74,6 +74,7 @@ interface OrdersListResponse {
 
 interface OrdersListParams {
   status?: string;
+  paymentStatus?: string;
   from?: string;
   to?: string;
   createdBy?: string;
@@ -88,6 +89,7 @@ interface OrdersListParams {
 export function useOrderList(params: OrdersListParams) {
   const searchParams = new URLSearchParams();
   if (params.status) searchParams.set('status', params.status);
+  if (params.paymentStatus) searchParams.set('paymentStatus', params.paymentStatus);
   if (params.from) searchParams.set('from', params.from);
   if (params.to) searchParams.set('to', params.to);
   if (params.createdBy) searchParams.set('createdBy', params.createdBy);

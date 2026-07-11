@@ -1,7 +1,7 @@
 import { Response, NextFunction } from 'express';
 import { AuthenticatedRequest } from '../../middleware/authenticate';
 import * as posService from './pos.service';
-import type { CreateOrderDto, CreateCustomerDto } from './pos.validation';
+import type { CreateOrderDto, CreateCustomerDto, ValidateCouponDto } from './pos.validation';
 
 export async function handleGetEmployees(
   req: AuthenticatedRequest,
@@ -29,18 +29,14 @@ export async function handleGetCatalog(
   }
 }
 
-export async function handleCheckCoupon(
+export async function handleValidateCoupon(
   req: AuthenticatedRequest,
   res: Response,
   next: NextFunction
 ): Promise<void> {
   try {
-    const { code } = req.query as { code: string };
-    if (!code) {
-      res.status(400).json({ error: { code: 'VALIDATION_ERROR', message: 'Coupon code is required' } });
-      return;
-    }
-    const result = await posService.getCouponDiscount(code);
+    const dto: ValidateCouponDto = req.body;
+    const result = await posService.validateCoupon(dto);
     res.status(200).json({ data: result });
   } catch (error) {
     next(error);

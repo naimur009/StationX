@@ -9,7 +9,7 @@ import { withTransaction } from '../../lib/transaction';
 import { getNextSequence } from '../../lib/counter';
 import { createError } from '../../middleware/errorHandler';
 import { getIO } from '../../config/socket';
-import type { CreateOrderDto, CreateCustomerDto } from './pos.validation';
+import type { CreateOrderDto, CreateCustomerDto, ValidateCouponDto } from './pos.validation';
 import type { ICoupon } from '../../models/Coupon';
 
 function round2(n: number): number {
@@ -41,26 +41,61 @@ export async function getEmployees() {
 
 export async function getCatalog() {
   const products = await Product.find({ isActive: true })
-    .populate('categoryId', 'name vatRate')
+    .select('name price image categoryId')
     .sort({ name: 1 });
 
   return products.map((p) => ({
     id: p._id.toString(),
     name: p.name,
     price: p.price,
-    image: p.image,
-    category: p.categoryId ? (p.categoryId as unknown as { _id: string; name: string }).name : null,
-    categoryId: p.categoryId ? (p.categoryId as unknown as { _id: string })._id.toString() : null,
-    vatRate: p.categoryId ? (p.categoryId as unknown as { _id: string; vatRate: number }).vatRate ?? 0 : 0,
+    image: { url: p.image?.url || null },
+    categoryId: p.categoryId?.toString() || null,
   }));
 }
 
-export async function getCouponDiscount(code: string) {
-  const coupon = await Coupon.findOne({ code, isEnabled: true, validUntil: { $gt: new Date() } });
+export async function validateCoupon(dto: ValidateCouponDto) {
+  const coupon = await Coupon.findOne({ code: dto.code });
+
   if (!coupon) {
-    throw createError(404, 'COUPON_NOT_FOUND', 'Invalid or expired coupon code');
+    return { valid: false, reason: 'NOT_FOUND' as const };
   }
-  return { type: coupon.discountType, value: coupon.value, couponId: coupon._id.toString() };
+
+  if (!coupon.isEnabled) {
+    return { valid: false, reason: 'DISABLED' as const };
+  }
+
+  const now = new Date();
+  if (coupon.validFrom > now) {
+    return { valid: false, reason: 'NOT_YET_VALID' as const };
+  }
+
+  if (coupon.validUntil < now) {
+    return { valid: false, reason: 'EXPIRED' as const };
+  }
+
+  if (coupon.minOrderAmount != null && dto.subtotal < coupon.minOrderAmount) {
+    return { valid: false, reason: 'BELOW_MIN_ORDER' as const };
+  }
+
+  if (coupon.usageLimit != null && coupon.usageCount >= coupon.usageLimit) {
+    return { valid: false, reason: 'USAGE_LIMIT_REACHED' as const };
+  }
+
+  const rawDiscount = coupon.discountType === 'percentage'
+    ? round2(dto.subtotal * (coupon.value / 100))
+    : round2(coupon.value);
+
+  const discountAmount = coupon.maxDiscountAmount != null
+    ? Math.min(rawDiscount, coupon.maxDiscountAmount)
+    : rawDiscount;
+
+  return {
+    valid: true,
+    couponId: coupon._id.toString(),
+    discountType: coupon.discountType,
+    value: coupon.value,
+    discountAmount,
+  };
 }
 
 export async function lookupByPhone(phone: string) {
@@ -138,7 +173,21 @@ export async function createOrder(dto: CreateOrderDto, userId: string) {
 
   const categoryIds = [...new Set(products.map((p) => p.categoryId?.toString()).filter(Boolean))] as string[];
   const categories = categoryIds.length > 0 ? await Category.find({ _id: { $in: categoryIds } }) : [];
+  const categoryMap = new Map(categories.map((c) => [c._id.toString(), c]));
   const categoryTaxMap = new Map(categories.map((c) => [c._id.toString(), c.vatRate]));
+  const productCategoryMap = new Map<string, string>();
+  for (const product of products) {
+    const catId = product.categoryId?.toString();
+    if (catId && categoryMap.has(catId)) {
+      productCategoryMap.set(product._id.toString(), categoryMap.get(catId)!.name);
+    } else {
+      productCategoryMap.set(product._id.toString(), 'Uncategorized');
+    }
+  }
+  const itemsWithCategory = items.map((item) => ({
+    ...item,
+    categorySnapshot: productCategoryMap.get(item.productId as string) || 'Uncategorized',
+  }));
   const totalTaxAmount = round2(
     items.reduce((sum, item, idx) => {
       const product = productMap.get(itemDtos[idx].productId)!;
@@ -184,7 +233,7 @@ export async function createOrder(dto: CreateOrderDto, userId: string) {
     changeAmount = round2(Math.max(0, cashTendered - grandTotal));
   }
 
-  const orderNumber = await withTransaction(async (session) => {
+  const orderResult = await withTransaction(async (session) => {
     const seq = await getNextSequence('orderNumber', session);
 
     const padded = seq.toString().padStart(6, '0');
@@ -199,7 +248,7 @@ export async function createOrder(dto: CreateOrderDto, userId: string) {
         customerName: rest.customerName,
         customerPhone: rest.customerPhone,
         servedBy: rest.servedBy || null,
-        items,
+        items: itemsWithCategory,
         couponId: couponId ?? undefined,
         discountPercent: rest.discountPercent || 0,
         discountAmount,
@@ -215,9 +264,9 @@ export async function createOrder(dto: CreateOrderDto, userId: string) {
           },
           paymentStatus: 'paid',
         } : {}),
-        status: rest.status || 'completed',
+        status: rest.status || 'pending',
         createdBy: userId,
-        ...(rest.status === 'completed' || !rest.status ? { completedAt: new Date() } : {}),
+        ...(rest.status === 'completed' ? { completedAt: new Date() } : {}),
       }],
       { session }
     );
@@ -234,14 +283,30 @@ export async function createOrder(dto: CreateOrderDto, userId: string) {
       { session }
     );
 
-    return on;
+    return {
+      orderNumber: on,
+      orderId: order[0]._id.toString(),
+      grandTotal,
+      status: rest.status || 'pending',
+      createdBy: userId,
+    };
   });
 
   try {
-    getIO().emit('pos:order_created', { orderNumber });
+    const io = getIO();
+    const payload = {
+      orderId: orderResult.orderId,
+      orderNumber: orderResult.orderNumber,
+      grandTotal: orderResult.grandTotal,
+      status: orderResult.status,
+      createdBy: orderResult.createdBy,
+    };
+    io.emit('pos:order_created', payload);
+    io.emit('order:created', payload);
+    io.emit('dashboard:metricsInvalidate');
   } catch {
     // socket not available
   }
 
-  return { orderNumber };
+  return { orderNumber: orderResult.orderNumber };
 }
