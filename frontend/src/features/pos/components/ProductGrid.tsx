@@ -78,19 +78,13 @@ export default function ProductGrid() {
             onClick={() => addItem({ productId: product.id, name: product.name, price: product.price, vatRate: product.vatRate })}
             className="group relative flex flex-col overflow-hidden rounded-2xl border border-border bg-white text-left shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-primary hover:shadow-md active:scale-[0.97]"
           >
-            <div className="relative aspect-square overflow-hidden bg-slate-50">
-              {product.image ? (
-                <img
-                  src={product.image.url}
-                  alt={product.name}
-                  loading="lazy"
-                  className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-                />
-              ) : (
-                <div className="flex h-full w-full items-center justify-center bg-slate-100">
-                  <ShoppingBag className="h-10 w-10 text-slate-300" />
-                </div>
-              )}
+            <div className="relative aspect-[4/3] overflow-hidden bg-slate-50">
+              <img
+                src={product.image?.url || 'https://placehold.co/400x300/e2e8f0/94a3b8?text=No+Image'}
+                alt={product.name}
+                loading="lazy"
+                className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+              />
               {product.category && (
                 <span className="absolute left-2 top-2 rounded-full bg-white/90 px-2.5 py-0.5 text-[10px] font-semibold text-slate-600 shadow-sm backdrop-blur-sm">
                   {product.category}
@@ -98,7 +92,7 @@ export default function ProductGrid() {
               )}
             </div>
 
-            <div className="flex flex-col gap-0.5 px-3 py-2.5">
+            <div className="flex flex-col gap-0.5 px-3 py-2">
               <span className="line-clamp-2 text-sm font-semibold leading-tight text-slate-800 group-hover:text-primary">
                 {product.name}
               </span>

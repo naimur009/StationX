@@ -42,15 +42,20 @@ export async function getEmployees() {
 export async function getCatalog() {
   const products = await Product.find({ isActive: true })
     .select('name price image categoryId')
+    .populate('categoryId', 'name')
     .sort({ name: 1 });
 
-  return products.map((p) => ({
-    id: p._id.toString(),
-    name: p.name,
-    price: p.price,
-    image: { url: p.image?.url || null },
-    categoryId: p.categoryId?.toString() || null,
-  }));
+  return products.map((p) => {
+    const cat = p.categoryId as { _id: string; name: string } | null;
+    return {
+      id: p._id.toString(),
+      name: p.name,
+      price: p.price,
+      image: { url: p.image?.url || null },
+      category: cat?.name || null,
+      categoryId: cat?._id?.toString() || null,
+    };
+  });
 }
 
 export async function validateCoupon(dto: ValidateCouponDto) {
