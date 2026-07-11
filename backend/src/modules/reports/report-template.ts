@@ -59,6 +59,14 @@ function renderSalesReport(data: Record<string, unknown>): string {
         <p style="font-size: 11px; color: #64748b; margin: 0 0 4px 0;">Products Sold</p>
         <p style="font-size: 20px; font-weight: 700; color: #16a34a; margin: 0;">${summary?.totalProductsSold ?? 0}</p>
       </div>
+      <div style="flex: 1; min-width: 120px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 12px 16px;">
+        <p style="font-size: 11px; color: #64748b; margin: 0 0 4px 0;">Total VAT</p>
+        <p style="font-size: 20px; font-weight: 700; color: #6366f1; margin: 0;">${formatValue(summary?.totalTaxAmount, '৳')}</p>
+      </div>
+      <div style="flex: 1; min-width: 120px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 12px 16px;">
+        <p style="font-size: 11px; color: #64748b; margin: 0 0 4px 0;">Total Discount</p>
+        <p style="font-size: 20px; font-weight: 700; color: #d97706; margin: 0;">${formatValue(summary?.totalDiscountAmount, '৳')}</p>
+      </div>
     </div>`;
 
   if (byProduct && byProduct.length > 0) {
