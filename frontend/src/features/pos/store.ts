@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 import type { CustomerInfo, PosState } from './schema';
 
 function round2(n: number): number {
@@ -35,41 +36,46 @@ const initialState: PosState = {
   submitting: false,
 };
 
-export const usePosStore = create<PosState & PosActions>((set) => ({
-  ...initialState,
-  addItem: (product) =>
-    set((state) => {
-      const existing = state.items.find((i) => i.productId === product.productId);
-      if (existing) {
-        return {
-          items: state.items.map((i) =>
-            i.productId === product.productId
-              ? { ...i, quantity: i.quantity + 1, lineTotal: round2((i.quantity + 1) * i.price) }
-              : i
-          ),
-        };
-      }
-      return {
-        items: [...state.items, { ...product, quantity: 1, lineTotal: product.price, vatRate: product.vatRate }],
-      };
+export const usePosStore = create<PosState & PosActions>()(
+  persist(
+    (set) => ({
+      ...initialState,
+      addItem: (product) =>
+        set((state) => {
+          const existing = state.items.find((i) => i.productId === product.productId);
+          if (existing) {
+            return {
+              items: state.items.map((i) =>
+                i.productId === product.productId
+                  ? { ...i, quantity: i.quantity + 1, lineTotal: round2((i.quantity + 1) * i.price) }
+                  : i
+              ),
+            };
+          }
+          return {
+            items: [...state.items, { ...product, quantity: 1, lineTotal: product.price, vatRate: product.vatRate }],
+          };
+        }),
+      removeItem: (productId) => set((state) => ({ items: state.items.filter((i) => i.productId !== productId) })),
+      updateQuantity: (productId, quantity) =>
+        set((state) => ({
+          items: quantity < 1
+            ? state.items.filter((i) => i.productId !== productId)
+            : state.items.map((i) =>
+                i.productId === productId ? { ...i, quantity, lineTotal: round2(quantity * i.price) } : i
+              ),
+        })),
+      setCoupon: (couponCode, couponDiscount, couponType) => set({ couponCode, couponDiscount, couponType }),
+      clearCoupon: () => set({ couponCode: '', couponDiscount: 0, couponType: null }),
+      setCustomer: (customer) => set({ customer }),
+      setCustomerName: (customerName) => set({ customerName }),
+      setCustomerPhone: (customerPhone) => set({ customerPhone }),
+      setTableNumber: (tableNumber) => set({ tableNumber }),
+      setServedBy: (servedBy) => set({ servedBy }),
+      setDiscountPercent: (discountPercent) => set({ discountPercent }),
+      setSubmitting: (submitting) => set({ submitting }),
+      reset: () => set(initialState),
     }),
-  removeItem: (productId) => set((state) => ({ items: state.items.filter((i) => i.productId !== productId) })),
-  updateQuantity: (productId, quantity) =>
-    set((state) => ({
-      items: quantity < 1
-        ? state.items.filter((i) => i.productId !== productId)
-        : state.items.map((i) =>
-            i.productId === productId ? { ...i, quantity, lineTotal: round2(quantity * i.price) } : i
-          ),
-    })),
-  setCoupon: (couponCode, couponDiscount, couponType) => set({ couponCode, couponDiscount, couponType }),
-  clearCoupon: () => set({ couponCode: '', couponDiscount: 0, couponType: null }),
-  setCustomer: (customer) => set({ customer }),
-  setCustomerName: (customerName) => set({ customerName }),
-  setCustomerPhone: (customerPhone) => set({ customerPhone }),
-  setTableNumber: (tableNumber) => set({ tableNumber }),
-  setServedBy: (servedBy) => set({ servedBy }),
-  setDiscountPercent: (discountPercent) => set({ discountPercent }),
-  setSubmitting: (submitting) => set({ submitting }),
-  reset: () => set(initialState),
-}));
+    { name: 'pos-cart' }
+  )
+);

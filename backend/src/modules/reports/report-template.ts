@@ -46,46 +46,58 @@ function renderSalesReport(data: Record<string, unknown>): string {
     <h2 style="font-size: 18px; font-weight: 700; color: #0f172a; margin: 0 0 4px 0;">Sales Report</h2>
     <p style="font-size: 12px; color: #64748b; margin: 0 0 16px 0;">${range?.from || 'N/A'} — ${range?.to || 'N/A'}</p>
 
-    <div style="display: flex; gap: 16px; margin-bottom: 24px; flex-wrap: wrap;">
-      <div style="flex: 1; min-width: 120px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 12px 16px;">
-        <p style="font-size: 11px; color: #64748b; margin: 0 0 4px 0;">Total Revenue</p>
-        <p style="font-size: 20px; font-weight: 700; color: #2563eb; margin: 0;">${formatValue(summary?.totalRevenue, '৳')}</p>
+    <h3 style="font-size: 13px; font-weight: 600; color: #0f172a; margin: 0 0 8px 0;">Summary</h3>
+    <div style="display: flex; gap: 12px; margin-bottom: 24px; flex-wrap: wrap;">
+      <div style="flex: 1; min-width: 100px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 10px 14px;">
+        <p style="font-size: 10px; color: #64748b; margin: 0 0 3px 0;">Total Revenue</p>
+        <p style="font-size: 18px; font-weight: 700; color: #2563eb; margin: 0;">${formatValue(summary?.totalRevenue, '৳')}</p>
       </div>
-      <div style="flex: 1; min-width: 120px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 12px 16px;">
-        <p style="font-size: 11px; color: #64748b; margin: 0 0 4px 0;">Total Orders</p>
-        <p style="font-size: 20px; font-weight: 700; color: #16a34a; margin: 0;">${summary?.totalOrders ?? 0}</p>
+      <div style="flex: 1; min-width: 100px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 10px 14px;">
+        <p style="font-size: 10px; color: #64748b; margin: 0 0 3px 0;">Total Orders</p>
+        <p style="font-size: 18px; font-weight: 700; color: #16a34a; margin: 0;">${summary?.totalOrders ?? 0}</p>
       </div>
-      <div style="flex: 1; min-width: 120px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 12px 16px;">
-        <p style="font-size: 11px; color: #64748b; margin: 0 0 4px 0;">Products Sold</p>
-        <p style="font-size: 20px; font-weight: 700; color: #16a34a; margin: 0;">${summary?.totalProductsSold ?? 0}</p>
+      <div style="flex: 1; min-width: 100px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 10px 14px;">
+        <p style="font-size: 10px; color: #64748b; margin: 0 0 3px 0;">Products Sold</p>
+        <p style="font-size: 18px; font-weight: 700; color: #16a34a; margin: 0;">${summary?.totalProductsSold ?? 0}</p>
       </div>
-      <div style="flex: 1; min-width: 120px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 12px 16px;">
-        <p style="font-size: 11px; color: #64748b; margin: 0 0 4px 0;">Total VAT</p>
-        <p style="font-size: 20px; font-weight: 700; color: #6366f1; margin: 0;">${formatValue(summary?.totalTaxAmount, '৳')}</p>
+      <div style="flex: 1; min-width: 100px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 10px 14px;">
+        <p style="font-size: 10px; color: #64748b; margin: 0 0 3px 0;">Avg Order Value</p>
+        <p style="font-size: 18px; font-weight: 700; color: #6366f1; margin: 0;">${formatValue(summary?.averageOrderValue, '৳')}</p>
       </div>
-      <div style="flex: 1; min-width: 120px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 12px 16px;">
-        <p style="font-size: 11px; color: #64748b; margin: 0 0 4px 0;">Total Discount</p>
-        <p style="font-size: 20px; font-weight: 700; color: #d97706; margin: 0;">${formatValue(summary?.totalDiscountAmount, '৳')}</p>
+      <div style="flex: 1; min-width: 100px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 10px 14px;">
+        <p style="font-size: 10px; color: #64748b; margin: 0 0 3px 0;">Total VAT</p>
+        <p style="font-size: 18px; font-weight: 700; color: #6366f1; margin: 0;">${formatValue(summary?.totalTaxAmount, '৳')}</p>
+      </div>
+      <div style="flex: 1; min-width: 100px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 10px 14px;">
+        <p style="font-size: 10px; color: #64748b; margin: 0 0 3px 0;">Discount</p>
+        <p style="font-size: 18px; font-weight: 700; color: #d97706; margin: 0;">${formatValue(summary?.totalDiscountAmount, '৳')} (${summary?.discountPercentage ?? 0}%)</p>
       </div>
     </div>`;
 
   if (byProduct && byProduct.length > 0) {
-    html += '<h3 style="font-size: 14px; font-weight: 600; color: #0f172a; margin: 0 0 8px 0;">By Product</h3>';
+    html += '<h3 style="font-size: 14px; font-weight: 600; color: #0f172a; margin: 0 0 8px 0;">Product Performance</h3>';
     html += renderTable(byProduct, [
       { key: 'name', label: 'Product' },
       { key: 'category', label: 'Category' },
-      { key: 'unitsSold', label: 'Units Sold' },
+      { key: 'unitsSold', label: 'Sold' },
+      { key: 'orderCount', label: 'Orders' },
       { key: 'income', label: 'Income', format: (v) => formatValue(v as number, '৳') },
-      { key: 'percentageOfTotal', label: '% of Total', format: (v) => `${v ?? 0}%` },
+      { key: 'percentageOfTotal', label: '%', format: (v) => `${v ?? 0}%` },
     ]);
   }
 
   if (byCategory && byCategory.length > 0) {
-    html += '<h3 style="font-size: 14px; font-weight: 600; color: #0f172a; margin: 0 0 8px 0;">By Category</h3>';
-    html += renderTable(byCategory, [
+    const totalRev = summary?.totalRevenue ?? 0;
+    const enrichedCategories = byCategory.map((c: Record<string, unknown>) => ({
+      ...c,
+      percentage: totalRev > 0 ? Math.round((Number(c.income) / totalRev) * 1000) / 10 : 0,
+    }));
+    html += '<h3 style="font-size: 14px; font-weight: 600; color: #0f172a; margin: 0 0 8px 0;">Category Breakdown</h3>';
+    html += renderTable(enrichedCategories, [
       { key: 'category', label: 'Category' },
-      { key: 'unitsSold', label: 'Units Sold' },
+      { key: 'unitsSold', label: 'Sold' },
       { key: 'income', label: 'Income', format: (v) => formatValue(v as number, '৳') },
+      { key: 'percentage', label: '%', format: (v) => `${v ?? 0}%` },
     ]);
   }
 
@@ -95,7 +107,7 @@ function renderSalesReport(data: Record<string, unknown>): string {
       count: val.count,
       revenue: val.revenue,
     }));
-    html += '<h3 style="font-size: 14px; font-weight: 600; color: #0f172a; margin: 0 0 8px 0;">By Payment Method</h3>';
+    html += '<h3 style="font-size: 14px; font-weight: 600; color: #0f172a; margin: 0 0 8px 0;">Payment Methods</h3>';
     html += renderTable(methodEntries, [
       { key: 'method', label: 'Method' },
       { key: 'count', label: 'Orders' },

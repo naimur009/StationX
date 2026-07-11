@@ -7,6 +7,8 @@ import {
   Package,
   Receipt,
   Percent,
+  TrendingUp,
+  BadgePercent,
 } from 'lucide-react';
 import type { ReportType } from '../schema';
 import type {
@@ -24,12 +26,13 @@ export default function ReportSummaryCards({ type, data }: ReportSummaryCardsPro
     case 'sales': {
       const s = (data as SalesReport).summary;
       return (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
           <MetricCard title="Total Revenue" value={`৳${s.totalRevenue.toLocaleString()}`} icon={DollarSign} color="blue" />
           <MetricCard title="Total Orders" value={s.totalOrders} icon={ShoppingCart} color="green" />
           <MetricCard title="Products Sold" value={s.totalProductsSold} icon={Package} color="green" />
-          <MetricCard title="Total VAT" value={`৳${s.totalTaxAmount.toLocaleString()}`} icon={Receipt} color="indigo" />
-          <MetricCard title="Total Discount" value={`৳${s.totalDiscountAmount.toLocaleString()}`} icon={Percent} color="yellow" />
+          <MetricCard title="Avg. Order Value" value={`৳${s.averageOrderValue.toLocaleString()}`} icon={TrendingUp} color="indigo" />
+          <MetricCard title="Total VAT" value={`৳${s.totalTaxAmount.toLocaleString()}`} icon={Receipt} color="slate" />
+          <MetricCard title="Discount" value={`৳${s.totalDiscountAmount.toLocaleString()} (${s.discountPercentage}%)`} icon={BadgePercent} color="yellow" />
         </div>
       );
     }

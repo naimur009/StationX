@@ -53,7 +53,7 @@ export async function getReport(type: string, query: ReportQueryDto) {
       const totalOrders = summaryRow.totalOrders || 0;
 
       const byProduct = (data.byProduct || []).map(
-        (item: { productId: Types.ObjectId; name: string; category: string; unitsSold: number; income: number }) => ({
+        (item: { productId: Types.ObjectId; name: string; category: string; unitsSold: number; income: number; orderCount: number }) => ({
           ...item,
           productId: item.productId.toString(),
           percentageOfTotal:
@@ -63,17 +63,24 @@ export async function getReport(type: string, query: ReportQueryDto) {
         })
       );
 
+      const totalRevenue = summaryRow.totalRevenue || 0;
+      const totalDiscount = summaryRow.totalDiscountAmount || 0;
+      const averageOrderValue = totalOrders > 0 ? Math.round((totalRevenue / totalOrders) * 100) / 100 : 0;
+      const discountPercentage = totalRevenue > 0 ? Math.round((totalDiscount / totalRevenue) * 1000) / 10 : 0;
+
       result = {
         range: {
           from: dateRange.from.toISOString().split('T')[0],
           to: new Date(dateRange.to.getTime() - 86400000).toISOString().split('T')[0],
         },
         summary: {
-          totalRevenue: summaryRow.totalRevenue || 0,
+          totalRevenue,
           totalOrders,
           totalProductsSold: summaryRow.totalProductsSold || 0,
-          totalDiscountAmount: summaryRow.totalDiscountAmount || 0,
+          totalDiscountAmount: totalDiscount,
           totalTaxAmount: summaryRow.totalTaxAmount || 0,
+          averageOrderValue,
+          discountPercentage,
         },
         byPaymentMethod: arrayToObject(data.byPaymentMethod || [], ['count', 'revenue']),
         dailyBreakdown: data.dailyBreakdown || [],

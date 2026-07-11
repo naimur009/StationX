@@ -29,7 +29,7 @@ export default function SalariesPage() {
   } | null>(null);
 
   return (
-    <PermissionGate module="expenses" action="view">
+    <PermissionGate module="salary" action="view">
       <div className="space-y-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
@@ -39,13 +39,13 @@ export default function SalariesPage() {
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <PermissionGate module="expenses" action="create">
+            <PermissionGate module="salary" action="create">
               <Button variant="success" size="sm" onClick={() => setAdjustmentDialog({ type: 'bonus', employeeId: '', month: new Date().getMonth() + 1, year: new Date().getFullYear() })}>
                 <Gift className="mr-1.5 h-4 w-4" />
                 Add Bonus
               </Button>
             </PermissionGate>
-            <PermissionGate module="expenses" action="create">
+            <PermissionGate module="salary" action="create">
               <Button variant="destructive" size="sm" onClick={() => setAdjustmentDialog({ type: 'cut', employeeId: '', month: new Date().getMonth() + 1, year: new Date().getFullYear() })}>
                 <ArrowUpDown className="mr-1.5 h-4 w-4" />
                 Add Cut

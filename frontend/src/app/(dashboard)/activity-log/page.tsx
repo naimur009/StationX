@@ -34,6 +34,7 @@ export default function ActivityLogPage() {
   }
 
   return (
+    <PermissionGate module="activity-log" action="view">
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-bold text-slate-800 xs:text-2xl">
@@ -92,5 +93,6 @@ export default function ActivityLogPage() {
         </p>
       </Dialog>
     </div>
+    </PermissionGate>
   );
 }

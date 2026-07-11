@@ -90,6 +90,7 @@ export function salesAggregation(from: Date, to: Date): PipelineStage[] {
               _id: { productId: '$items.productId', name: '$items.nameSnapshot' },
               unitsSold: { $sum: '$items.quantity' },
               income: { $sum: '$items.lineTotal' },
+              orderCount: { $addToSet: '$_id' },
             },
           },
           {
@@ -123,6 +124,7 @@ export function salesAggregation(from: Date, to: Date): PipelineStage[] {
               category: 1,
               unitsSold: 1,
               income: { $round: ['$income', 2] },
+              orderCount: { $size: '$orderCount' },
             },
           },
           { $sort: { income: -1 } },

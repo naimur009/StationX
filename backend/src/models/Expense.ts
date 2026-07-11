@@ -21,7 +21,7 @@ const expenseSchema = new Schema<IExpense>(
     description: { type: String, trim: true, maxlength: 500 },
     category: { type: String, required: true, trim: true, maxlength: 100 },
     vendorId: { type: Schema.Types.ObjectId, ref: 'Vendor' },
-    paidBy: { type: Schema.Types.ObjectId, ref: 'Employee', required: true },
+    paidBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },
     paidTo: { type: String, required: true, trim: true, maxlength: 200 },
     paymentMethod: {
       type: String,

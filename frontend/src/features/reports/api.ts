@@ -17,6 +17,8 @@ export interface SalesSummary {
   totalProductsSold: number;
   totalDiscountAmount: number;
   totalTaxAmount: number;
+  averageOrderValue: number;
+  discountPercentage: number;
 }
 
 export interface PaymentMethodEntry {
@@ -37,6 +39,7 @@ export interface ProductIncomeEntry {
   unitsSold: number;
   income: number;
   percentageOfTotal: number;
+  orderCount: number;
 }
 
 export interface CategoryIncomeEntry {

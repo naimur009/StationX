@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { AppError } from '@/lib/utils';
 import { ShoppingCart, X, Percent, User, Table, ChevronDown } from 'lucide-react';
+import PermissionGate from '@/components/shared/PermissionGate';
 
 export default function PosPage() {
   const items = usePosStore((s) => s.items);
@@ -153,7 +154,7 @@ export default function PosPage() {
   }
 
   return (
-    <>
+    <PermissionGate module="pos" action="view">
       <div className="flex flex-1 flex-col gap-4 lg:flex-row">
         <div className="flex-1 min-w-0 space-y-4">
             <div className="flex items-center justify-between">
@@ -445,6 +446,6 @@ export default function PosPage() {
           <p className="text-lg font-bold text-slate-800">{orderNumber}</p>
         </div>
       </Dialog>
-    </>
+    </PermissionGate>
   );
 }
