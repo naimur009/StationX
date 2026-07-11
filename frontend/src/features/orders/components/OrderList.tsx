@@ -47,15 +47,13 @@ function MobileOrderCard({ item, onView, onDelete, deletePending }: { item: Orde
         </div>
         <div className="mt-1 text-xs text-slate-400">{formatDate(item.createdAt)}</div>
       </button>
-      {item.status === 'pending' && (
-        <PermissionGate module="orders" action="delete">
-          <div className="mt-2 flex justify-end border-t border-slate-100 pt-2">
-            <Button variant="destructive" size="xs" disabled={deletePending} onClick={() => onDelete(item)}>
-              Delete
-            </Button>
-          </div>
-        </PermissionGate>
-      )}
+      <PermissionGate module="orders" action="delete">
+        <div className="mt-2 flex justify-end border-t border-slate-100 pt-2">
+          <Button variant="destructive" size="xs" disabled={deletePending} onClick={() => onDelete(item)}>
+            Delete
+          </Button>
+        </div>
+      </PermissionGate>
     </div>
   );
 }

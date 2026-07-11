@@ -662,6 +662,8 @@ export async function updateOrderStatus(id: string, dto: UpdateOrderStatusDto) {
 
     await withTransaction(async (session) => {
       const setFields: Record<string, unknown> = {
+        status: 'completed',
+        completedAt: new Date(),
         paymentStatus: 'paid',
         'payment.method': dto.payment!.method,
       };
@@ -782,20 +784,6 @@ export async function deleteOrder(id: string) {
   const order = await Order.findById(id);
   if (!order) {
     throw createError(404, 'NOT_FOUND', 'Order not found');
-  }
-
-  if (order.status !== 'pending') {
-    throw createError(409, 'ORDER_NOT_DELETABLE', 'Only pending orders can be deleted');
-  }
-
-  const now = new Date();
-  const orderDate = new Date(order.createdAt);
-  const isSameDay =
-    orderDate.getFullYear() === now.getFullYear() &&
-    orderDate.getMonth() === now.getMonth() &&
-    orderDate.getDate() === now.getDate();
-  if (!isSameDay) {
-    throw createError(409, 'ORDER_NOT_DELETABLE', 'Only orders created today can be deleted');
   }
 
   if (order.couponId) {

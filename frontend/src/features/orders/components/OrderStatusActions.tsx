@@ -38,18 +38,7 @@ export default function OrderStatusActions({ order, onStatusChange, isLoading }:
   return (
     <PermissionGate module="orders" action="edit">
       <div className="flex flex-wrap gap-3">
-        {(order.status === 'pending') && (
-          <Button
-            variant="success"
-            size="md"
-            disabled={isLoading}
-            onClick={() => onStatusChange('completed')}
-          >
-            Mark Completed
-          </Button>
-        )}
-
-        {(order.status === 'completed' && order.paymentStatus !== 'paid') && (
+        {(order.status === 'pending' || (order.status === 'completed' && order.paymentStatus !== 'paid')) && (
           <Button
             variant="primary"
             size="md"
