@@ -112,7 +112,7 @@ export default function OrderDetailView({ order }: OrderDetailViewProps) {
             </Button>
           </PermissionGate>
           <PermissionGate module="orders" action="edit">
-            {order.status !== 'cancelled' && (
+            {order.status !== 'cancelled' && order.paymentStatus !== 'paid' && (
               <Button
                 variant="primary"
                 size="md"
