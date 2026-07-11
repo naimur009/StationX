@@ -44,7 +44,7 @@ export default function BillPreview() {
 
       {totalDiscount > 0 && (
         <div className="flex justify-between text-green-600 font-bold">
-          <span>Discount {discountPercent > 0 ? `(${discountPercent}%)` : ''}</span>
+          <span>Discount</span>
           <span>-BDT {totalDiscount.toFixed(2)}</span>
         </div>
       )}

@@ -145,7 +145,7 @@ export async function createOrder(dto: CreateOrderDto, userId: string) {
     const product = productMap.get(item.productId)!;
     const lineTotal = round2(product.price * item.quantity);
     return {
-      productId: product._id as unknown as string,
+      productId: product._id.toString(),
       nameSnapshot: product.name,
       priceSnapshot: product.price,
       quantity: item.quantity,

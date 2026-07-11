@@ -32,7 +32,7 @@ export default function ReportSummaryCards({ type, data }: ReportSummaryCardsPro
           <MetricCard title="Products Sold" value={s.totalProductsSold} icon={Package} color="green" />
           <MetricCard title="Avg. Order Value" value={`৳${s.averageOrderValue.toLocaleString()}`} icon={TrendingUp} color="indigo" />
           <MetricCard title="Total VAT" value={`৳${s.totalTaxAmount.toLocaleString()}`} icon={Receipt} color="slate" />
-          <MetricCard title="Discount" value={`৳${s.totalDiscountAmount.toLocaleString()} (${s.discountPercentage}%)`} icon={BadgePercent} color="yellow" />
+          <MetricCard title="Discount" value={`৳${s.totalDiscountAmount.toLocaleString()}`} icon={BadgePercent} color="yellow" />
         </div>
       );
     }

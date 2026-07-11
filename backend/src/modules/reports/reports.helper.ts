@@ -86,12 +86,37 @@ export function salesAggregation(from: Date, to: Date): PipelineStage[] {
         byProduct: [
           { $unwind: '$items' },
           {
+            $lookup: {
+              from: 'products',
+              localField: 'items.productId',
+              foreignField: '_id',
+              as: '_product',
+            },
+          },
+          { $unwind: { path: '$_product', preserveNullAndEmptyArrays: true } },
+          {
+            $lookup: {
+              from: 'categories',
+              localField: '_product.categoryId',
+              foreignField: '_id',
+              as: '_category',
+            },
+          },
+          { $unwind: { path: '$_category', preserveNullAndEmptyArrays: true } },
+          {
             $group: {
               _id: { productId: '$items.productId', name: '$items.nameSnapshot' },
               unitsSold: { $sum: '$items.quantity' },
               income: { $sum: '$items.lineTotal' },
               orderCount: { $addToSet: '$_id' },
-              category: { $first: { $ifNull: ['$items.categorySnapshot', 'Uncategorized'] } },
+              category: {
+                $first: {
+                  $ifNull: [
+                    '$items.categorySnapshot',
+                    { $ifNull: ['$_category.name', 'Uncategorized'] }
+                  ]
+                }
+              },
             },
           },
           {
@@ -110,8 +135,31 @@ export function salesAggregation(from: Date, to: Date): PipelineStage[] {
         byCategory: [
           { $unwind: '$items' },
           {
+            $lookup: {
+              from: 'products',
+              localField: 'items.productId',
+              foreignField: '_id',
+              as: '_product',
+            },
+          },
+          { $unwind: { path: '$_product', preserveNullAndEmptyArrays: true } },
+          {
+            $lookup: {
+              from: 'categories',
+              localField: '_product.categoryId',
+              foreignField: '_id',
+              as: '_category',
+            },
+          },
+          { $unwind: { path: '$_category', preserveNullAndEmptyArrays: true } },
+          {
             $group: {
-              _id: { $ifNull: ['$items.categorySnapshot', 'Uncategorized'] },
+              _id: {
+                $ifNull: [
+                  '$items.categorySnapshot',
+                  { $ifNull: ['$_category.name', 'Uncategorized'] }
+                ]
+              },
               unitsSold: { $sum: '$items.quantity' },
               income: { $sum: '$items.lineTotal' },
             },
