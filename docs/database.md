@@ -82,24 +82,7 @@ Authentication identity + embedded permission grants (per `ARCHITECTURE.md` §6,
 
 ---
 
-### 3.2 PasswordResetToken
-
-Not explicitly modeled in `ARCHITECTURE.md` §5's collection list, but required to implement the forgot-password flow described in §6. **Addition — flag if a different mechanism (e.g., signed JWT with no persistence) is preferred.**
-
-| Field | Type | Required | Notes |
-|---|---|---|---|
-| `userId` | ObjectId → User | ✓ | |
-| `tokenHash` | String | ✓ | SHA-256 of the token sent by email; raw token never stored |
-| `expiresAt` | Date | ✓ | short TTL (e.g. 15–30 min) |
-| `used` | Boolean | ✓ (default `false`) | set `true` on consumption; prevents replay |
-
-**Indexes:** `tokenHash` (unique), TTL index on `expiresAt` (Mongo auto-expires/removes the document — no cron cleanup needed).
-
-> **Note:** no `RefreshToken` collection in v1. Refresh tokens are stateless JWTs in an httpOnly cookie per §6; immediate revocation via a Redis denylist is explicitly Phase 2+ in the architecture, so nothing needs to be persisted in Mongo for it yet.
-
----
-
-### 3.3 Category
+### 3.2 Category
 
 | Field | Type | Required | Notes |
 |---|---|---|---|

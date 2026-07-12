@@ -134,7 +134,7 @@ modules/<module>/
 - All inputs are validated server-side regardless of frontend validation (`ARCHITECTURE.md` §12).
 - No raw/string-interpolated Mongo queries — use Mongoose query builders/parameterized filters exclusively.
 - Secrets (JWT signing keys, Cloudinary keys, DB connection string, email provider keys) live in environment variables only, validated at boot via the Zod-checked `env.ts`. Never hardcode a secret, even temporarily, even in a comment.
-- Rate limiting applies to `/auth/login` and `/auth/forgot-password` per `ARCHITECTURE.md` §12 — any new public, unauthenticated endpoint should be evaluated for the same protection before shipping.
+- Rate limiting applies to `/auth/login` per `ARCHITECTURE.md` §12 — any new public, unauthenticated endpoint should be evaluated for the same protection before shipping.
 - File uploads are validated by MIME type and size **before** reaching Cloudinary (`API.md` §4) — never trust a client-provided `Content-Type` header alone.
 
 ---

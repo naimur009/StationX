@@ -39,26 +39,6 @@ export function useLogout() {
   });
 }
 
-export function useForgotPassword() {
-  return useMutation({
-    mutationFn: (data: { email: string }) =>
-      apiClient<{ data: { success: boolean } }>('/auth/forgot-password', {
-        method: 'POST',
-        body: JSON.stringify(data),
-      }),
-  });
-}
-
-export function useResetPassword() {
-  return useMutation({
-    mutationFn: (data: { token: string; newPassword: string }) =>
-      apiClient<{ data: { success: boolean } }>('/auth/reset-password', {
-        method: 'POST',
-        body: JSON.stringify(data),
-      }),
-  });
-}
-
 export function useMe() {
   return useQuery({
     queryKey: ['auth', 'me'],

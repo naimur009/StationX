@@ -53,7 +53,7 @@ export async function apiClient<T>(
 
   let token = store.accessToken;
 
-  const isAuthPage = typeof window !== 'undefined' && ['/login', '/forgot-password', '/reset-password'].includes(window.location.pathname);
+  const isAuthPage = typeof window !== 'undefined' && ['/login'].includes(window.location.pathname);
 
   if (!token && !skipAuth && (store.isAuthenticated || path === '/auth/me')) {
     token = await refreshAccessToken();
@@ -87,7 +87,7 @@ export async function apiClient<T>(
 
     useAuthStore.getState().clearAuth();
 
-    const authPaths = ['/login', '/forgot-password', '/reset-password'];
+    const authPaths = ['/login'];
     if (typeof window !== 'undefined' && !authPaths.includes(window.location.pathname)) {
       window.location.href = '/login';
     }

@@ -124,20 +124,6 @@ These apply to **every** module below; listed once here and referenced by ID rat
 | AUTH-H-03 | Happy | Authenticated logout | `200`, refresh cookie cleared |
 | AUTH-E-05 | Error | Logout with no valid session | `401 UNAUTHORIZED` (auth required per §5) |
 
-### `POST /auth/forgot-password` / `POST /auth/reset-password`
-
-| ID | Type | Case | Expected |
-|---|---|---|---|
-| AUTH-H-04 | Happy | Forgot-password with valid registered email | `200`, `PasswordResetToken` created, email sent (verify email content doesn't leak whether account exists if testing enumeration-resistance is in scope) |
-| AUTH-E-06 | Error | Forgot-password with unregistered email | Document expected behavior: generic `200` regardless (anti-enumeration) vs explicit error — **flag for security review**, since `API.md` §5 doesn't specify this explicitly |
-| AUTH-H-05 | Happy | Reset-password with valid, unexpired, unused token | `200`, password updated, subsequent login works with new password |
-| AUTH-E-07 | Error | Reset-password with expired token | `400 INVALID_OR_EXPIRED_TOKEN` |
-| AUTH-E-08 | Error | Reset-password with already-`used: true` token (replay) | `400 INVALID_OR_EXPIRED_TOKEN` |
-| AUTH-E-09 | Error | Reset-password with tampered/garbage token string | `400 INVALID_OR_EXPIRED_TOKEN` (lookup by `tokenHash` simply fails to match) |
-| AUTH-S-06 | Security | Reset token usable more than once | Must fail on second attempt — `used` flag enforced |
-| AUTH-S-07 | Security | `PasswordResetToken` TTL index actually expires/removes old tokens | Confirm via direct DB check after `expiresAt` passes |
-| AUTH-H-06 | Happy | New-user "set your password" flow reuses `/auth/reset-password` (per `API.md` §6 design) | Confirm same endpoint correctly distinguishes "first-time setup" vs "forgot password" in `ActivityLog` description text |
-
 ### `GET /auth/me`
 
 | ID | Type | Case | Expected |

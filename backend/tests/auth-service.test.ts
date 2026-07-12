@@ -7,9 +7,7 @@ vi.mock('../src/models/User');
 vi.mock('../src/models/ActivityLog', () => ({
   default: { create: vi.fn().mockResolvedValue({}) },
 }));
-vi.mock('../src/models/PasswordResetToken');
 vi.mock('../src/lib/jwt');
-vi.mock('../src/lib/email');
 vi.mock('bcrypt', () => ({
   default: {
     hashSync: vi.fn().mockReturnValue('dummy-hash'),

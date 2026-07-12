@@ -76,8 +76,6 @@ Base path: `/auth`. **Permission:** none — auth endpoints establish identity, 
 | POST | `/auth/login` | none | Credential exchange → tokens |
 | POST | `/auth/refresh` | refresh cookie | Issue new access token |
 | POST | `/auth/logout` | required | Clears refresh cookie |
-| POST | `/auth/forgot-password` | none | Issues `PasswordResetToken`, emails link |
-| POST | `/auth/reset-password` | none | Consumes token, sets new password |
 | GET | `/auth/me` | optional | Current user + permissions, used to hydrate the auth store on app load. Returns `{ data: null }` when unauthenticated (no 401). |
 
 #### `POST /auth/login`
@@ -116,13 +114,6 @@ Errors: `401 INVALID_CREDENTIALS`, `423 ACCOUNT_DEACTIVATED` (when `User.isActiv
 // Response 200 — unauthenticated (no token, expired, or invalid)
 { "data": null }
 ```
-
-#### `POST /auth/reset-password`
-```json
-// Request
-{ "token": "raw-token-from-email-link", "newPassword": "string" }
-```
-`200` on success; `400 INVALID_OR_EXPIRED_TOKEN` if the `PasswordResetToken` lookup (by `tokenHash`) fails, is expired, or `used: true`.
 
 ---
 
@@ -790,7 +781,7 @@ Single namespace, all authenticated dashboard clients join one shared room — n
 | 400 | `ADJUSTMENT_EXCEEDS_SALARY` | Cut amount exceeds base salary |
 | 400 | `HAS_ADVANCES` | Cannot cancel a salary record with advances |
 | 423 | `ACCOUNT_DEACTIVATED` | Login attempt on a deactivated user (`isActive: false`) |
-| 429 | `RATE_LIMITED` | Hit on `/auth/login`, `/auth/refresh`, `/auth/forgot-password`, `/auth/reset-password` per `ARCHITECTURE.md` §12 |
+| 429 | `RATE_LIMITED` | Hit on `/auth/login`, `/auth/refresh` per `ARCHITECTURE.md` §12 |
 | 500 | `INTERNAL_ERROR` | Unhandled — never exposes stack traces or raw DB errors to the client |
 
 ---

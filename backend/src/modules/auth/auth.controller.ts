@@ -78,36 +78,6 @@ export async function handleLogout(
   }
 }
 
-export async function handleForgotPassword(
-  req: Request,
-  res: Response,
-  next: NextFunction
-): Promise<void> {
-  try {
-    const { email } = req.body;
-    await authService.forgotPassword(email);
-
-    res.status(200).json({ data: { success: true } });
-  } catch (error) {
-    next(error);
-  }
-}
-
-export async function handleResetPassword(
-  req: Request,
-  res: Response,
-  next: NextFunction
-): Promise<void> {
-  try {
-    const { token, newPassword } = req.body;
-    await authService.resetPassword(token, newPassword);
-
-    res.status(200).json({ data: { success: true } });
-  } catch (error) {
-    next(error);
-  }
-}
-
 export async function handleMe(
   req: AuthenticatedRequest,
   res: Response,

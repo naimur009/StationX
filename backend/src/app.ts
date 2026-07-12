@@ -87,8 +87,7 @@ function makeRateLimiter(max: number) {
 
 app.use('/api/v1/auth/login', makeRateLimiter(env.RATE_LIMIT_MAX));           // 10/15min
 app.use('/api/v1/auth/refresh', makeRateLimiter(env.RATE_LIMIT_REFRESH_MAX)); // 30/15min
-app.use('/api/v1/auth/forgot-password', makeRateLimiter(env.RATE_LIMIT_STRICT_MAX)); // 5/15min
-app.use('/api/v1/auth/reset-password', makeRateLimiter(env.RATE_LIMIT_STRICT_MAX));  // 5/15min
+
 const userMutationLimiter = makeRateLimiter(env.RATE_LIMIT_MAX);
 app.use('/api/v1/users', (req, res, next) => {
   if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method)) {

@@ -61,8 +61,7 @@ frontend/
 │   ├── (public)/
 │   │   └── page.tsx                 # Home page
 │   ├── (auth)/
-│   │   ├── login/page.tsx
-│   │   └── forgot-password/page.tsx
+│   │   └── login/page.tsx
 │   ├── (dashboard)/                 # Authenticated shell, layout enforces session
 │   │   ├── layout.tsx               # Sidebar, role/permission gate
 │   │   ├── overview/page.tsx        # Dashboard module
@@ -237,8 +236,7 @@ Settings (singleton document — one row for the whole restaurant)
 4. **Authorization (permission-based, not just role-based):** each request to a protected route passes through `authorize(module, action)`. This checks the user's `permissions` array (e.g., `{ module: 'expenses', actions: ['view','create'] }`) rather than a hardcoded role check — satisfying the PRD's requirement that Admin can configure custom per-user access.
    - **Admin** bypasses granular checks (implicit full access).
    - **Manager/Employee** permissions are evaluated explicitly; default-deny if a module isn't in their permission set.
-5. **Forgot password:** `POST /api/auth/forgot-password` issues a time-limited reset token emailed to the user; `POST /api/auth/reset-password` consumes it.
-6. **Logout:** clears the refresh cookie; access tokens simply expire (stateless) — optionally denylisted in Redis if immediate revocation is required (Phase 2+).
+5. **Logout:** clears the refresh cookie; access tokens simply expire (stateless) — optionally denylisted in Redis if immediate revocation is required (Phase 2+).
 
 ```text
 [Login Form] → POST /auth/login → [accessToken in memory, refreshToken in httpOnly cookie]
@@ -374,7 +372,7 @@ No payment gateway integration is implied by the PRD — POS payment-method fiel
 - Mongoose schema-level typing + parameterized queries prevent injection (no raw string-built queries).
 - Passwords hashed with bcrypt (cost factor 12), never logged or returned in API responses.
 - JWT secrets and all credentials in environment variables, never committed; `.env.example` checked in, `.env` gitignored.
-- Rate limiting on `/auth/login` and `/auth/forgot-password` to mitigate brute force.
+- Rate limiting on `/auth/login` to mitigate brute force.
 - CORS restricted to known frontend origin(s) per environment.
 - Helmet middleware for standard HTTP security headers.
 - File uploads (product images, logo) validated by MIME type and size limit before reaching Cloudinary.

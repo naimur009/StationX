@@ -31,12 +31,12 @@ export default function AuthLayout({
   }, [sessionUser, setAuth]);
 
   useEffect(() => {
-    if (hasSession && pathname !== '/reset-password') {
+    if (hasSession) {
       router.replace('/overview');
     }
   }, [hasSession, pathname, router]);
 
-  if (hasSession && pathname !== '/reset-password') {
+  if (hasSession) {
     return null;
   }
 

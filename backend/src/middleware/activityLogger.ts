@@ -27,15 +27,11 @@ const STATE_TRANSITION_RULES: PathActionRule[] = [
 const AUTH_ACTION_MAP: Record<string, string> = {
   '/auth/login': 'login',
   '/auth/logout': 'logout',
-  '/auth/forgot-password': 'password.reset_requested',
-  '/auth/reset-password': 'password.reset',
 };
 
 const AUTH_DESCRIPTION_MAP: Record<string, string> = {
   'login': 'User logged in',
   'logout': 'User logged out',
-  'password.reset_requested': 'Password reset requested',
-  'password.reset': 'Password was reset',
 };
 
 const RESOURCE_DESCRIPTION_MAP: Record<string, (req: AuthenticatedRequest) => string> = {

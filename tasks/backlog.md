@@ -68,7 +68,7 @@ Stand up empty, correctly-configured `frontend/` and `backend/` projects matchin
 - [ ] `npx create-next-app` with App Router + TypeScript + Tailwind
 - [ ] Install + configure shadcn/ui
 - [ ] Implement `theme.md` §2's CSS variables (light + dark) into `app/globals.css`, load the §3 fonts self-hosted via `next/font/google` per `theme.md` §3's decision, and set `darkMode: 'class'` in `tailwind.config` — `theme.md` already exists, so the tokens are wired in here rather than left for Task 1 to invent
-- [ ] Empty route group folders: `app/(public)/`, `app/(auth)/login/`, `app/(auth)/forgot-password/`, `app/(dashboard)/` with placeholder `page.tsx`/`layout.tsx` files (just enough to render, no real content)
+- [x] Empty route group folders: `app/(public)/`, `app/(auth)/login/`, `app/(dashboard)/` with placeholder `page.tsx`/`layout.tsx` files (just enough to render, no real content)
 - [ ] Empty `features/` folder with one placeholder module folder to confirm the convention (no real feature yet)
 - [ ] `components/ui/` (shadcn output) and `components/shared/` (empty, ready for `DataTable`, `PermissionGate`, etc.)
 - [ ] `lib/api-client.ts` skeleton (fetch wrapper, JWT-attach stub — no real refresh logic yet)
@@ -102,25 +102,25 @@ Stand up empty, correctly-configured `frontend/` and `backend/` projects matchin
 
 ### Backend
 - [ ] `User` Mongoose model (`name`, `email` unique/lowercase, `passwordHash`, `role` enum, `permissions[]`, `isActive`, `lastLoginAt`) — fields exactly per `DATABASE.md` §3.1, no extras
-- [ ] `PasswordResetToken` model (`userId`, `tokenHash`, `expiresAt` with TTL index, `used`) per §3.2
+- [x] `PasswordResetToken` model (`userId`, `tokenHash`, `expiresAt` with TTL index, `used`) per §3.2 — **REMOVED** in forgot-password removal
 - [ ] `lib/jwt.ts` — sign/verify access token (15 min) and refresh token (7 days)
 - [ ] `middleware/authenticate.ts` — real implementation: verify Bearer token, attach `req.user = { id, role, permissions }`
 - [ ] bcrypt hashing (cost 12) on password set/reset — never log or return `passwordHash`, exclude it at query projection level
 - [ ] `POST /auth/login` — credential check, `423 ACCOUNT_DEACTIVATED` if `isActive: false`, `401 INVALID_CREDENTIALS` for both wrong password and unknown email (no enumeration leak), set refresh cookie httpOnly+secure, return access token + user + permissions in body
 - [ ] `POST /auth/refresh` — verify refresh cookie, issue new access token
 - [ ] `POST /auth/logout` — clear refresh cookie
-- [ ] `POST /auth/forgot-password` — issue `PasswordResetToken`, send email via provider (Resend/SendGrid placeholder OK for now)
-- [ ] `POST /auth/reset-password` — consume token by `tokenHash` lookup, `400 INVALID_OR_EXPIRED_TOKEN` if expired/used/not found, set new password, mark token `used: true`
+- [x] `POST /auth/forgot-password` — **REMOVED**
+- [x] `POST /auth/reset-password` — **REMOVED**
 - [ ] `GET /auth/me` — return current user + permissions for store hydration
-- [ ] Rate limiting on `/auth/login` and `/auth/forgot-password` (`ARCHITECTURE.md` §12) → `429 RATE_LIMITED`
+- [x] Rate limiting on `/auth/login` and `/auth/forgot-password` (`ARCHITECTURE.md` §12) → `429 RATE_LIMITED` — forgot-password limiter removed
 - [ ] Wire the global `activityLogger` middleware now (it's infrastructure, not feature-specific) so every mutating route from this point on is automatically logged
 
 ### Frontend
-- [ ] `features/auth/api.ts` — React Query hooks: `useLogin`, `useLogout`, `useForgotPassword`, `useResetPassword`, `useMe`
-- [ ] `features/auth/schema.ts` — Zod schemas shared in shape with backend validation (login, forgot-password, reset-password forms)
+- [x] `features/auth/api.ts` — React Query hooks: `useLogin`, `useLogout`, `useMe` (forgotPassword/resetPassword removed)
+- [x] `features/auth/schema.ts` — Zod schemas shared in shape with backend validation (login only; forgot/reset schemas removed)
 - [ ] `app/(auth)/login/page.tsx` — login form (React Hook Form + Zod)
-- [ ] `app/(auth)/forgot-password/page.tsx` — forgot-password form
-- [ ] A reset-password page/route that consumes the emailed token (confirm route path, e.g. `app/(auth)/reset-password/page.tsx?token=`)
+- [x] `app/(auth)/forgot-password/page.tsx` — **REMOVED**
+- [x] `app/(auth)/reset-password/page.tsx` — **REMOVED**
 - [ ] `stores/auth-store.ts` — real implementation: holds user, permissions, access token in memory; hydrates from `GET /auth/me` on app load
 - [ ] `lib/api-client.ts` — real implementation: attaches `Authorization: Bearer`, transparently calls `/auth/refresh` and retries once on `401`
 - [ ] `(dashboard)/layout.tsx` — session check, redirect unauthenticated users to `/login`
@@ -130,12 +130,11 @@ Stand up empty, correctly-configured `frontend/` and `backend/` projects matchin
 - [ ] Decide login page layout (centered card vs split-screen vs full illustration) — consult `frontend-design` skill before building
 - [ ] Decide error-state presentation for `INVALID_CREDENTIALS` (inline field error vs toast vs banner) — keep consistent with how validation errors will look everywhere else in the app, since this is the first form built
 - [ ] Decide loading/pending state for the login button (disabled + spinner vs skeleton)
-- [ ] Decide forgot/reset-password flow's confirmation messaging (e.g. "if that email exists, a reset link was sent" — ties to the open item below)
-- [ ] Tokens are already established in `theme.md` and wired in during Project Setup — confirm the login/forgot-password/reset-password forms actually use them; no new color/type/spacing decisions get made here
+- [x] Decide forgot/reset-password flow's confirmation messaging — **REMOVED**
+- [x] Tokens are already established in `theme.md` and wired in during Project Setup — confirm the login form uses them; no new color/type/spacing decisions get made here
 
 ### Open item to resolve during this task
-- `API.md` §25.4 — confirm account creation reuses the reset-password token mechanism (vs. an admin-sets-password-directly flow) before Users & Permissions builds `POST /users` against it.
-- Decide (not currently specified anywhere) whether `forgot-password` on an unregistered email returns a generic `200` (anti-enumeration) or an explicit error — pick one and note it in `API.md`.
+- `API.md` §25.4 — confirm account creation reuses the reset-password token mechanism (vs. an admin-sets-password-directly flow) before Users & Permissions builds `POST /users` against it. **RESOLVED:** Admin sets password directly; forgot-password flow removed entirely.
 
 ---
 

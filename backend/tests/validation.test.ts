@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { loginSchema, forgotPasswordSchema, resetPasswordSchema } from '../src/modules/auth/auth.validation';
+import { loginSchema } from '../src/modules/auth/auth.validation';
 
 describe('loginSchema', () => {
   it('accepts valid email and password', () => {
@@ -44,81 +44,5 @@ describe('loginSchema', () => {
     if (!result.success) {
       expect(result.error.issues.some((i) => i.code === 'unrecognized_keys')).toBe(true);
     }
-  });
-});
-
-describe('forgotPasswordSchema', () => {
-  it('accepts a valid email', () => {
-    const result = forgotPasswordSchema.safeParse({ email: 'user@example.com' });
-    expect(result.success).toBe(true);
-  });
-
-  it('rejects missing email', () => {
-    const result = forgotPasswordSchema.safeParse({});
-    expect(result.success).toBe(false);
-  });
-
-  it('rejects invalid email', () => {
-    const result = forgotPasswordSchema.safeParse({ email: 'bad' });
-    expect(result.success).toBe(false);
-  });
-});
-
-describe('resetPasswordSchema', () => {
-  it('accepts a valid token and password', () => {
-    const result = resetPasswordSchema.safeParse({
-      token: 'abc123def456',
-      newPassword: 'StrongPass1',
-    });
-    expect(result.success).toBe(true);
-  });
-
-  it('rejects password shorter than 8 characters', () => {
-    const result = resetPasswordSchema.safeParse({
-      token: 'abc123',
-      newPassword: 'Short1A',
-    });
-    expect(result.success).toBe(false);
-  });
-
-  it('rejects password without uppercase letter', () => {
-    const result = resetPasswordSchema.safeParse({
-      token: 'abc123',
-      newPassword: 'lowercase1',
-    });
-    expect(result.success).toBe(false);
-    if (!result.success) {
-      const messages = result.error.issues.map((i) => i.message);
-      expect(messages.some((m) => m.includes('uppercase'))).toBe(true);
-    }
-  });
-
-  it('rejects password without lowercase letter', () => {
-    const result = resetPasswordSchema.safeParse({
-      token: 'abc123',
-      newPassword: 'UPPERCASE1',
-    });
-    expect(result.success).toBe(false);
-    if (!result.success) {
-      const messages = result.error.issues.map((i) => i.message);
-      expect(messages.some((m) => m.includes('lowercase'))).toBe(true);
-    }
-  });
-
-  it('rejects password without digit', () => {
-    const result = resetPasswordSchema.safeParse({
-      token: 'abc123',
-      newPassword: 'NoDigitsA',
-    });
-    expect(result.success).toBe(false);
-    if (!result.success) {
-      const messages = result.error.issues.map((i) => i.message);
-      expect(messages.some((m) => m.includes('digit'))).toBe(true);
-    }
-  });
-
-  it('rejects missing token', () => {
-    const result = resetPasswordSchema.safeParse({ newPassword: 'StrongPass1' });
-    expect(result.success).toBe(false);
   });
 });
