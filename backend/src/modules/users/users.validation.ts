@@ -8,7 +8,7 @@ export const createUserSchema = z.object({
   name: z.string().min(1).max(100).optional(),
   email: emailField,
   password: z.string().min(8, 'Password must be at least 8 characters'),
-  role: z.enum(['manager', 'employee', 'chief']),
+  role: z.enum(['admin', 'manager', 'employee', 'chief']),
   permissions: z
     .array(
       z.object({
@@ -31,7 +31,7 @@ export const createUserSchema = z.object({
 export const updateUserSchema = z.object({
   name: z.string().min(1).max(100).optional(),
   email: emailField.optional(),
-  role: z.enum(['manager', 'employee', 'chief']).optional(),
+  role: z.enum(['admin', 'manager', 'employee', 'chief']).optional(),
 }).strict();
 
 export const deactivateUserSchema = z.object({}).strict();
@@ -62,6 +62,10 @@ export const changePasswordSchema = z.object({
   newPassword: z.string().min(8, 'New password must be at least 8 characters'),
 }).strict();
 
+export const adminResetPasswordSchema = z.object({
+  newPassword: z.string().min(8, 'New password must be at least 8 characters'),
+}).strict();
+
 export const listUsersSchema = z.object({
   page: z.coerce.number().int().positive().default(1),
   limit: z.coerce.number().int().positive().max(100).default(20),
@@ -77,3 +81,4 @@ export type UpdateUserDto = z.infer<typeof updateUserSchema>;
 export type ListUsersDto = z.infer<typeof listUsersSchema>;
 export type UpdatePermissionsDto = z.infer<typeof updatePermissionsSchema>;
 export type ChangePasswordDto = z.infer<typeof changePasswordSchema>;
+export type AdminResetPasswordDto = z.infer<typeof adminResetPasswordSchema>;

@@ -176,3 +176,19 @@ export function useChangePassword() {
     },
   });
 }
+
+export function useAdminResetPassword() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (data: { id: string; newPassword: string }) =>
+      apiClient<{ data: { success: boolean } }>(`/users/${data.id}/reset-password`, {
+        method: 'PATCH',
+        body: JSON.stringify({ newPassword: data.newPassword }),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['users'] });
+      queryClient.invalidateQueries({ queryKey: ['users', 'detail'] });
+    },
+  });
+}

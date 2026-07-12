@@ -1,7 +1,7 @@
 import { Response, NextFunction } from 'express';
 import { AuthenticatedRequest } from '../../middleware/authenticate';
 import * as userService from './users.service';
-import type { CreateUserDto, UpdateUserDto, ListUsersDto, UpdatePermissionsDto, ChangePasswordDto } from './users.validation';
+import type { CreateUserDto, UpdateUserDto, ListUsersDto, UpdatePermissionsDto, ChangePasswordDto, AdminResetPasswordDto } from './users.validation';
 
 export async function handleListUsers(
   req: AuthenticatedRequest,
@@ -123,6 +123,20 @@ export async function handleChangePassword(
   try {
     const dto: ChangePasswordDto = req.body;
     const result = await userService.changeUserPassword(req.params.id, dto);
+    res.status(200).json({ data: result });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function handleAdminResetPassword(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const dto: AdminResetPasswordDto = req.body;
+    const result = await userService.adminResetUserPassword(req.params.id, dto);
     res.status(200).json({ data: result });
   } catch (error) {
     next(error);

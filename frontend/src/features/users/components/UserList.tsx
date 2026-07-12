@@ -16,7 +16,6 @@ interface UserListProps {
 export default function UserList({ onEdit, onDeactivate, onPermanentDelete }: UserListProps) {
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
-  const [roleFilter, setRoleFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [page, setPage] = useState(1);
   const [error, setError] = useState<string | null>(null);
@@ -40,14 +39,13 @@ export default function UserList({ onEdit, onDeactivate, onPermanentDelete }: Us
   const { data, isLoading, isError } = useUsersList({
     page,
     limit: 20,
-    role: roleFilter || undefined,
     includeInactive: statusFilter === 'active' ? undefined : (statusFilter === 'all' ? 'true' : 'false'),
     search: debouncedSearch || undefined,
   });
 
   useEffect(() => {
     setPage(1);
-  }, [roleFilter, statusFilter, debouncedSearch]);
+  }, [statusFilter, debouncedSearch]);
 
   async function handleReactivate(user: UserResponse) {
     try {
@@ -91,17 +89,6 @@ export default function UserList({ onEdit, onDeactivate, onPermanentDelete }: Us
             className="w-full rounded-xl border border-slate-300 bg-white py-2.5 pl-10 pr-3.5 text-sm text-slate-800 placeholder-slate-400 ring-ring focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-ring"
           />
         </div>
-
-        <select
-          value={roleFilter}
-          onChange={(e) => setRoleFilter(e.target.value)}
-          className="rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-700 ring-ring focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-ring"
-        >
-          <option value="">All Roles</option>
-          <option value="admin">Admin</option>
-          <option value="manager">Manager</option>
-          <option value="employee">Employee</option>
-        </select>
 
         <select
           value={statusFilter}
@@ -151,40 +138,37 @@ export default function UserList({ onEdit, onDeactivate, onPermanentDelete }: Us
                     )}
                   </div>
                 </div>
-                <div className="mt-3 flex items-center justify-between gap-2">
-                  <span className="text-sm capitalize text-slate-600">{user.role}</span>
-                  <div className="flex items-center gap-1.5">
-                    <button
-                      onClick={() => onEdit(user)}
-                      className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-blue-600"
-                      title="Edit user"
-                    >
-                      <Edit3 className="h-4 w-4" />
-                    </button>
-                    {user.isActive ? (
-                      <Button variant="warning" size="xs" onClick={() => onDeactivate(user)}>
-                        Deactivate
+                <div className="mt-3 flex items-center gap-1.5">
+                  <button
+                    onClick={() => onEdit(user)}
+                    className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-blue-600"
+                    title="Edit user"
+                  >
+                    <Edit3 className="h-4 w-4" />
+                  </button>
+                  {user.isActive ? (
+                    <Button variant="warning" size="xs" onClick={() => onDeactivate(user)}>
+                      Deactivate
+                    </Button>
+                  ) : (
+                    <>
+                      <Button
+                        variant="primary"
+                        size="xs"
+                        onClick={() => handleReactivate(user)}
+                        disabled={reactivateUser.isPending}
+                      >
+                        Reactivate
                       </Button>
-                    ) : (
-                      <>
-                        <Button
-                          variant="primary"
-                          size="xs"
-                          onClick={() => handleReactivate(user)}
-                          disabled={reactivateUser.isPending}
-                        >
-                          Reactivate
-                        </Button>
-                        <Button
-                          variant="destructive"
-                          size="xs"
-                          onClick={() => onPermanentDelete(user)}
-                        >
-                          Delete
-                        </Button>
-                      </>
-                    )}
-                  </div>
+                      <Button
+                        variant="destructive"
+                        size="xs"
+                        onClick={() => onPermanentDelete(user)}
+                      >
+                        Delete
+                      </Button>
+                    </>
+                  )}
                 </div>
               </div>
             ))}
@@ -197,7 +181,6 @@ export default function UserList({ onEdit, onDeactivate, onPermanentDelete }: Us
                 <tr className="border-b border-slate-200 bg-slate-50 text-xs font-semibold uppercase text-slate-500">
                   <th className="px-4 py-3">Name</th>
                   <th className="hidden lg:table-cell px-4 py-3">Email</th>
-                  <th className="hidden sm:table-cell px-4 py-3">Role</th>
                   <th className="px-4 py-3">Status</th>
                   <th className="px-4 py-3 text-right">Actions</th>
                 </tr>
@@ -215,9 +198,6 @@ export default function UserList({ onEdit, onDeactivate, onPermanentDelete }: Us
                     </td>
                     <td className="hidden lg:table-cell max-w-[220px] truncate px-4 py-3 text-slate-600">
                       {user.email}
-                    </td>
-                    <td className="hidden sm:table-cell px-4 py-3 capitalize text-slate-600">
-                      {user.role}
                     </td>
                     <td className="px-4 py-3">
                       {user.isActive ? (

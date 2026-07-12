@@ -139,6 +139,8 @@ Base path: `/users`. **Permission module key:** `users`.
 | PATCH | `/users/:id/permissions` | `edit` | Replace the `permissions` array |
 | PATCH | `/users/:id/deactivate` | `delete` | Soft delete (`isActive: false`) |
 | PATCH | `/users/:id/activate` | `edit` | Reverse a deactivation |
+| PATCH | `/users/:id/password` | `edit` | Self-service password change — requires `prevPassword` |
+| PATCH | `/users/:id/reset-password` | `edit` | Admin-forced password reset — no `prevPassword` required, takes only `newPassword` |
 | DELETE | `/users/:id` | `delete` | Alias for `deactivate` — kept for REST consistency with other modules; same effect, same guard rails below |
 
 > **Why permissions has its own endpoint:** keeping the permission editor's writes separate from the general profile-edit form means each gets its own `ActivityLog` action (`user.updated` vs `user.permissions_updated`) — an admin auditing "who widened someone's access" shouldn't have to diff a generic edit event to find it.

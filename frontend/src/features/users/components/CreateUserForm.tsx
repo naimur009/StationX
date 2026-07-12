@@ -35,6 +35,7 @@ export default function CreateUserForm({ open, onClose }: CreateUserFormProps) {
     try {
       await createUser.mutateAsync({
         ...data,
+        role: 'employee',
         permissions,
       });
       reset();
@@ -134,24 +135,7 @@ export default function CreateUserForm({ open, onClose }: CreateUserFormProps) {
           {errors.password && <p className="mt-1 text-xs text-red-500">{errors.password.message}</p>}
         </div>
 
-        <div>
-          <label htmlFor="create-role" className="mb-1.5 block text-sm font-medium text-slate-700">
-            Role
-          </label>
-          <select
-            id="create-role"
-            className={`w-full rounded-xl border bg-white px-3.5 py-2.5 text-sm text-slate-800 ring-ring focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-ring ${
-              errors.role ? 'border-red-400' : 'border-slate-300'
-            }`}
-            {...register('role')}
-          >
-            <option value="">Select a role</option>
-            <option value="manager">Manager</option>
-            <option value="employee">Employee</option>
-            <option value="chief">Chief</option>
-          </select>
-          {errors.role && <p className="mt-1 text-xs text-red-500">{errors.role.message}</p>}
-        </div>
+
 
         <div>
           <label className="mb-1.5 block text-sm font-medium text-slate-700">

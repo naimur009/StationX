@@ -8,6 +8,7 @@ import type {
   ListUsersDto,
   UpdatePermissionsDto,
   ChangePasswordDto,
+  AdminResetPasswordDto,
 } from './users.validation';
 
 const escapeRegex = (str: string): string =>
@@ -265,6 +266,23 @@ export async function changeUserPassword(
   const isValid = await bcrypt.compare(dto.prevPassword, user.passwordHash);
   if (!isValid) {
     throw createError(400, 'INVALID_PASSWORD', 'Current password is incorrect');
+  }
+
+  const newHash = await bcrypt.hash(dto.newPassword, SALT_ROUNDS);
+  user.passwordHash = newHash;
+  await user.save();
+
+  return { success: true };
+}
+
+export async function adminResetUserPassword(
+  id: string,
+  dto: AdminResetPasswordDto
+): Promise<{ success: boolean }> {
+  const user = await User.findById(id);
+
+  if (!user) {
+    throw createError(404, 'NOT_FOUND', 'User not found');
   }
 
   const newHash = await bcrypt.hash(dto.newPassword, SALT_ROUNDS);

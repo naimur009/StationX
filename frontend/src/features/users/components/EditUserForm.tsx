@@ -3,11 +3,12 @@
 import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useUpdateUser, useUpdatePermissions, type UserResponse } from '../api';
+import { useUpdateUser, useUpdatePermissions, useAdminResetPassword, type UserResponse } from '../api';
 import { updateUserSchema, type UpdateUserFormData } from '../schema';
 import { Dialog } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { AppError } from '@/lib/utils';
+import { KeyRound } from 'lucide-react';
 import PermissionsEditor from './PermissionsEditor';
 
 interface EditUserFormProps {
@@ -18,8 +19,12 @@ interface EditUserFormProps {
 export default function EditUserForm({ user, onClose }: EditUserFormProps) {
   const [permissions, setPermissions] = useState<{ module: string; actions: string[] }[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [showPasswordInput, setShowPasswordInput] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+  const [passwordError, setPasswordError] = useState<string | null>(null);
   const updateUser = useUpdateUser();
   const updatePermissions = useUpdatePermissions();
+  const adminResetPassword = useAdminResetPassword();
 
   const {
     register,
@@ -36,12 +41,12 @@ export default function EditUserForm({ user, onClose }: EditUserFormProps) {
         name: user.name,
         email: user.email,
       };
-      if (user.role !== 'admin') {
-        formData.role = user.role as 'manager' | 'employee' | 'chief';
-      }
       reset(formData);
       setPermissions(user.permissions);
       setError(null);
+      setShowPasswordInput(false);
+      setNewPassword('');
+      setPasswordError(null);
     }
   }, [user, reset]);
 
@@ -49,13 +54,10 @@ export default function EditUserForm({ user, onClose }: EditUserFormProps) {
     if (!user) return;
     setError(null);
 
-    const updatePayload: { name?: string; email: string; role?: string } = {
+    const updatePayload: { name?: string; email: string } = {
       name: data.name || undefined,
       email: data.email,
     };
-    if (data.role) {
-      updatePayload.role = data.role;
-    }
 
     try {
       await updateUser.mutateAsync({ id: user.id, ...updatePayload });
@@ -72,6 +74,16 @@ export default function EditUserForm({ user, onClose }: EditUserFormProps) {
       console.error('[EditUserForm] Permissions update failed for user:', user.id, err);
       setError(msg);
       return;
+    }
+
+    if (newPassword) {
+      try {
+        await adminResetPassword.mutateAsync({ id: user.id, newPassword });
+      } catch (err) {
+        const msg = err instanceof AppError ? err.message : 'Failed to reset password';
+        setError(msg);
+        return;
+      }
     }
 
     onClose();
@@ -95,7 +107,7 @@ export default function EditUserForm({ user, onClose }: EditUserFormProps) {
       open={!!user}
       onClose={handleClose}
       title="Edit User"
-      size="lg"
+      size="xl"
       footer={
         <>
           <Button type="button" variant="ghost" size="md" onClick={handleClose}>
@@ -150,30 +162,7 @@ export default function EditUserForm({ user, onClose }: EditUserFormProps) {
           {errors.email && <p className="mt-1 text-xs text-red-500">{errors.email.message}</p>}
         </div>
 
-        <div>
-          <label htmlFor="edit-role" className="mb-1.5 block text-sm font-medium text-slate-700">
-            Role
-          </label>
-          <select
-            id="edit-role"
-            disabled={user.role === 'admin'}
-            className={`w-full rounded-xl border bg-white px-3.5 py-2.5 text-sm text-slate-800 ring-ring focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-ring ${
-              user.role === 'admin' ? 'cursor-not-allowed opacity-60' : ''
-            } ${errors.role ? 'border-red-400' : 'border-slate-300'}`}
-            {...register('role')}
-          >
-            <option value="manager">Manager</option>
-            <option value="employee">Employee</option>
-            <option value="chief">Chief</option>
-            {user.role === 'admin' && <option value="admin">Admin</option>}
-          </select>
-          {user.role === 'admin' && (
-            <p className="mt-1 text-xs text-slate-400">
-              Admin role is read-only and cannot be changed through this form.
-            </p>
-          )}
-          {errors.role && <p className="mt-1 text-xs text-red-500">{errors.role.message}</p>}
-        </div>
+
 
         <div>
           <label className="mb-1.5 block text-sm font-medium text-slate-700">
@@ -183,6 +172,56 @@ export default function EditUserForm({ user, onClose }: EditUserFormProps) {
           <p className="mt-1.5 text-xs text-slate-400">
             Grant module-level permissions for this user. Admin accounts bypass all permission checks.
           </p>
+        </div>
+
+        <div className="border-t border-slate-200 pt-5">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <KeyRound className="h-4 w-4 text-slate-400" />
+              <span className="text-sm font-medium text-slate-700">Password</span>
+            </div>
+            {!showPasswordInput && (
+              <Button type="button" variant="ghost" size="xs" onClick={() => setShowPasswordInput(true)}>
+                Reset Password
+              </Button>
+            )}
+          </div>
+          {showPasswordInput && (
+            <div className="mt-3">
+              {passwordError && (
+                <p className="mb-2 text-xs text-red-500">{passwordError}</p>
+              )}
+              <div className="flex items-center gap-3">
+                <input
+                  type="password"
+                  placeholder="Enter new password (min 8 chars)"
+                  value={newPassword}
+                  onChange={(e) => {
+                    setNewPassword(e.target.value);
+                    setPasswordError(null);
+                  }}
+                  className="flex-1 rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-800 placeholder-slate-400 ring-ring focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-ring"
+                />
+                <Button
+                  type="button"
+                  variant="primary"
+                  size="xs"
+                  onClick={() => {
+                    if (newPassword.length < 8) {
+                      setPasswordError('Password must be at least 8 characters');
+                      return;
+                    }
+                    setShowPasswordInput(false);
+                  }}
+                >
+                  Set
+                </Button>
+              </div>
+              <p className="mt-1.5 text-xs text-slate-400">
+                This will immediately change the user's password. No current password confirmation needed.
+              </p>
+            </div>
+          )}
         </div>
       </form>
     </Dialog>

@@ -455,3 +455,32 @@
 - `backend/tests/settings-service.test.ts` (updated for new fields)
 - `backend/tests/orders.test.ts` (fixed pre-existing "Tax" → "VAT" mismatch in bill test)
 **Reasoning:** The restaurant operates in Bangladesh where VAT is registered via BIN and Mushak numbers. The previous "Tax Configuration" section with mode/rate was unused (always `mode: 'none'`). Replacing it with VAT-specific fields matches the operational reality while simplifying the UI. No consumer outside Settings references `taxConfig` or `taxId` — removal is safe.
+
+### [—] Admin Role Fix + Password Reset Feature — 2026-07-13
+
+**Open item resolved:** `API.md §6` — Role validation schemas on create/edit user excluded `admin`, preventing admin account creation and admin role assignment via the dashboard.
+
+**Decision:**
+1. **Role enum fix:** Added `'admin'` to the `role` enum in both frontend and backend validation schemas (`createUserSchema`, `updateUserSchema`) and all form dropdowns. Admin users can now be created and edited through the dashboard UI.
+2. **Password reset endpoint:** Added `PATCH /users/:id/reset-password` as an admin-only endpoint (gated by `users:edit`) that sets a user's password without requiring the current password. This complements the existing self-service `PATCH /users/:id/password` which requires `prevPassword`.
+3. **Frontend UI:** Added a "Reset Password" section inside the Edit User dialog where an admin can enter a new password for any user. No current password confirmation needed.
+
+**Doc(s) updated:**
+- `API.md` §6 — added two new rows to the Users routes table (`/users/:id/password`, `/users/:id/reset-password`)
+- `decision.md` (this entry)
+
+**Files changed:**
+- `backend/src/modules/users/users.validation.ts` (added 'admin' to role enums, added `adminResetPasswordSchema`)
+- `backend/src/modules/users/users.service.ts` (added `adminResetUserPassword`)
+- `backend/src/modules/users/users.controller.ts` (added `handleAdminResetPassword`)
+- `backend/src/modules/users/users.routes.ts` (added route)
+- `frontend/src/features/auth/api.ts` (added 'chief' to UserResponse role union)
+- `frontend/src/features/users/schema.ts` (added 'admin' to role enums, added `adminResetPasswordSchema`)
+- `frontend/src/features/users/api.ts` (added `useAdminResetPassword` mutation)
+- `frontend/src/features/users/components/CreateUserForm.tsx` (added 'admin' dropdown option)
+- `frontend/src/features/users/components/EditUserForm.tsx` (added password reset UI, updated role handling)
+- `frontend/src/features/users/components/UserList.tsx` (added 'chief' to filter options)
+
+**Reasoning:**
+- The role enum fix ensures the dashboard can manage all user roles including admin, closing a gap where admin accounts could only be created via direct DB seeding.
+- The admin password reset endpoint follows the same pattern as the existing self-service endpoint but skips the `prevPassword` verification, since an admin resetting a password is a privileged operation that doesn't depend on knowing the user's current password.
