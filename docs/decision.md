@@ -217,6 +217,30 @@
 - `DATABASE.md` §3.6 (added `orderCount` and `history` fields)
 - `API.md` §18 (updated response shapes, added customer-auto-creation documentation)
 - `TEST_CASES.md` §14 (added CUST-H-07–CUST-H-11, CUST-CROSS-03, CUST-E-02)
+
+### [6] Category Hard Delete (remove soft-delete) — 2026-07-13
+
+**Open item resolved:** `PRD.md` (Categories — previously soft-deleted via `isActive`), `DATABASE.md` §3.3 (Categories — soft-delete with integrity rule)
+
+**Decision:** Categories switch from soft-delete (`isActive: false`) to hard delete (`findByIdAndDelete`). The `isActive` field is removed from the model, validation schemas, service response, and all frontend types. Delete buttons replace deactivate/reactivate buttons in the UI. The existing DELETE endpoint changes from `findByIdAndUpdate` with `isActive: false` to `findByIdAndDelete`.
+
+**Doc(s) updated:**
+- `DATABASE.md` §1 (removed Category from soft-delete list), §3.3 (removed isActive from Category schema), §4 (updated index table), §5 (updated referential soft-delete note)
+- `API.md` §18 (removed isActive from GET query params, changed DELETE to hard delete)
+- `AI_rules.md` §6 (removed Category from soft-delete collections list)
+- `architecture.md` §7 (removed Category from soft-delete list)
+- `theme.md` §6 (removed Categories from isActive badge table)
+
+**Files changed:**
+- `backend/src/models/Category.ts` (removed isActive field + index)
+- `backend/src/modules/categories/categories.validation.ts` (removed isActive from update + list schemas)
+- `backend/src/modules/categories/categories.service.ts` (removed isActive from response/filtering, changed delete to hard delete)
+- `frontend/src/features/categories/api.ts` (removed isActive from CategoryResponse + list params, removed `usePermanentDeleteCategory`)
+- `frontend/src/features/categories/components/CategoryList.tsx` (removed status filter + deactivate/reactivate, added delete button)
+- `frontend/src/features/categories/components/DeleteCategoryDialog.tsx` (simplified to hard delete only, removed permanent prop)
+- `frontend/src/app/(dashboard)/categories/page.tsx` (removed permanent delete state + second dialog)
+
+**Reasoning:** Consistent with the same hard-delete pattern already used in Vendors and Customers modules. Categories have no downstream snapshot integrity concerns that differ from Vendors — products that reference a deleted category will see `null` on populate (fine for admin lists), and historical orders are protected by snapshot fields. Removing isActive simplifies the UI (no status filter, no deactivate/reactivate toggle) and aligns with operational intent — admins want to permanently remove categories, not just deactivate them.
 - `backend/src/models/Customer.ts` (ICustomer interface + schema)
 - `backend/src/modules/customers/customers.service.ts` (response, update, getCustomerById)
 - `backend/src/modules/pos/pos.service.ts` (createOrder)

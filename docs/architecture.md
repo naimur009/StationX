@@ -269,7 +269,7 @@ Full endpoint list belongs in `API.md`. Conventions established here so that doc
 - **Date-range filters** (Dashboard, Income, Reports, Attendance) share one query-param shape: `?range=today|week|month|custom&from=&to=` so the frontend's `useDateRangeFilter` hook works identically across modules.
 - **Validation:** every mutating endpoint validates `req.body` against a Zod schema via the `validate` middleware before reaching the controller — invalid requests never reach business logic.
 - **Errors:** uniform shape `{ error: { code, message, details? } }`, mapped to correct HTTP status by `errorHandler`.
-- **Soft vs hard delete:** entities referenced elsewhere (Product, Customer, Vendor, Category, User) are **soft-deleted** (`isActive: false`) to preserve historical Order/Expense/Activity-Log integrity; entities with no downstream references (Coupon, Task) may hard-delete.
+- **Soft vs hard delete:** entities referenced elsewhere (Product, Customer, User) are **soft-deleted** (`isActive: false`) to preserve historical Order/Expense/Activity-Log integrity; entities with no downstream references (Coupon, Task) may hard-delete. Vendor and Category use hard delete — downstream data is protected via snapshot fields (Order items, Expense `paidTo`).
 
 ---
 

@@ -14,7 +14,7 @@
 |---|---|
 | Primary key | MongoDB default `_id: ObjectId` on every collection |
 | Timestamps | `{ timestamps: true }` (Mongoose) → `createdAt`, `updatedAt` on every collection except `ActivityLog`, which is append-only and omits `updatedAt` |
-| Soft delete | `isActive: Boolean (default: true)` on **User, Customer, Category, Product** — entities referenced by historical records (Order, Expense, ActivityLog). Matches `ARCHITECTURE.md` §7. Vendor uses hard delete. |
+| Soft delete | `isActive: Boolean (default: true)` on **User, Customer, Product** — entities referenced by historical records (Order, Expense, ActivityLog). Matches `ARCHITECTURE.md` §7. Vendor and Category use hard delete. |
 | Hard delete | **Coupon, Task, Salary** — no downstream historical references, may be physically removed. Salary deletion is blocked at the service layer if advances exist. |
 | Reference naming | `<entity>Id` (e.g. `customerId`, `vendorId`), type `ObjectId` with `ref: '<Collection>'` |
 | Money fields | Stored as `Number`, decimal currency value (e.g. `199.50`), **not** integer minor units (paise/cents). **Assumption, flag if wrong:** the PRD doesn't specify multi-currency, so minor-unit storage isn't required for v1; all monetary math is rounded to 2 decimal places at the application layer (Zod `.multipleOf(0.01)`) before persisting, to satisfy the NFR "no rounding/discount errors." |
@@ -105,11 +105,10 @@ Not explicitly modeled in `ARCHITECTURE.md` §5's collection list, but required 
 |---|---|---|---|
 | `name` | String | ✓ | unique |
 | `vatRate` | Number | ✓ (default `0`) | VAT percentage for this category (0-100) |
-| `isActive` | Boolean | ✓ (default `true`) | soft delete |
 
 **Indexes:** `name` (unique).
 
-> **Integrity rule:** a Category cannot be hard-deleted while any Product references it — enforce at the service layer (check `Product.countDocuments({ categoryId, isActive: true })` before allowing soft-delete, or simply allow soft-delete and let Products keep their (now-inactive) category reference for historical/reporting accuracy, hiding it from POS/Product-create dropdowns only).
+> **Hard delete:** Categories are permanently removed from the database via `DELETE /categories/:id`. Products that reference a deleted category will retain the `categoryId` reference but `populate` will return `null` — historically ordered products are safe because orders store a `categorySnapshot` at creation time.
 
 ---
 
@@ -406,6 +405,7 @@ Singleton — exactly one document for the whole restaurant (single-tenant per `
 | User | `email` (unique) | login lookup |
 | PasswordResetToken | `tokenHash` (unique), TTL on `expiresAt` | reset flow + auto-cleanup |
 | Category | `name` (unique) | dedupe, list sort |
+| Category | — | no `isActive` index — hard-deleted, no status filter needed |
 | Product | `categoryId`, `isActive`, text(`name`) | filtered lists, POS search |
 | Coupon | `code` (unique), `{isEnabled, validUntil}` | redemption lookup |
 | Customer | `phone`, text(`name`) | POS lookup, search |
@@ -419,7 +419,7 @@ Singleton — exactly one document for the whole restaurant (single-tenant per `
 | Expense | `date`, `category`, `vendorId` | reports, filters |
 | ActivityLog | `{actor, createdAt}`, `{module, createdAt}` | audit views |
 
-All `isActive`-bearing collections additionally get an index on `isActive` where it's a common list-filter predicate (Product, Customer) — omitted above where the field is rarely filtered on its own (User, Category already covered by other compound use).
+All `isActive`-bearing collections additionally get an index on `isActive` where it's a common list-filter predicate (Product, Customer) — omitted above where the field is rarely filtered on its own (User already covered by other compound use).
 
 ---
 
@@ -429,7 +429,7 @@ All `isActive`-bearing collections additionally get an index on `isActive` where
 2. **Coupon usage race condition:** two POS terminals applying the same near-limit coupon simultaneously is resolved by the atomic `$inc` happening *inside* the transaction in step 1, combined with a service-layer check (`usageCount < usageLimit`) re-validated within the same transaction before commit — not checked-then-acted-on as two separate operations.
 3. **Snapshot pricing** (3.8): protects historical financial accuracy against later Product price edits — the single most important rule in this schema, called out again here because it touches both Reports and Income accuracy (NFR: "no rounding/discount errors").
 4. **Cancelled orders excluded from revenue:** every aggregation pipeline (Dashboard metrics, Income, Sales Report) must filter `status: { $ne: 'cancelled' }` — this is a query-discipline rule, not a schema constraint, and should be centralized in one shared aggregation helper rather than repeated per endpoint to avoid one module forgetting it.
-5. **Referential soft-delete:** Product/Customer/Category soft-deletes never cascade-delete or null-out the foreign key on existing Orders/Expenses — old documents keep pointing at the (now-inactive) referenced document so historical detail views and reports remain fully reconstructable. Vendor hard-deletes naturally null-populate references (Mongoose `.populate()` returns `null` for deleted refs); existing Expense data remains intact via the `paidTo` snapshot.
+5. **Referential soft-delete:** Product/Customer soft-deletes never cascade-delete or null-out the foreign key on existing Orders/Expenses — old documents keep pointing at the (now-inactive) referenced document so historical detail views and reports remain fully reconstructable. Vendor and Category hard-deletes naturally null-populate references (Mongoose `.populate()` returns `null` for deleted refs); existing Order data remains intact via snapshot fields.
 6. **Attendance uniqueness:** the `{employee, date}` unique index is the actual guard against duplicate check-ins (not just service-layer logic), so it holds even under a retried/duplicated request.
 
 ---

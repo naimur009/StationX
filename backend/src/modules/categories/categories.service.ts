@@ -12,19 +12,17 @@ interface CategoryResponse {
   id: string;
   name: string;
   vatRate: number;
-  isActive: boolean;
   productCount: number;
   createdAt: Date;
   updatedAt: Date;
 }
 
-  async function categoryResponse(cat: ICategory): Promise<CategoryResponse> {
+async function categoryResponse(cat: ICategory): Promise<CategoryResponse> {
   const productCount = await Product.countDocuments({ categoryId: cat._id });
   return {
     id: cat._id.toString(),
     name: cat.name,
     vatRate: cat.vatRate,
-    isActive: cat.isActive,
     productCount,
     createdAt: cat.createdAt,
     updatedAt: cat.updatedAt,
@@ -33,12 +31,6 @@ interface CategoryResponse {
 
 export async function listCategories(query: ListCategoriesDto) {
   const filter: Record<string, unknown> = {};
-
-  if (query.isActive === 'true') {
-    filter.isActive = true;
-  } else if (query.isActive === 'false') {
-    filter.isActive = false;
-  }
 
   if (query.search) {
     filter.name = { $regex: escapeRegex(query.search), $options: 'i' };
@@ -73,7 +65,6 @@ export async function listCategories(query: ListCategoriesDto) {
     id: cat._id.toString(),
     name: cat.name,
     vatRate: cat.vatRate,
-    isActive: cat.isActive,
     productCount: countMap.get(cat._id.toString()) ?? 0,
     createdAt: cat.createdAt,
     updatedAt: cat.updatedAt,
@@ -104,7 +95,6 @@ export async function createCategory(dto: CreateCategoryDto) {
   const category = await Category.create({
     name: dto.name,
     vatRate: dto.vatRate,
-    isActive: true,
   });
 
   return await categoryResponse(category);
@@ -126,7 +116,6 @@ export async function updateCategory(id: string, dto: UpdateCategoryDto) {
 
   const updates: Record<string, unknown> = {};
   if (dto.name !== undefined) updates.name = dto.name;
-  if (dto.isActive !== undefined) updates.isActive = dto.isActive;
   if (dto.vatRate !== undefined) updates.vatRate = dto.vatRate;
 
   const updated = await Category.findByIdAndUpdate(
@@ -143,11 +132,7 @@ export async function updateCategory(id: string, dto: UpdateCategoryDto) {
 }
 
 export async function deleteCategory(id: string) {
-  const category = await Category.findByIdAndUpdate(
-    id,
-    { $set: { isActive: false } },
-    { new: true }
-  );
+  const category = await Category.findByIdAndDelete(id);
 
   if (!category) {
     throw createError(404, 'NOT_FOUND', 'Category not found');

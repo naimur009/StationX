@@ -49,7 +49,7 @@ export default function OrderStatusActions({ order, onStatusChange, isLoading }:
           </Button>
         )}
 
-        {(order.status === 'pending' || order.status === 'completed') && (
+        {(order.status === 'pending' || (order.status === 'completed' && order.paymentStatus !== 'paid')) && (
           <Button
             variant={order.status === 'completed' ? 'destructive' : 'warning'}
             size="md"

@@ -42,7 +42,7 @@ function MobileOrderCard({ item, onView, onDelete, deletePending }: { item: Orde
           <Badge variant={config?.variant || 'slate'}>{config?.label || item.status}</Badge>
         </div>
         <div className="mt-2 flex items-center justify-between text-sm">
-          <span className="text-slate-500">{item.tableNumber ? `Table ${item.tableNumber}` : 'Walk-in'}</span>
+          <span className="text-slate-500">{item.tableNumber ? `Table ${item.tableNumber}` : '-'}</span>
           <span className="font-semibold text-slate-800">{formatBdt(item.grandTotal)}</span>
         </div>
         <div className="mt-1 text-xs text-slate-400">{formatDate(item.createdAt)}</div>

@@ -23,7 +23,7 @@ export default function ProductForm({ open, product, onClose }: ProductFormProps
   const [isCompact, setIsCompact] = useState(false);
   const createProduct = useCreateProduct();
   const updateProduct = useUpdateProduct();
-  const { data: categoriesData } = useCategoriesList({ isActive: 'true', limit: 100 });
+  const { data: categoriesData } = useCategoriesList({ limit: 100 });
 
   useEffect(() => {
     function check() {

@@ -23,7 +23,7 @@ export default function ProductList({ onEdit, onDelete, onPermanentDelete }: Pro
   const [error, setError] = useState<string | null>(null);
 
   const updateProduct = useUpdateProduct();
-  const { data: categoriesData } = useCategoriesList({ isActive: 'true', limit: 100 });
+  const { data: categoriesData } = useCategoriesList({ limit: 100 });
 
   useEffect(() => {
     const timer = setTimeout(() => {

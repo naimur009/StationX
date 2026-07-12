@@ -573,15 +573,15 @@ Base path: `/products`. **Permission module key:** `products`. Standard soft-del
 
 ## 18. Categories
 
-Base path: `/categories`. **Permission module key:** `categories`. Standard soft-delete CRUD.
+Base path: `/categories`. **Permission module key:** `categories`. Standard hard-delete CRUD.
 
 | Method | Path | Action | Description |
 |---|---|---|---|
-| GET | `/categories?isActive=` | `view` | List |
+| GET | `/categories` | `view` | List |
 | GET | `/categories/:id` | `view` | Detail |
 | POST | `/categories` | `create` | Create |
 | PUT | `/categories/:id` | `edit` | Edit |
-| DELETE | `/categories/:id` | `delete` | Soft delete — products referencing it keep their (now-inactive) reference per `DATABASE.md` §3.3, just hidden from active dropdowns |
+| DELETE | `/categories/:id` | `delete` | Hard delete — permanently removes the category. Products that reference it will retain the `categoryId` but `populate` returns `null`; historical orders are safe via snapshot fields. |
 
 ---
 

@@ -76,7 +76,7 @@ export default function ExpenseForm({ open, expense, onClose }: ExpenseFormProps
       } else {
         reset({
           amount: 0,
-          date: new Date().toISOString().split('T')[0],
+          date: new Date().toLocaleDateString('en-CA'),
           description: '',
           category: '',
           vendorId: '',

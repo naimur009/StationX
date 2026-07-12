@@ -656,8 +656,6 @@ export async function updateOrderStatus(id: string, dto: UpdateOrderStatusDto) {
       if (cashTendered == null || cashTendered < grandTotal) {
         throw createError(400, 'VALIDATION_ERROR', 'Cash tendered must cover the grand total');
       }
-    } else if (!dto.payment.transactionId) {
-      throw createError(400, 'VALIDATION_ERROR', 'Transaction ID is required for non-cash payments');
     }
 
     await withTransaction(async (session) => {

@@ -304,8 +304,8 @@ The Badge component (§14) supports exactly five variants — **green / red / ye
 | Tasks | `status` | `pending` | yellow |
 | Tasks | `status` | `in_progress` | blue |
 | Tasks | `status` | `completed` | green |
-| Users / Products / Categories / Customers | `isActive` | `true` | green (small dot, not a full badge in lists) |
-| Users / Products / Categories / Customers | `isActive` | `false` | slate, row dimmed + "Deactivated" label — never red, deactivation isn't a failure state |
+| Users / Products / Customers | `isActive` | `true` | green (small dot, not a full badge in lists) |
+| Users / Products / Customers | `isActive` | `false` | slate, row dimmed + "Deactivated" label — never red, deactivation isn't a failure state |
 
 **Badge style:** `rounded-full px-2.5 py-0.5 text-xs font-semibold`.
 

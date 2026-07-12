@@ -12,7 +12,6 @@ export default function CategoriesPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [editCategory, setEditCategory] = useState<CategoryResponse | null>(null);
   const [deleteCategory, setDeleteCategory] = useState<CategoryResponse | null>(null);
-  const [permanentDeleteCategory, setPermanentDeleteCategory] = useState<CategoryResponse | null>(null);
 
   return (
     <PermissionGate module="categories" action="view">
@@ -34,7 +33,6 @@ export default function CategoriesPage() {
         <CategoryList
           onEdit={(category) => setEditCategory(category)}
           onDelete={(category) => setDeleteCategory(category)}
-          onPermanentDelete={(category) => setPermanentDeleteCategory(category)}
         />
 
         <CategoryForm
@@ -50,11 +48,6 @@ export default function CategoriesPage() {
         <DeleteCategoryDialog
           category={deleteCategory}
           onClose={() => setDeleteCategory(null)}
-        />
-        <DeleteCategoryDialog
-          category={permanentDeleteCategory}
-          permanent
-          onClose={() => setPermanentDeleteCategory(null)}
         />
       </div>
     </PermissionGate>

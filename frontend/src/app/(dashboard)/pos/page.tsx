@@ -336,6 +336,19 @@ export default function PosPage() {
               >
                 {submitting ? 'Processing...' : `Place Order — BDT ${grandTotal.toFixed(2)}`}
               </Button>
+
+              {items.length > 0 && (
+                <Button
+                  variant="secondary"
+                  className="w-full border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+                  onClick={() => {
+                    setCartOpen(false);
+                    reset();
+                  }}
+                >
+                  Clear Order
+                </Button>
+              )}
             </div>
           </div>
         </div>

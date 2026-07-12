@@ -11,6 +11,7 @@ import { useOrderList, useDeleteOrder } from '@/features/orders/api';
 import { getSocket } from '@/lib/socket';
 import type { OrdersFilterFormData } from '@/features/orders/schema';
 import type { OrderListItem } from '@/features/orders/api';
+import { RefreshCw } from 'lucide-react';
 
 export default function OrdersPage() {
   const router = useRouter();
@@ -41,7 +42,7 @@ export default function OrdersPage() {
     };
   }, [queryClient]);
 
-  const { data, isLoading, isError } = useOrderList({
+  const { data, isLoading, isError, isRefetching, refetch } = useOrderList({
     status: filters.status,
     paymentStatus: filters.paymentStatus,
     from: filters.from,
@@ -78,6 +79,10 @@ export default function OrdersPage() {
             <h1 className="text-xl font-bold text-slate-800 xs:text-2xl">Orders</h1>
             <p className="mt-1 text-sm text-slate-500">View and manage all orders</p>
           </div>
+          <Button variant="outline" size="sm" disabled={isRefetching} onClick={() => refetch()}>
+            <RefreshCw className={`mr-1.5 h-4 w-4 ${isRefetching ? 'animate-spin' : ''}`} />
+            {isRefetching ? 'Refreshing...' : 'Refresh'}
+          </Button>
         </div>
 
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">

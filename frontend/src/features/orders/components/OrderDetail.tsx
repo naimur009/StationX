@@ -35,9 +35,9 @@ function formatDate(dateStr: string): string {
 function getCustomerName(order: OrderDetailType): string {
   if (order.customerName) return order.customerName;
   const customer = order.customerId;
-  if (!customer) return 'Walk-in';
+  if (!customer) return '-';
   if (typeof customer === 'object' && 'name' in customer) return customer.name;
-  return 'Customer';
+  return '-';
 }
 
 function getCustomerPhone(order: OrderDetailType): string | null {

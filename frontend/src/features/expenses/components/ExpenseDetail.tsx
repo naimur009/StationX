@@ -47,7 +47,9 @@ export default function ExpenseDetail({ expenseId, onEdit }: ExpenseDetailProps)
   }
 
   function formatDate(dateStr: string): string {
-    return new Date(dateStr).toLocaleDateString('en-US', {
+    const [y, m, d] = dateStr.split('T')[0].split('-').map(Number);
+    const local = new Date(y, m - 1, d);
+    return local.toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'long',
       day: 'numeric',

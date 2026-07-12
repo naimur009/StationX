@@ -79,8 +79,9 @@ export default function ExpenseList({ onEdit, onDelete }: ExpenseListProps) {
   }
 
   function formatDate(dateStr: string): string {
-    const d = new Date(dateStr);
-    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    const [y, m, d] = dateStr.split('T')[0].split('-').map(Number);
+    const local = new Date(y, m - 1, d);
+    return local.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   }
 
   function truncate(text: string, max: number): string {

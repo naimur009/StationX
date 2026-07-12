@@ -424,11 +424,12 @@ These apply to **every** module below; listed once here and referenced by ID rat
 ## 13. Categories
 
 | ID | Type | Case | Expected |
-|---|---|---|---|
+|---|---|---|---|---|
 | CAT-H-01 | Happy | `POST /categories` with unique `name` | `201` |
 | CAT-V-01 | Validation | Duplicate `name` | `400 VALIDATION_ERROR` or `409` (unique index violation) |
-| CAT-H-02 | Happy | `DELETE /categories/:id` while Products still reference it | Soft delete succeeds; referencing Products keep their now-inactive category reference, hidden from active dropdowns only (`API.md` §17) |
-| CAT-E-01 | Edge | Category soft-deleted, then a Product is queried with `?categoryId=<deleted>` | Confirm whether this still returns matching products (historical accuracy) or is filtered — flag for feature spec |
+| CAT-H-02 | Happy | `DELETE /categories/:id` | Hard delete succeeds (`200`). Category document permanently removed from DB. |
+| CAT-E-01 | Edge | `DELETE /categories/:id` with nonexistent ID | `404 NOT_FOUND` |
+| CAT-E-02 | Edge | Product list filtered by `?categoryId=<deleted>` | Returns products whose `categoryId` matches the (now-deleted) category. Populate returns `null` for the category reference. |
 
 ---
 

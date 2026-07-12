@@ -62,14 +62,6 @@ export const updateOrderStatusSchema = z.object({
   { message: 'Cash tendered is required and must be > 0 for cash payments', path: ['cashTendered'] }
 ).refine(
   (data) => {
-    if (data.paymentStatus === 'paid' && data.payment && data.payment.method !== 'cash' && !data.payment.transactionId) {
-      return false;
-    }
-    return true;
-  },
-  { message: 'Transaction ID is required for non-cash payments', path: ['payment.transactionId'] }
-).refine(
-  (data) => {
     if (data.status === 'cancelled' && !data.cancelReason) {
       return false;
     }
