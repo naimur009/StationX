@@ -1,6 +1,6 @@
 import { PipelineStage } from 'mongoose';
 import Order from '../../models/Order';
-import { normalizeDateRange } from '../../lib/date-range';
+import { normalizeDateRange, formatLocalDate } from '../../lib/date-range';
 import { buildRevenueMatch } from '../../lib/aggregation';
 import type { DashboardMetricsQueryDto, DashboardTopItemsQueryDto } from './dashboard.validation';
 
@@ -28,10 +28,13 @@ export async function getMetrics(query: DashboardMetricsQueryDto) {
   const results = await Order.aggregate(pipeline);
   const row = results[0];
 
+  const endDate = new Date(dateRange.to);
+  endDate.setDate(endDate.getDate() - 1);
+
   return {
     range: {
-      from: dateRange.from.toISOString().split('T')[0],
-      to: new Date(dateRange.to.getTime() - 86400000).toISOString().split('T')[0],
+      from: formatLocalDate(dateRange.from),
+      to: formatLocalDate(endDate),
     },
     metrics: {
       totalEarned: row?.totalEarned ?? 0,
@@ -77,10 +80,13 @@ export async function getTopItems(query: DashboardTopItemsQueryDto) {
 
   const topItems = await Order.aggregate(pipeline);
 
+  const endDate = new Date(dateRange.to);
+  endDate.setDate(endDate.getDate() - 1);
+
   return {
     range: {
-      from: dateRange.from.toISOString().split('T')[0],
-      to: new Date(dateRange.to.getTime() - 86400000).toISOString().split('T')[0],
+      from: formatLocalDate(dateRange.from),
+      to: formatLocalDate(endDate),
     },
     topItems,
   };

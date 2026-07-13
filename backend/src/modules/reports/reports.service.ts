@@ -14,7 +14,7 @@ import {
   type ReportType,
 } from './reports.helper';
 import type { ReportQueryDto, ExportQueryDto } from './reports.validation';
-import { normalizeDateRange } from '../../lib/date-range';
+import { normalizeDateRange, formatLocalDate } from '../../lib/date-range';
 
 function arrayToObject(
   arr: Array<{ method: string; count: number; revenue?: number; total?: number }>,
@@ -68,10 +68,13 @@ export async function getReport(type: string, query: ReportQueryDto) {
       const averageOrderValue = totalOrders > 0 ? Math.round((totalRevenue / totalOrders) * 100) / 100 : 0;
       const discountPercentage = totalRevenue > 0 ? Math.round((totalDiscount / totalRevenue) * 1000) / 10 : 0;
 
+      const endDate = new Date(dateRange.to);
+      endDate.setDate(endDate.getDate() - 1);
+
       result = {
         range: {
-          from: dateRange.from.toISOString().split('T')[0],
-          to: new Date(dateRange.to.getTime() - 86400000).toISOString().split('T')[0],
+          from: formatLocalDate(dateRange.from),
+          to: formatLocalDate(endDate),
         },
         summary: {
           totalRevenue,
@@ -103,17 +106,8 @@ export async function getReport(type: string, query: ReportQueryDto) {
       const expenseSummaryRow = expenseData.summary[0] || {};
       const totalExpenses = expenseSummaryRow.totalExpenses || 0;
 
-      const fromYear = dateRange.from.getFullYear();
-      const fromMonth = dateRange.from.getMonth() + 1;
-      const toYear = dateRange.to.getFullYear();
-      const toMonth = dateRange.to.getMonth() + 1;
-
       const salaryRecords = await Salary.find({
-        $or: [
-          { year: fromYear, month: { $gte: fromMonth } },
-          { year: toYear, month: { $lte: toMonth } },
-          ...(fromYear < toYear ? [{ year: { $gt: fromYear, $lt: toYear } }] : []),
-        ],
+        createdAt: { $gte: dateRange.from, $lte: dateRange.to },
         status: { $ne: 'cancelled' },
       }).populate('employeeId', 'name');
 
@@ -128,10 +122,13 @@ export async function getReport(type: string, query: ReportQueryDto) {
 
       const profit = totalRevenue - totalExpenses - totalSalary;
 
+      const endDate = new Date(dateRange.to);
+      endDate.setDate(endDate.getDate() - 1);
+
       result = {
         range: {
-          from: dateRange.from.toISOString().split('T')[0],
-          to: new Date(dateRange.to.getTime() - 86400000).toISOString().split('T')[0],
+          from: formatLocalDate(dateRange.from),
+          to: formatLocalDate(endDate),
         },
         income: {
           totalRevenue,
