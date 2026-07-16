@@ -1,25 +1,33 @@
 import Link from 'next/link';
 import { ShoppingCart, ClipboardList, Package, Users } from 'lucide-react';
+import { useAuthStore } from '@/stores/auth-store';
+import { hasPermission } from '@/lib/permissions';
 
 interface QuickLink {
   href: string;
   label: string;
+  module: string;
   icon: typeof ShoppingCart;
 }
 
 const links: QuickLink[] = [
-  { href: '/pos', label: 'New POS Order', icon: ShoppingCart },
-  { href: '/orders', label: 'Orders', icon: ClipboardList },
-  { href: '/products', label: 'Products', icon: Package },
-  { href: '/customers', label: 'Customers', icon: Users },
+  { href: '/pos', label: 'New POS Order', module: 'pos', icon: ShoppingCart },
+  { href: '/orders', label: 'Orders', module: 'orders', icon: ClipboardList },
+  { href: '/products', label: 'Products', module: 'products', icon: Package },
+  { href: '/customers', label: 'Customers', module: 'customers', icon: Users },
 ];
 
 export default function QuickAccess() {
+  const user = useAuthStore((state) => state.user);
+  const visibleLinks = links.filter((link) => hasPermission(user, link.module, 'view'));
+
+  if (visibleLinks.length === 0) return null;
+
   return (
     <div className="space-y-3">
       <h2 className="text-lg font-bold text-slate-800">Quick Access</h2>
       <div className="grid grid-cols-2 gap-4">
-        {links.map((link) => {
+        {visibleLinks.map((link) => {
           const Icon = link.icon;
           return (
             <Link

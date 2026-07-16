@@ -153,20 +153,16 @@ export default function DashboardLayout({
     };
   }, [triggerNav]);
 
-  function handleLogout() {
-    const token = useAuthStore.getState().accessToken;
+  async function handleLogout() {
     redirectedRef.current = true;
+    try {
+      await logoutMutation.mutateAsync();
+    } catch {
+      // Proceed with local logout even if the API call fails
+    }
     clearAuth();
     queryClient.removeQueries({ queryKey: ['auth', 'me'] });
     router.replace('/login');
-    if (token) {
-      const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1';
-      fetch(`${API_BASE}/auth/logout`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        credentials: 'include',
-      }).catch(() => {});
-    }
   }
 
   if (!isAuthenticated) {
