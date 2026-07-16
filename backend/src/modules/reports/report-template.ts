@@ -1,6 +1,9 @@
 interface SettingsInfo {
   restaurantName?: string;
+  address?: string;
+  contactNumber?: string;
   logo?: { url?: string };
+  vatInfo?: { bin?: string; mushak?: string };
 }
 
 function formatValue(val: number | undefined | null, prefix = ''): string {
@@ -8,30 +11,66 @@ function formatValue(val: number | undefined | null, prefix = ''): string {
   return `${prefix}${val.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
-function renderTable(rows: Array<Record<string, unknown>>, columns: { key: string; label: string; format?: (v: unknown) => string }[]): string {
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+function renderTable(rows: Array<Record<string, unknown>>, columns: { key: string; label: string; align?: 'left' | 'right' | 'center'; format?: (v: unknown) => string }[]): string {
   if (!rows || rows.length === 0) {
-    return '<p style="color: #64748b; font-size: 12px; text-align: center; padding: 16px;">No data available.</p>';
+    return '<div class="empty-state">No data available for this period.</div>';
   }
 
   let thead = '<thead><tr>';
   for (const col of columns) {
-    thead += `<th style="text-align: left; padding: 8px 12px; font-size: 11px; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 2px solid #e2e8f0; background: #f8fafc;">${col.label}</th>`;
+    const align = col.align || 'left';
+    thead += `<th style="text-align: ${align}; padding: 10px 14px; font-size: 11px; font-weight: 600; color: #ffffff; text-transform: uppercase; letter-spacing: 0.05em; background: #1e3a8a;">${col.label}</th>`;
   }
   thead += '</tr></thead>';
 
   let tbody = '<tbody>';
-  for (const row of rows) {
-    tbody += '<tr>';
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i];
+    const bgColor = i % 2 === 0 ? '#ffffff' : '#f8fafc';
+    tbody += `<tr style="background: ${bgColor};">`;
     for (const col of columns) {
       const val = row[col.key];
-      const display = col.format ? col.format(val) : String(val ?? '');
-      tbody += `<td style="padding: 8px 12px; font-size: 12px; color: #334155; border-bottom: 1px solid #f1f5f9;">${display}</td>`;
+      const display = col.format ? col.format(val) : escapeHtml(String(val ?? ''));
+      const align = col.align || 'left';
+      tbody += `<td style="padding: 10px 14px; font-size: 12px; color: #334155; border-bottom: 1px solid #e2e8f0; text-align: ${align};">${display}</td>`;
     }
     tbody += '</tr>';
   }
   tbody += '</tbody>';
 
-  return `<table style="width: 100%; border-collapse: collapse; margin-bottom: 24px;">${thead}${tbody}</table>`;
+  return `<div class="table-container"><table style="width: 100%; border-collapse: collapse; margin-bottom: 24px; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden;">${thead}${tbody}</table></div>`;
+}
+
+function renderSectionHeader(title: string, subtitle?: string): string {
+  return `
+    <div class="section-header">
+      <div class="section-accent"></div>
+      <div class="section-content">
+        <h3 class="section-title">${title}</h3>
+        ${subtitle ? `<p class="section-subtitle">${subtitle}</p>` : ''}
+      </div>
+    </div>`;
+}
+
+function renderMetricCard(label: string, value: string, color: string, subtitle?: string): string {
+  return `
+    <div class="metric-card">
+      <div class="metric-accent" style="background: ${color};"></div>
+      <div class="metric-content">
+        <p class="metric-label">${label}</p>
+        <p class="metric-value" style="color: ${color};">${value}</p>
+        ${subtitle ? `<p class="metric-subtitle">${subtitle}</p>` : ''}
+      </div>
+    </div>`;
 }
 
 function renderSalesReport(data: Record<string, unknown>): string {
@@ -43,47 +82,36 @@ function renderSalesReport(data: Record<string, unknown>): string {
   const range = data.range as { from: string; to: string } | undefined;
 
   let html = `
-    <h2 style="font-size: 18px; font-weight: 700; color: #0f172a; margin: 0 0 4px 0;">Sales Report</h2>
-    <p style="font-size: 12px; color: #64748b; margin: 0 0 16px 0;">${range?.from || 'N/A'} — ${range?.to || 'N/A'}</p>
+    <div class="report-title-section">
+      <h2 class="report-title">Sales Report</h2>
+      <div class="report-period">
+        <span class="period-icon">&#128197;</span>
+        <span class="period-text">${range?.from || 'N/A'} — ${range?.to || 'N/A'}</span>
+      </div>
+    </div>
 
-    <h3 style="font-size: 13px; font-weight: 600; color: #0f172a; margin: 0 0 8px 0;">Summary</h3>
-    <div style="display: flex; gap: 12px; margin-bottom: 24px; flex-wrap: wrap;">
-      <div style="flex: 1; min-width: 100px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 10px 14px;">
-        <p style="font-size: 10px; color: #64748b; margin: 0 0 3px 0;">Total Revenue</p>
-        <p style="font-size: 18px; font-weight: 700; color: #2563eb; margin: 0;">${formatValue(summary?.totalRevenue, '৳')}</p>
-      </div>
-      <div style="flex: 1; min-width: 100px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 10px 14px;">
-        <p style="font-size: 10px; color: #64748b; margin: 0 0 3px 0;">Total Orders</p>
-        <p style="font-size: 18px; font-weight: 700; color: #16a34a; margin: 0;">${summary?.totalOrders ?? 0}</p>
-      </div>
-      <div style="flex: 1; min-width: 100px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 10px 14px;">
-        <p style="font-size: 10px; color: #64748b; margin: 0 0 3px 0;">Products Sold</p>
-        <p style="font-size: 18px; font-weight: 700; color: #16a34a; margin: 0;">${summary?.totalProductsSold ?? 0}</p>
-      </div>
-      <div style="flex: 1; min-width: 100px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 10px 14px;">
-        <p style="font-size: 10px; color: #64748b; margin: 0 0 3px 0;">Avg Order Value</p>
-        <p style="font-size: 18px; font-weight: 700; color: #6366f1; margin: 0;">${formatValue(summary?.averageOrderValue, '৳')}</p>
-      </div>
-      <div style="flex: 1; min-width: 100px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 10px 14px;">
-        <p style="font-size: 10px; color: #64748b; margin: 0 0 3px 0;">Total VAT</p>
-        <p style="font-size: 18px; font-weight: 700; color: #6366f1; margin: 0;">${formatValue(summary?.totalTaxAmount, '৳')}</p>
-      </div>
-      <div style="flex: 1; min-width: 100px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 10px 14px;">
-        <p style="font-size: 10px; color: #64748b; margin: 0 0 3px 0;">Discount</p>
-        <p style="font-size: 18px; font-weight: 700; color: #d97706; margin: 0;">${formatValue(summary?.totalDiscountAmount, '৳')} (${summary?.discountPercentage ?? 0}%)</p>
-      </div>
+    ${renderSectionHeader('Executive Summary', 'Key performance metrics for the selected period')}
+
+    <div class="metrics-grid">
+      ${renderMetricCard('Total Revenue', formatValue(summary?.totalRevenue, '৳'), '#2563eb')}
+      ${renderMetricCard('Total Orders', String(summary?.totalOrders ?? 0), '#16a34a')}
+      ${renderMetricCard('Products Sold', String(summary?.totalProductsSold ?? 0), '#16a34a')}
+      ${renderMetricCard('Avg Order Value', formatValue(summary?.averageOrderValue, '৳'), '#6366f1')}
+      ${renderMetricCard('Total VAT', formatValue(summary?.totalTaxAmount, '৳'), '#8b5cf6')}
+      ${renderMetricCard('Discount', `${formatValue(summary?.totalDiscountAmount, '৳')} (${summary?.discountPercentage ?? 0}%)`, '#d97706')}
     </div>`;
 
   if (byProduct && byProduct.length > 0) {
-    html += '<h3 style="font-size: 14px; font-weight: 600; color: #0f172a; margin: 0 0 8px 0;">Product Performance</h3>';
-    html += renderTable(byProduct, [
-      { key: 'name', label: 'Product' },
-      { key: 'category', label: 'Category' },
-      { key: 'unitsSold', label: 'Sold' },
-      { key: 'orderCount', label: 'Orders' },
-      { key: 'income', label: 'Income', format: (v) => formatValue(v as number, '৳') },
-      { key: 'percentageOfTotal', label: '%', format: (v) => `${v ?? 0}%` },
-    ]);
+    html += `
+      ${renderSectionHeader('Product Performance', 'Top-selling products by revenue')}
+      ${renderTable(byProduct, [
+        { key: 'name', label: 'Product' },
+        { key: 'category', label: 'Category' },
+        { key: 'unitsSold', label: 'Units Sold', align: 'right' },
+        { key: 'orderCount', label: 'Orders', align: 'right' },
+        { key: 'income', label: 'Revenue', align: 'right', format: (v) => formatValue(v as number, '৳') },
+        { key: 'percentageOfTotal', label: 'Share', align: 'right', format: (v) => `${v ?? 0}%` },
+      ])}`;
   }
 
   if (byCategory && byCategory.length > 0) {
@@ -92,36 +120,39 @@ function renderSalesReport(data: Record<string, unknown>): string {
       ...c,
       percentage: totalRev > 0 ? Math.round((Number(c.income) / totalRev) * 1000) / 10 : 0,
     }));
-    html += '<h3 style="font-size: 14px; font-weight: 600; color: #0f172a; margin: 0 0 8px 0;">Category Breakdown</h3>';
-    html += renderTable(enrichedCategories, [
-      { key: 'category', label: 'Category' },
-      { key: 'unitsSold', label: 'Sold' },
-      { key: 'income', label: 'Income', format: (v) => formatValue(v as number, '৳') },
-      { key: 'percentage', label: '%', format: (v) => `${v ?? 0}%` },
-    ]);
+    html += `
+      ${renderSectionHeader('Category Breakdown', 'Revenue distribution by product category')}
+      ${renderTable(enrichedCategories, [
+        { key: 'category', label: 'Category' },
+        { key: 'unitsSold', label: 'Units Sold', align: 'right' },
+        { key: 'income', label: 'Revenue', align: 'right', format: (v) => formatValue(v as number, '৳') },
+        { key: 'percentage', label: 'Share', align: 'right', format: (v) => `${v ?? 0}%` },
+      ])}`;
   }
 
   if (byPaymentMethod) {
     const methodEntries = Object.entries(byPaymentMethod).map(([method, val]) => ({
-      method,
+      method: method.charAt(0).toUpperCase() + method.slice(1),
       count: val.count,
       revenue: val.revenue,
     }));
-    html += '<h3 style="font-size: 14px; font-weight: 600; color: #0f172a; margin: 0 0 8px 0;">Payment Methods</h3>';
-    html += renderTable(methodEntries, [
-      { key: 'method', label: 'Method' },
-      { key: 'count', label: 'Orders' },
-      { key: 'revenue', label: 'Revenue', format: (v) => formatValue(v as number, '৳') },
-    ]);
+    html += `
+      ${renderSectionHeader('Payment Methods', 'Transaction breakdown by payment type')}
+      ${renderTable(methodEntries, [
+        { key: 'method', label: 'Payment Method' },
+        { key: 'count', label: 'Transactions', align: 'right' },
+        { key: 'revenue', label: 'Revenue', align: 'right', format: (v) => formatValue(v as number, '৳') },
+      ])}`;
   }
 
   if (dailyBreakdown && dailyBreakdown.length > 0) {
-    html += '<h3 style="font-size: 14px; font-weight: 600; color: #0f172a; margin: 0 0 8px 0;">Daily Trend</h3>';
-    html += renderTable(dailyBreakdown, [
-      { key: 'date', label: 'Date' },
-      { key: 'orders', label: 'Orders' },
-      { key: 'revenue', label: 'Revenue', format: (v) => formatValue(v as number, '৳') },
-    ]);
+    html += `
+      ${renderSectionHeader('Daily Trend', 'Day-by-day sales performance')}
+      ${renderTable(dailyBreakdown, [
+        { key: 'date', label: 'Date' },
+        { key: 'orders', label: 'Orders', align: 'right' },
+        { key: 'revenue', label: 'Revenue', align: 'right', format: (v) => formatValue(v as number, '৳') },
+      ])}`;
   }
 
   return html;
@@ -137,76 +168,71 @@ function renderProfitReport(data: Record<string, unknown>): string {
   const salaryEmployees = (salaries?.byEmployee as Array<Record<string, unknown>> | undefined) || [];
 
   const profitColor = profit !== undefined && profit >= 0 ? '#16a34a' : '#dc2626';
+  const profitLabel = profit !== undefined && profit >= 0 ? 'Net Profit' : 'Net Loss';
 
   let html = `
-    <h2 style="font-size: 18px; font-weight: 700; color: #0f172a; margin: 0 0 4px 0;">Profit Report</h2>
-    <p style="font-size: 12px; color: #64748b; margin: 0 0 16px 0;">${range?.from || 'N/A'} — ${range?.to || 'N/A'}</p>`;
+    <div class="report-title-section">
+      <h2 class="report-title">Profit Report</h2>
+      <div class="report-period">
+        <span class="period-icon">&#128197;</span>
+        <span class="period-text">${range?.from || 'N/A'} — ${range?.to || 'N/A'}</span>
+      </div>
+    </div>
 
-  html += `
-    <h3 style="font-size: 14px; font-weight: 600; color: #0f172a; margin: 24px 0 8px 0;">Income</h3>
-    <div style="display: flex; gap: 16px; margin-bottom: 16px; flex-wrap: wrap;">
-      <div style="flex: 1; min-width: 120px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 12px 16px;">
-        <p style="font-size: 11px; color: #64748b; margin: 0 0 4px 0;">Total Revenue</p>
-        <p style="font-size: 20px; font-weight: 700; color: #2563eb; margin: 0;">${formatValue(income?.totalRevenue, '৳')}</p>
-      </div>
-      <div style="flex: 1; min-width: 120px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 12px 16px;">
-        <p style="font-size: 11px; color: #64748b; margin: 0 0 4px 0;">Total Orders</p>
-        <p style="font-size: 20px; font-weight: 700; color: #16a34a; margin: 0;">${income?.totalOrders ?? 0}</p>
-      </div>
-      <div style="flex: 1; min-width: 120px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 12px 16px;">
-        <p style="font-size: 11px; color: #64748b; margin: 0 0 4px 0;">Products Sold</p>
-        <p style="font-size: 20px; font-weight: 700; color: #16a34a; margin: 0;">${income?.totalProductsSold ?? 0}</p>
-      </div>
-    </div>`;
+    ${renderSectionHeader('Income Summary', 'Revenue from completed and paid orders')}
 
-  html += `
-    <h3 style="font-size: 14px; font-weight: 600; color: #0f172a; margin: 24px 0 8px 0;">Expenses</h3>
-    <div style="display: flex; gap: 16px; margin-bottom: 16px; flex-wrap: wrap;">
-      <div style="flex: 1; min-width: 120px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 12px 16px;">
-        <p style="font-size: 11px; color: #64748b; margin: 0 0 4px 0;">Total Expenses</p>
-        <p style="font-size: 20px; font-weight: 700; color: #dc2626; margin: 0;">${formatValue(expenses?.totalExpenses as number, '৳')}</p>
-      </div>
-      <div style="flex: 1; min-width: 120px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 12px 16px;">
-        <p style="font-size: 11px; color: #64748b; margin: 0 0 4px 0;">Entries</p>
-        <p style="font-size: 20px; font-weight: 700; color: #d97706; margin: 0;">${expenses?.totalEntries ?? 0}</p>
-      </div>
+    <div class="metrics-grid">
+      ${renderMetricCard('Total Revenue', formatValue(income?.totalRevenue, '৳'), '#2563eb')}
+      ${renderMetricCard('Total Orders', String(income?.totalOrders ?? 0), '#16a34a')}
+      ${renderMetricCard('Products Sold', String(income?.totalProductsSold ?? 0), '#16a34a')}
+    </div>
+
+    ${renderSectionHeader('Expenses', 'Operational costs for the period')}
+
+    <div class="metrics-grid">
+      ${renderMetricCard('Total Expenses', formatValue(expenses?.totalExpenses as number, '৳'), '#dc2626')}
+      ${renderMetricCard('Expense Entries', String(expenses?.totalEntries ?? 0), '#d97706')}
     </div>`;
 
   if (expenseCategories.length > 0) {
-    html += renderTable(expenseCategories, [
-      { key: 'category', label: 'Category' },
-      { key: 'count', label: 'Count' },
-      { key: 'total', label: 'Total', format: (v) => formatValue(v as number, '৳') },
-    ]);
+    html += `
+      ${renderSectionHeader('Expense Categories', 'Cost breakdown by category')}
+      ${renderTable(expenseCategories, [
+        { key: 'category', label: 'Category' },
+        { key: 'count', label: 'Entries', align: 'right' },
+        { key: 'total', label: 'Amount', align: 'right', format: (v) => formatValue(v as number, '৳') },
+      ])}`;
   }
 
   html += `
-    <h3 style="font-size: 14px; font-weight: 600; color: #0f172a; margin: 24px 0 8px 0;">Salaries</h3>
-    <div style="display: flex; gap: 16px; margin-bottom: 16px; flex-wrap: wrap;">
-      <div style="flex: 1; min-width: 120px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 12px 16px;">
-        <p style="font-size: 11px; color: #64748b; margin: 0 0 4px 0;">Total Salary</p>
-        <p style="font-size: 20px; font-weight: 700; color: #d97706; margin: 0;">${formatValue(salaries?.totalSalary as number, '৳')}</p>
-      </div>
-      <div style="flex: 1; min-width: 120px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 12px 16px;">
-        <p style="font-size: 11px; color: #64748b; margin: 0 0 4px 0;">Records</p>
-        <p style="font-size: 20px; font-weight: 700; color: #64748b; margin: 0;">${salaries?.totalRecords ?? 0}</p>
-      </div>
+    ${renderSectionHeader('Salaries', 'Employee compensation for the period')}
+
+    <div class="metrics-grid">
+      ${renderMetricCard('Total Salary', formatValue(salaries?.totalSalary as number, '৳'), '#d97706')}
+      ${renderMetricCard('Salary Records', String(salaries?.totalRecords ?? 0), '#64748b')}
     </div>`;
 
   if (salaryEmployees.length > 0) {
-    html += renderTable(salaryEmployees, [
-      { key: 'employeeName', label: 'Employee' },
-      { key: 'baseSalary', label: 'Base Salary', format: (v) => formatValue(v as number, '৳') },
-      { key: 'status', label: 'Status' },
-    ]);
+    html += `
+      ${renderTable(salaryEmployees, [
+        { key: 'employeeName', label: 'Employee' },
+        { key: 'baseSalary', label: 'Base Salary', align: 'right', format: (v) => formatValue(v as number, '৳') },
+        { key: 'status', label: 'Status' },
+      ])}`;
   }
 
   html += `
-    <h3 style="font-size: 14px; font-weight: 600; color: #0f172a; margin: 24px 0 8px 0;">Profit</h3>
-    <div style="display: flex; gap: 16px; margin-bottom: 16px; flex-wrap: wrap;">
-      <div style="flex: 1; min-width: 200px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 12px 16px;">
-        <p style="font-size: 11px; color: #64748b; margin: 0 0 4px 0;">Net Profit</p>
-        <p style="font-size: 24px; font-weight: 700; color: ${profitColor}; margin: 0;">${formatValue(profit, '৳')}</p>
+    ${renderSectionHeader('Profit Analysis', 'Net income after expenses and salaries')}
+
+    <div class="profit-summary">
+      <div class="profit-card" style="border-left: 4px solid ${profitColor};">
+        <div class="profit-label">${profitLabel}</div>
+        <div class="profit-value" style="color: ${profitColor};">${formatValue(profit, '৳')}</div>
+        <div class="profit-breakdown">
+          <span>Revenue: ${formatValue(income?.totalRevenue, '৳')}</span>
+          <span class="profit-minus">- Expenses: ${formatValue(expenses?.totalExpenses as number, '৳')}</span>
+          <span class="profit-minus">- Salaries: ${formatValue(salaries?.totalSalary as number, '৳')}</span>
+        </div>
       </div>
     </div>`;
 
@@ -227,70 +253,408 @@ export function renderReportToHtml(
   const bodyContent = renderer ? renderer(data) : '<p>Unknown report type.</p>';
 
   const logoHtml = settings.logo?.url
-    ? `<img src="${settings.logo.url}" alt="Logo" style="height: 40px; width: auto;" />`
+    ? `<img src="${escapeHtml(settings.logo.url)}" alt="Logo" class="header-logo" />`
     : '';
 
-  const now = new Date().toLocaleDateString('en-US', {
+  const now = new Date();
+  const generatedDate = now.toLocaleDateString('en-US', {
     year: 'numeric',
-    month: 'short',
+    month: 'long',
     day: 'numeric',
+  });
+  const generatedTime = now.toLocaleTimeString('en-US', {
     hour: '2-digit',
     minute: '2-digit',
   });
+
+  const reportTitle = type === 'sales' ? 'Sales Report' : 'Profit Report';
 
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>${escapeHtml(settings.restaurantName || 'Restaurant')} - ${reportTitle}</title>
   <style>
     @page {
-      size: landscape;
-      margin: 12mm;
+      size: A4 landscape;
+      margin: 15mm;
     }
-    * { box-sizing: border-box; }
-    body {
-      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-      font-size: 13px;
-      color: #0f172a;
+
+    * {
+      box-sizing: border-box;
       margin: 0;
       padding: 0;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-size: 13px;
+      line-height: 1.5;
+      color: #1e293b;
+      background: #ffffff;
       -webkit-print-color-adjust: exact;
       print-color-adjust: exact;
     }
+
+    .page-wrapper {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Header Styles */
     .report-header {
       display: flex;
-      align-items: center;
+      align-items: flex-start;
       justify-content: space-between;
-      padding-bottom: 16px;
+      padding-bottom: 20px;
       margin-bottom: 24px;
-      border-bottom: 2px solid #e2e8f0;
+      border-bottom: 3px solid #1e3a8a;
+      position: relative;
     }
-    .report-footer {
-      margin-top: 32px;
-      padding-top: 12px;
-      border-top: 1px solid #e2e8f0;
+
+    .report-header::after {
+      content: '';
+      position: absolute;
+      bottom: -3px;
+      left: 0;
+      width: 120px;
+      height: 3px;
+      background: #2563eb;
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .header-logo {
+      height: 56px;
+      width: auto;
+      object-fit: contain;
+    }
+
+    .header-info {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .restaurant-name {
+      font-size: 22px;
+      font-weight: 700;
+      color: #0f172a;
+      letter-spacing: -0.02em;
+    }
+
+    .restaurant-details {
+      font-size: 11px;
+      color: #64748b;
+      line-height: 1.4;
+    }
+
+    .header-right {
+      text-align: right;
+    }
+
+    .report-badge {
+      display: inline-block;
+      background: #1e3a8a;
+      color: #ffffff;
+      padding: 6px 16px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 8px;
+    }
+
+    .header-meta {
+      font-size: 11px;
+      color: #64748b;
+    }
+
+    .header-meta span {
+      display: block;
+    }
+
+    /* Title Section */
+    .report-title-section {
+      margin-bottom: 24px;
+    }
+
+    .report-title {
+      font-size: 24px;
+      font-weight: 700;
+      color: #0f172a;
+      margin-bottom: 8px;
+    }
+
+    .report-period {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      color: #64748b;
+    }
+
+    .period-icon {
+      font-size: 14px;
+    }
+
+    .period-text {
+      font-weight: 500;
+    }
+
+    /* Section Headers */
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin: 28px 0 16px 0;
+    }
+
+    .section-accent {
+      width: 4px;
+      height: 24px;
+      background: linear-gradient(180deg, #2563eb 0%, #1d4ed8 100%);
+      border-radius: 2px;
+    }
+
+    .section-content {
+      flex: 1;
+    }
+
+    .section-title {
+      font-size: 15px;
+      font-weight: 600;
+      color: #0f172a;
+      margin: 0;
+    }
+
+    .section-subtitle {
+      font-size: 11px;
+      color: #64748b;
+      margin: 2px 0 0 0;
+    }
+
+    /* Metrics Grid */
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .metric-card {
+      display: flex;
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      overflow: hidden;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    }
+
+    .metric-accent {
+      width: 4px;
+      flex-shrink: 0;
+    }
+
+    .metric-content {
+      flex: 1;
+      padding: 14px 16px;
+    }
+
+    .metric-label {
+      font-size: 11px;
+      font-weight: 500;
+      color: #64748b;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      margin: 0 0 4px 0;
+    }
+
+    .metric-value {
+      font-size: 20px;
+      font-weight: 700;
+      margin: 0;
+      line-height: 1.2;
+    }
+
+    .metric-subtitle {
       font-size: 10px;
       color: #94a3b8;
+      margin: 4px 0 0 0;
+    }
+
+    /* Table Styles */
+    .table-container {
+      margin-bottom: 24px;
+    }
+
+    .empty-state {
       text-align: center;
+      padding: 32px 24px;
+      color: #94a3b8;
+      font-size: 13px;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+    }
+
+    /* Profit Summary */
+    .profit-summary {
+      margin-top: 8px;
+    }
+
+    .profit-card {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 24px;
+    }
+
+    .profit-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: #64748b;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 8px;
+    }
+
+    .profit-value {
+      font-size: 32px;
+      font-weight: 700;
+      margin-bottom: 16px;
+      line-height: 1.2;
+    }
+
+    .profit-breakdown {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px;
+      font-size: 12px;
+      color: #64748b;
+      padding-top: 16px;
+      border-top: 1px solid #e2e8f0;
+    }
+
+    .profit-minus {
+      color: #dc2626;
+    }
+
+    /* Footer */
+    .report-footer {
+      margin-top: auto;
+      padding-top: 20px;
+      border-top: 2px solid #e2e8f0;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+    }
+
+    .footer-left {
+      font-size: 10px;
+      color: #94a3b8;
+    }
+
+    .footer-left p {
+      margin: 0 0 2px 0;
+    }
+
+    .footer-right {
+      text-align: right;
+      font-size: 10px;
+      color: #94a3b8;
+    }
+
+    .footer-right p {
+      margin: 0 0 2px 0;
+    }
+
+    .footer-confidential {
+      font-weight: 600;
+      color: #64748b;
+    }
+
+    /* Print Styles */
+    @media print {
+      body {
+        font-size: 12px;
+      }
+
+      .page-wrapper {
+        min-height: auto;
+      }
+
+      .report-header {
+        page-break-inside: avoid;
+      }
+
+      .section-header {
+        page-break-after: avoid;
+      }
+
+      .metric-card {
+        break-inside: avoid;
+      }
+
+      .table-container {
+        page-break-inside: auto;
+      }
+
+      tr {
+        page-break-inside: avoid;
+      }
+
+      thead {
+        display: table-header-group;
+      }
     }
   </style>
 </head>
 <body>
-  <div class="report-header">
-    <div>
-      ${logoHtml}
-    </div>
-    <div style="text-align: right;">
-      <p style="font-size: 16px; font-weight: 700; color: #0f172a; margin: 0;">
-        ${settings.restaurantName || 'Report'}
-      </p>
-    </div>
-  </div>
+  <div class="page-wrapper">
+    <header class="report-header">
+      <div class="header-left">
+        ${logoHtml}
+        <div class="header-info">
+          <h1 class="restaurant-name">${escapeHtml(settings.restaurantName || 'Restaurant')}</h1>
+          <div class="restaurant-details">
+            ${settings.address ? `<span>${escapeHtml(settings.address)}</span>` : ''}
+            ${settings.contactNumber ? `<span>Phone: ${escapeHtml(settings.contactNumber)}</span>` : ''}
+            ${settings.vatInfo?.bin ? `<span>BIN: ${escapeHtml(settings.vatInfo.bin)}</span>` : ''}
+            ${settings.vatInfo?.mushak ? `<span>Mushak: ${escapeHtml(settings.vatInfo.mushak)}</span>` : ''}
+          </div>
+        </div>
+      </div>
+      <div class="header-right">
+        <div class="report-badge">${reportTitle}</div>
+        <div class="header-meta">
+          <span>Generated: ${generatedDate}</span>
+          <span>Time: ${generatedTime}</span>
+        </div>
+      </div>
+    </header>
 
-  ${bodyContent}
+    <main class="report-body">
+      ${bodyContent}
+    </main>
 
-  <div class="report-footer">
-    Generated on ${now}
+    <footer class="report-footer">
+      <div class="footer-left">
+        <p class="footer-confidential">CONFIDENTIAL - For Internal Use Only</p>
+        <p>This report is generated automatically and is intended for authorized personnel only.</p>
+      </div>
+      <div class="footer-right">
+        <p>${escapeHtml(settings.restaurantName || 'Restaurant')}</p>
+        <p>Report Type: ${reportTitle}</p>
+      </div>
+    </footer>
   </div>
 </body>
 </html>`;

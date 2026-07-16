@@ -164,7 +164,10 @@ export async function exportReport(type: string, query: ExportQueryDto): Promise
 
   const html = renderReportToHtml(type as ReportType, data, {
     restaurantName: settings?.restaurantName || '',
+    address: settings?.address || '',
+    contactNumber: settings?.contactNumber || '',
     logo: settings?.logo || undefined,
+    vatInfo: settings?.vatInfo || undefined,
   });
 
   const pdfBuffer = await renderPdf(html);
