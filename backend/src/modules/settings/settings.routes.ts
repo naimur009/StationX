@@ -2,8 +2,15 @@ import { Router } from 'express';
 import { authenticate } from '../../middleware/authenticate';
 import { authorize } from '../../middleware/authorize';
 import { validate } from '../../middleware/validate';
-import { updateSettingsSchema } from './settings.validation';
-import { handleGetPublicSettings, handleGetSettings, handleUpdateSettings } from './settings.controller';
+import { updateSettingsSchema, resetDataSchema, restoreBackupSchema } from './settings.validation';
+import {
+  handleGetPublicSettings,
+  handleGetSettings,
+  handleUpdateSettings,
+  handleResetData,
+  handleDownloadBackup,
+  handleRestoreBackup,
+} from './settings.controller';
 
 const router = Router();
 
@@ -17,6 +24,29 @@ router.put(
   authorize('settings', 'edit'),
   validate(updateSettingsSchema),
   handleUpdateSettings
+);
+
+router.post(
+  '/settings/reset',
+  authenticate,
+  authorize('settings', 'edit'),
+  validate(resetDataSchema),
+  handleResetData
+);
+
+router.get(
+  '/settings/backup',
+  authenticate,
+  authorize('settings', 'view'),
+  handleDownloadBackup
+);
+
+router.post(
+  '/settings/restore',
+  authenticate,
+  authorize('settings', 'edit'),
+  validate(restoreBackupSchema),
+  handleRestoreBackup
 );
 
 export default router;

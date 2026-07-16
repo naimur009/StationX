@@ -41,3 +41,11 @@ export const updateSettingsSchema = z
   .strict();
 
 export type UpdateSettingsDto = z.infer<typeof updateSettingsSchema>;
+
+export const resetDataSchema = z.object({}).strict();
+
+export const restoreBackupSchema = z.object({
+  data: z.record(z.string(), z.array(z.any())),
+}).strict();
+
+export type RestoreBackupDto = z.infer<typeof restoreBackupSchema>;

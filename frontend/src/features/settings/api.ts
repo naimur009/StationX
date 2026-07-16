@@ -70,3 +70,47 @@ export function useUpdateSettings() {
     },
   });
 }
+
+export function useResetData() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: () =>
+      apiClient<{ data: { success: boolean } }>('/settings/reset', {
+        method: 'POST',
+        body: JSON.stringify({}),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries();
+    },
+  });
+}
+
+export function useDownloadBackup() {
+  return useQuery({
+    queryKey: ['settings', 'backup'],
+    queryFn: () => apiClient<Record<string, unknown[]>>('/settings/backup'),
+    enabled: false,
+    retry: false,
+  });
+}
+
+export interface RestoreStats {
+  collections: number;
+  documents: number;
+}
+
+export function useRestoreBackup() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (data: Record<string, unknown[]>) =>
+      apiClient<{ data: { success: boolean; stats: RestoreStats } }>('/settings/restore', {
+        method: 'POST',
+        body: JSON.stringify({ data }),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries();
+    },
+  });
+}
