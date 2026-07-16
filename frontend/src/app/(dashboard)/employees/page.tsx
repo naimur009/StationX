@@ -6,11 +6,13 @@ import { Button } from '@/components/ui/button';
 import PermissionGate from '@/components/shared/PermissionGate';
 import EmployeeList from '@/features/employees/components/EmployeeList';
 import EmployeeForm from '@/features/employees/components/EmployeeForm';
+import DeleteEmployeeDialog from './DeleteEmployeeDialog';
 import type { EmployeeResponse } from '@/features/employees/api';
 
 export default function EmployeesPage() {
   const [formOpen, setFormOpen] = useState(false);
   const [editEmployee, setEditEmployee] = useState<EmployeeResponse | null>(null);
+  const [deleteEmployee, setDeleteEmployee] = useState<EmployeeResponse | null>(null);
 
   return (
     <PermissionGate module="employees" action="view">
@@ -32,6 +34,7 @@ export default function EmployeesPage() {
 
         <EmployeeList
           onEdit={(employee) => setEditEmployee(employee)}
+          onDelete={(employee) => setDeleteEmployee(employee)}
         />
 
         <EmployeeForm
@@ -43,6 +46,10 @@ export default function EmployeesPage() {
           open={!!editEmployee}
           employee={editEmployee}
           onClose={() => setEditEmployee(null)}
+        />
+        <DeleteEmployeeDialog
+          employee={deleteEmployee}
+          onClose={() => setDeleteEmployee(null)}
         />
       </div>
     </PermissionGate>

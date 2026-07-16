@@ -2,22 +2,20 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { Search, ChevronLeft, ChevronRight, Edit3, Trash2, DollarSign } from 'lucide-react';
-import { useEmployeesList, useDeleteEmployee, type EmployeeResponse } from '../api';
+import { useEmployeesList, type EmployeeResponse } from '../api';
 import { Button } from '@/components/ui/button';
-import { AppError } from '@/lib/utils';
+import PermissionGate from '@/components/shared/PermissionGate';
 
 interface EmployeeListProps {
   onEdit: (employee: EmployeeResponse) => void;
+  onDelete: (employee: EmployeeResponse) => void;
 }
 
-export default function EmployeeList({ onEdit }: EmployeeListProps) {
+export default function EmployeeList({ onEdit, onDelete }: EmployeeListProps) {
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [page, setPage] = useState(1);
-  const [error, setError] = useState<string | null>(null);
   const mountedRef = useRef(true);
-
-  const deleteEmployee = useDeleteEmployee();
 
   useEffect(() => {
     mountedRef.current = true;
@@ -42,19 +40,6 @@ export default function EmployeeList({ onEdit }: EmployeeListProps) {
     setPage(1);
   }, [debouncedSearch]);
 
-  async function handleDelete(employee: EmployeeResponse) {
-    if (!confirm(`Permanently delete employee "${employee.name}"? This cannot be undone.`)) return;
-    try {
-      await deleteEmployee.mutateAsync(employee.id);
-    } catch (err) {
-      if (err instanceof AppError) {
-        setError(err.message);
-      } else {
-        setError('Failed to delete employee');
-      }
-    }
-  }
-
   function handlePageChange(newPage: number) {
     if (newPage < 1 || (data && newPage > Math.ceil(data.meta.total / data.meta.limit))) return;
     setPage(newPage);
@@ -68,15 +53,6 @@ export default function EmployeeList({ onEdit }: EmployeeListProps) {
 
   return (
     <div className="space-y-4">
-      {error && (
-        <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700">
-          {error}
-          <button className="ml-2 font-medium underline" onClick={() => setError(null)}>
-            Dismiss
-          </button>
-        </div>
-      )}
-
       <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-3">
         <div className="relative flex-1 min-w-[200px]">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
@@ -135,21 +111,21 @@ export default function EmployeeList({ onEdit }: EmployeeListProps) {
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-end gap-2">
-                        <button
-                          onClick={() => onEdit(employee)}
-                          className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-blue-600"
-                          title="Edit employee"
-                        >
-                          <Edit3 className="h-4 w-4" />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(employee)}
-                          className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-red-500"
-                          title="Delete employee"
-                          disabled={deleteEmployee.isPending}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
+                        <PermissionGate module="employees" action="edit">
+                          <button
+                            onClick={() => onEdit(employee)}
+                            className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-blue-600"
+                            title="Edit employee"
+                          >
+                            <Edit3 className="h-4 w-4" />
+                          </button>
+                        </PermissionGate>
+                        <PermissionGate module="employees" action="delete">
+                          <Button variant="destructive" size="xs" onClick={() => onDelete(employee)}>
+                            <Trash2 className="mr-1 h-3.5 w-3.5" />
+                            Delete
+                          </Button>
+                        </PermissionGate>
                       </div>
                     </td>
                   </tr>
