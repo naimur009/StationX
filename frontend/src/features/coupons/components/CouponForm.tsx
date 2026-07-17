@@ -41,8 +41,8 @@ export default function CouponForm({ open, coupon, onClose }: CouponFormProps) {
           code: coupon.code,
           discountType: coupon.discountType,
           value: coupon.value,
-          validFrom: coupon.validFrom.slice(0, 16),
-          validUntil: coupon.validUntil.slice(0, 16),
+          validFrom: coupon.validFrom.slice(0, 10),
+          validUntil: coupon.validUntil.slice(0, 10),
           usageLimit: coupon.usageLimit ?? undefined,
         });
       } else {
@@ -199,7 +199,7 @@ export default function CouponForm({ open, coupon, onClose }: CouponFormProps) {
             </label>
             <input
               id="coupon-valid-from"
-              type="datetime-local"
+              type="date"
               className={`w-full rounded-xl border bg-white px-3.5 py-2.5 text-sm text-slate-800 ring-ring focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 ${
                 errors.validFrom ? 'border-red-400' : 'border-slate-300'
               }`}
@@ -214,7 +214,7 @@ export default function CouponForm({ open, coupon, onClose }: CouponFormProps) {
             </label>
             <input
               id="coupon-valid-until"
-              type="datetime-local"
+              type="date"
               className={`w-full rounded-xl border bg-white px-3.5 py-2.5 text-sm text-slate-800 ring-ring focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 ${
                 errors.validUntil ? 'border-red-400' : 'border-slate-300'
               }`}

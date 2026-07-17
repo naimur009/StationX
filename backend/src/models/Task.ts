@@ -17,7 +17,7 @@ const taskSchema = new Schema<ITask>(
   {
     title: { type: String, required: true, trim: true, maxlength: 200 },
     description: { type: String, trim: true, maxlength: 2000 },
-    assignedTo: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+    assignedTo: { type: Schema.Types.ObjectId, ref: 'Employee', required: true },
     assignedBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },
     priority: {
       type: String,

@@ -95,8 +95,13 @@ export async function getCouponById(id: string) {
 }
 
 export async function createCoupon(dto: CreateCouponDto) {
+  const validFrom = new Date(dto.validFrom);
+  validFrom.setUTCHours(0, 0, 0, 0);
+  const validUntil = new Date(dto.validUntil);
+  validUntil.setUTCHours(23, 59, 59, 999);
+
   try {
-    const coupon = await Coupon.create(dto);
+    const coupon = await Coupon.create({ ...dto, validFrom, validUntil });
     return { data: toResponse(coupon) };
   } catch (err) {
     if (err instanceof mongoose.Error && (err as any).code === 11000) {
@@ -124,8 +129,16 @@ export async function updateCoupon(id: string, dto: UpdateCouponDto) {
   if (dto.code !== undefined) updates.code = dto.code;
   if (dto.discountType !== undefined) updates.discountType = dto.discountType;
   if (dto.value !== undefined) updates.value = dto.value;
-  if (dto.validFrom !== undefined) updates.validFrom = dto.validFrom;
-  if (dto.validUntil !== undefined) updates.validUntil = dto.validUntil;
+  if (dto.validFrom !== undefined) {
+    const vf = new Date(dto.validFrom);
+    vf.setUTCHours(0, 0, 0, 0);
+    updates.validFrom = vf;
+  }
+  if (dto.validUntil !== undefined) {
+    const vu = new Date(dto.validUntil);
+    vu.setUTCHours(23, 59, 59, 999);
+    updates.validUntil = vu;
+  }
   if (dto.isEnabled !== undefined) updates.isEnabled = dto.isEnabled;
   if (dto.usageLimit !== undefined) updates.usageLimit = dto.usageLimit;
 
