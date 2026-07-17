@@ -298,9 +298,9 @@ Base path: `/tasks`. **Permission module key:** `tasks`. Hard-deletable per `DAT
 |---|---|---|---|
 | GET | `/tasks?assignedTo=&status=&priority=&sort=deadline` | `view` | List |
 | GET | `/tasks/:id` | `view` | Detail |
-| POST | `/tasks` | `create` | Create (assigns to a user) |
+| POST | `/tasks` | `create` | Create — `assignedTo` is a required Employee ID |
 | PUT | `/tasks/:id` | `edit` | Edit title/description/priority/deadline/assignee |
-| PATCH | `/tasks/:id/status` | `edit` | `{ "status": "in_progress" | "completed" }` — sets `completedAt` on transition to `completed` |
+| PATCH | `/tasks/:id/status` | `view` | `{ "status": "in_progress" | "completed" }` — any user with `view` permission can change status; sets `completedAt` on transition to `completed` |
 | DELETE | `/tasks/:id` | `delete` | Hard delete |
 
 ---

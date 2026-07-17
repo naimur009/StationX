@@ -76,6 +76,19 @@ export async function handleUpdateTaskStatus(
   }
 }
 
+export async function handleListAssignableEmployees(
+  _req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const employees = await taskService.listAssignableEmployees();
+    res.status(200).json({ data: employees });
+  } catch (error) {
+    next(error);
+  }
+}
+
 export async function handleDeleteTask(
   req: AuthenticatedRequest,
   res: Response,

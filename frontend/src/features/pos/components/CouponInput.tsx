@@ -39,7 +39,7 @@ export default function CouponInput() {
         return;
       }
 
-      setCoupon(code.trim(), result.data.discountAmount || 0, result.data.discountType || 'flat');
+      setCoupon(code.trim(), result.data.value ?? 0, result.data.discountType || 'flat');
       setCode('');
     } catch {
       setError('Failed to validate coupon');

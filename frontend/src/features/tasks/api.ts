@@ -3,6 +3,13 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api-client';
 
+export function useAssignableEmployees() {
+  return useQuery({
+    queryKey: ['tasks', 'assignable-employees'],
+    queryFn: () => apiClient<{ data: { id: string; name: string }[] }>('/tasks/assignable-employees'),
+  });
+}
+
 export interface TaskResponse {
   id: string;
   title: string;

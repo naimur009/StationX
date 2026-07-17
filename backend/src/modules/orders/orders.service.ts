@@ -784,11 +784,17 @@ export async function deleteOrder(id: string) {
     throw createError(404, 'NOT_FOUND', 'Order not found');
   }
 
-  if (order.couponId) {
-    throw createError(409, 'ORDER_NOT_DELETABLE', 'Orders with coupon usage cannot be deleted');
-  }
+  await withTransaction(async (session) => {
+    if (order.couponId && order.paymentStatus === 'paid') {
+      await Coupon.findByIdAndUpdate(
+        order.couponId,
+        { $inc: { usageCount: -1 } },
+        { session }
+      );
+    }
 
-  await Order.findByIdAndDelete(id);
+    await Order.findByIdAndDelete(id, { session });
+  });
 
   try {
     getIO().emit('order:deleted', { orderId: id });

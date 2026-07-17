@@ -206,6 +206,11 @@ export async function updateTaskStatus(id: string, status: UpdateTaskStatusDto['
   return toResponse(task);
 }
 
+export async function listAssignableEmployees() {
+  const employees = await Employee.find({}, 'name').sort({ name: 1 }).lean();
+  return employees.map((e) => ({ id: e._id.toString(), name: e.name }));
+}
+
 export async function deleteTask(id: string) {
   const task = await Task.findByIdAndDelete(id);
   if (!task) {

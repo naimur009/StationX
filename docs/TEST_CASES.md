@@ -262,6 +262,7 @@ These apply to **every** module below; listed once here and referenced by ID rat
 | ORD-DEL-03 | Error | `DELETE /orders/:id` on a `pending` order created on a previous day | `409 ORDER_NOT_DELETABLE` |
 | ORD-DEL-04 | Error | `DELETE /orders/:id` on a `pending` order that has coupon usage recorded | `409 ORDER_NOT_DELETABLE` |
 | ORD-DEL-05 | Edge | `DELETE` on an order that's exactly at the day boundary (created 23:59:59, deleted 00:00:01 next day) | Confirm "same day" is computed by server date logic, not client — verify boundary doesn't flip mid-test due to timezone |
+| ORD-DEL-06 | Edge | `DELETE` on a `pending` order with a coupon that was never paid | Coupon `usageCount` is **not** decremented — prevents negative counts |
 | ORD-AUTH-01 | Security | User has `orders:view` only | `GET` routes succeed, `PUT`/`PATCH`/`DELETE` return `403 FORBIDDEN` |
 | ORD-MOB-01 | Mobile | Orders list + detail view on phone viewport | List degrades to card layout; detail view's bill-preview/print action remains reachable and functional |
 
@@ -292,8 +293,8 @@ These apply to **every** module below; listed once here and referenced by ID rat
 
 | ID | Type | Case | Expected |
 |---|---|---|---|
-| TASK-H-01 | Happy | `POST /tasks` valid, assigned to existing user | `201` |
-| TASK-V-01 | Validation | `assignedTo` references a nonexistent/deactivated user | `404 NOT_FOUND` — service checks `isActive: true` |
+| TASK-H-01 | Happy | `POST /tasks` valid, assigned to existing employee | `201` |
+| TASK-V-01 | Validation | `assignedTo` references a nonexistent employee | `404 NOT_FOUND` |
 | TASK-V-02 | Validation | `priority` outside `low|medium|high` | `400 VALIDATION_ERROR` |
 | TASK-V-03 | Validation | `deadline` in the past on creation | `201` — allowed; frontend shows overdue styling |
 | TASK-H-02 | Happy | `PATCH /tasks/:id/status` → `completed` | `completedAt` set |
@@ -302,7 +303,8 @@ These apply to **every** module below; listed once here and referenced by ID rat
 | TASK-RT-01 | Real-time | Task created/reassigned | Emits `task:assigned` with `{ taskId, assignedTo }` |
 | TASK-H-04 | Happy | `GET /tasks?assignedTo=&status=&priority=&sort=deadline` | Correctly filtered and sorted |
 | TASK-H-05 | Happy | `DELETE /tasks/:id` | Hard delete succeeds |
-| TASK-AUTH-01 | Security | Employee viewing only their own assigned tasks vs all tasks | `403 FORBIDDEN` if user lacks `tasks:view`. All users with the permission see ALL tasks (no scope restriction). |
+| TASK-AUTH-01 | Security | User without `tasks:view` calls any endpoint | `403 FORBIDDEN` |
+| TASK-AUTH-02 | Security | Unauthenticated request to any task endpoint | `401 UNAUTHORIZED` |
 
 ---
 

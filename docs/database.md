@@ -231,7 +231,7 @@ Internal helper collection (not in `ARCHITECTURE.md` §5's diagram — small, st
 |---|---|---|---|
 | `title` | String | ✓ | |
 | `description` | String | — | |
-| `assignedTo` | ObjectId → User | ✓ | |
+| `assignedTo` | ObjectId → Employee | ✓ | |
 | `assignedBy` | ObjectId → User | ✓ | |
 | `priority` | String enum `low \| medium \| high` | ✓ | |
 | `deadline` | Date | ✓ | |

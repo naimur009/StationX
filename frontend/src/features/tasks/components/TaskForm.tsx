@@ -3,9 +3,8 @@
 import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useCreateTask, useUpdateTask, type TaskResponse } from '../api';
+import { useCreateTask, useUpdateTask, useAssignableEmployees, type TaskResponse } from '../api';
 import { createTaskSchema, updateTaskSchema } from '../schema';
-import { useEmployeesList } from '../../employees/api';
 import { Dialog } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { AppError } from '@/lib/utils';
@@ -24,7 +23,7 @@ export default function TaskForm({ open, task, onClose }: TaskFormProps) {
   const isEdit = !!task;
   const schema = isEdit ? updateTaskSchema : createTaskSchema;
 
-  const { data: employeesData } = useEmployeesList({ limit: 100 });
+  const { data: employeesData } = useAssignableEmployees();
   const employees = employeesData?.data || [];
 
   const {
