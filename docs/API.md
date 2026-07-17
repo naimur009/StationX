@@ -544,16 +544,15 @@ Base path: `/vendors`. **Permission module key:** `vendors`. Standard soft-delet
 
 ## 17. Products
 
-Base path: `/products`. **Permission module key:** `products`. Standard soft-delete CRUD; `image` is set via `POST /uploads/image` (§4) first, then referenced here.
+Base path: `/products`. **Permission module key:** `products`. Hard-delete CRUD; `isActive` is an availability toggle (not soft-delete). `image` is set via `POST /uploads/image` (§4) first, then referenced here.
 
 | Method | Path | Action | Description |
 |---|---|---|---|
-| GET | `/products?categoryId=&isActive=&search=` | `view` | Admin product list (full payload — see §9.1 for the leaner POS variant) |
+| GET | `/products?categoryId=&search=` | `view` | Admin product list (full payload — see §9.1 for the leaner POS variant) |
 | GET | `/products/:id` | `view` | Detail |
 | POST | `/products` | `create` | Create |
-| PUT | `/products/:id` | `edit` | Edit, including `isActive` (so re-enabling a soft-deleted product is just a normal `PUT`, no separate restore route needed) |
-| DELETE | `/products/:id` | `delete` | Soft delete |
-| DELETE | `/products/:id/permanent` | `delete` | Hard delete — blocked if referenced by any Order (guard not yet enforced; TODO added in service layer for when Orders module exists) |
+| PUT | `/products/:id` | `edit` | Edit, including `isActive` (availability toggle) |
+| DELETE | `/products/:id` | `delete` | Hard delete — permanently removes the product document |
 
 ```json
 // POST /products request

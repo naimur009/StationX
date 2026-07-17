@@ -12,7 +12,6 @@ export default function ProductsPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [editProduct, setEditProduct] = useState<ProductResponse | null>(null);
   const [deleteProduct, setDeleteProduct] = useState<ProductResponse | null>(null);
-  const [permanentDeleteProduct, setPermanentDeleteProduct] = useState<ProductResponse | null>(null);
 
   return (
     <PermissionGate module="products" action="view">
@@ -34,7 +33,6 @@ export default function ProductsPage() {
         <ProductList
           onEdit={(product) => setEditProduct(product)}
           onDelete={(product) => setDeleteProduct(product)}
-          onPermanentDelete={(product) => setPermanentDeleteProduct(product)}
         />
 
         <ProductForm
@@ -50,11 +48,6 @@ export default function ProductsPage() {
         <DeleteProductDialog
           product={deleteProduct}
           onClose={() => setDeleteProduct(null)}
-        />
-        <DeleteProductDialog
-          product={permanentDeleteProduct}
-          permanent
-          onClose={() => setPermanentDeleteProduct(null)}
         />
       </div>
     </PermissionGate>

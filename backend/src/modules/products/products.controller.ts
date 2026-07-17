@@ -62,6 +62,19 @@ export async function handleUpdateProduct(
   }
 }
 
+export async function handleGetReferenceData(
+  _req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const result = await productService.getReferenceData();
+    res.status(200).json(result);
+  } catch (error) {
+    next(error);
+  }
+}
+
 export async function handleDeleteProduct(
   req: AuthenticatedRequest,
   res: Response,
@@ -69,19 +82,6 @@ export async function handleDeleteProduct(
 ): Promise<void> {
   try {
     const result = await productService.deleteProduct(req.params.id);
-    res.status(200).json({ data: result });
-  } catch (error) {
-    next(error);
-  }
-}
-
-export async function handlePermanentDeleteProduct(
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction
-): Promise<void> {
-  try {
-    const result = await productService.permanentDeleteProduct(req.params.id);
     res.status(200).json({ data: result });
   } catch (error) {
     next(error);

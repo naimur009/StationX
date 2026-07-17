@@ -1,28 +1,24 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Search, ChevronLeft, ChevronRight, Edit3, ImageOff } from 'lucide-react';
-import { useProductList, useUpdateProduct, type ProductResponse } from '../api';
+import { Search, ChevronLeft, ChevronRight, Edit3, ImageOff, Trash2 } from 'lucide-react';
+import { useProductList, type ProductResponse } from '../api';
 import { useCategoriesList } from '@/features/categories/api';
 import { Button } from '@/components/ui/button';
-import { AppError } from '@/lib/utils';
 import { formatCurrency } from '@/lib/format';
 
 interface ProductListProps {
   onEdit: (product: ProductResponse) => void;
   onDelete: (product: ProductResponse) => void;
-  onPermanentDelete: (product: ProductResponse) => void;
 }
 
-export default function ProductList({ onEdit, onDelete, onPermanentDelete }: ProductListProps) {
+export default function ProductList({ onEdit, onDelete }: ProductListProps) {
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
   const [categoryFilter, setCategoryFilter] = useState('');
   const [page, setPage] = useState(1);
   const [error, setError] = useState<string | null>(null);
 
-  const updateProduct = useUpdateProduct();
   const { data: categoriesData } = useCategoriesList({ limit: 100 });
 
   useEffect(() => {
@@ -32,12 +28,9 @@ export default function ProductList({ onEdit, onDelete, onPermanentDelete }: Pro
     return () => clearTimeout(timer);
   }, [search]);
 
-  const isActiveParam = statusFilter === 'all' ? undefined : (statusFilter === 'active' ? 'true' : 'false');
-
   const { data, isLoading, isError, refetch } = useProductList({
     page,
     limit: 20,
-    isActive: isActiveParam,
     categoryId: categoryFilter || undefined,
     search: debouncedSearch || undefined,
   });
@@ -45,20 +38,7 @@ export default function ProductList({ onEdit, onDelete, onPermanentDelete }: Pro
   useEffect(() => {
     setPage(1);
     setError(null);
-  }, [statusFilter, categoryFilter, debouncedSearch]);
-
-  async function handleReactivate(product: ProductResponse) {
-    if (updateProduct.isPending) return;
-    try {
-      await updateProduct.mutateAsync({ id: product.id, isActive: true });
-    } catch (err) {
-      if (err instanceof AppError) {
-        setError(err.message);
-      } else {
-        setError('Failed to reactivate product');
-      }
-    }
-  }
+  }, [categoryFilter, debouncedSearch]);
 
   function handlePageChange(newPage: number) {
     if (newPage < 1 || (data && newPage > Math.ceil(data.meta.total / data.meta.limit))) return;
@@ -102,16 +82,6 @@ export default function ProductList({ onEdit, onDelete, onPermanentDelete }: Pro
             </option>
           ))}
         </select>
-
-        <select
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-          className="w-full md:w-auto rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-700 ring-ring focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-ring"
-        >
-          <option value="all">All</option>
-          <option value="active">Active</option>
-          <option value="inactive">Deactivated</option>
-        </select>
       </div>
 
       {isLoading ? (
@@ -143,9 +113,7 @@ export default function ProductList({ onEdit, onDelete, onPermanentDelete }: Pro
           {data?.data.map((product) => (
             <div
               key={product.id}
-              className={`flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm ${
-                !product.isActive ? 'opacity-60' : ''
-              }`}
+              className="flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"
             >
               <div className="relative aspect-[3/2] w-full overflow-hidden bg-slate-100">
                 {product.image ? (
@@ -182,37 +150,16 @@ export default function ProductList({ onEdit, onDelete, onPermanentDelete }: Pro
                   {product.categoryName || 'Uncategorized'}
                 </span>
 
-                <div className="mt-auto pt-3 flex flex-col xs:flex-row gap-2" onClick={(e) => e.stopPropagation()}>
-                  {product.isActive ? (
-                    <Button
-                      variant="warning"
-                      size="sm"
-                      className="w-full"
-                      onClick={() => onDelete(product)}
-                    >
-                      Deactivate
-                    </Button>
-                  ) : (
-                    <>
-                      <Button
-                        variant="primary"
-                        size="sm"
-                        className="w-full xs:flex-1"
-                        onClick={() => handleReactivate(product)}
-                        disabled={updateProduct.isPending}
-                      >
-                        Reactivate
-                      </Button>
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        className="w-full xs:w-auto"
-                        onClick={() => onPermanentDelete(product)}
-                      >
-                        Delete
-                      </Button>
-                    </>
-                  )}
+                <div className="mt-auto pt-3 flex flex-col xs:flex-row gap-2">
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    className="w-full"
+                    onClick={() => onDelete(product)}
+                  >
+                    <Trash2 className="mr-1.5 h-3.5 w-3.5" />
+                    Delete
+                  </Button>
                 </div>
               </div>
             </div>

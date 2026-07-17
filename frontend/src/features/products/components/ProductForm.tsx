@@ -3,8 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useCreateProduct, useUpdateProduct, type ProductResponse } from '../api';
-import { useCategoriesList } from '@/features/categories/api';
+import { useCreateProduct, useUpdateProduct, useProductReferenceData, type ProductResponse } from '../api';
 import { createProductSchema, type CreateProductFormData } from '../schema';
 import { Dialog } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -23,7 +22,8 @@ export default function ProductForm({ open, product, onClose }: ProductFormProps
   const [isCompact, setIsCompact] = useState(false);
   const createProduct = useCreateProduct();
   const updateProduct = useUpdateProduct();
-  const { data: categoriesData } = useCategoriesList({ limit: 100 });
+  const { data: refData } = useProductReferenceData();
+  const categoriesData = refData?.categories;
 
   useEffect(() => {
     function check() {
@@ -201,14 +201,14 @@ export default function ProductForm({ open, product, onClose }: ProductFormProps
               {...register('categoryId')}
             >
               <option value="">Select a category</option>
-              {categoriesData?.data.map((cat) => (
+              {categoriesData?.map((cat) => (
                 <option key={cat.id} value={cat.id}>
                   {cat.name}
                 </option>
               ))}
             </select>
             {errors.categoryId && <p className="mt-1 text-xs text-red-500">{errors.categoryId.message}</p>}
-            {categoriesData && categoriesData.data.length === 0 && (
+            {categoriesData && categoriesData.length === 0 && (
               <p className="mt-1 text-xs text-slate-400">
                 No categories available — create one in Categories first
               </p>

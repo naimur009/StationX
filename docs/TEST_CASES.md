@@ -402,9 +402,9 @@ These apply to **every** module below; listed once here and referenced by ID rat
 | PROD-V-02 | Validation | `categoryId` references a nonexistent category | `400 VALIDATION_ERROR` or `404` |
 | PROD-H-02 | Happy | `categoryId` references a soft-deleted (inactive) category | Confirm whether creation is still allowed — likely yes per `DATABASE.md` §3.3's "keep historical reference" philosophy, but flag since it's a *new* product, not a historical one |
 | PROD-H-03 | Happy | `GET /products?categoryId=&isActive=&search=` | Admin list, full payload (image object, timestamps, `isActive`) — confirm heavier than `/pos/products` |
-| PROD-H-04 | Happy | `PUT /products/:id` setting `isActive: true` | Re-enables a soft-deleted product, no separate restore route |
-| PROD-H-05 | Happy | `DELETE /products/:id` | Soft delete |
-| PROD-E-01 | Edge | Soft-deleted product still referenced in historical `Order.items` | Order detail view still shows correct `nameSnapshot`/`priceSnapshot`, unaffected by product's current `isActive` state |
+| PROD-H-04 | Happy | `PUT /products/:id` setting `isActive` | Toggles availability for POS catalog |
+| PROD-H-05 | Happy | `DELETE /products/:id` | Hard delete — document permanently removed from database |
+| PROD-E-01 | Edge | Deleted product still referenced in historical `Order.items` | Order detail view still shows correct `nameSnapshot`/`priceSnapshot` from order-time snapshot — product document no longer exists |
 | PROD-AUTH-01 | Security | Image upload permission check happens at the calling route, not `/uploads/image` itself | Confirm `/uploads/image` alone, called without a subsequent `products:create` permission, doesn't itself create a Product — it's "thin," per `API.md` §4 |
 
 ---

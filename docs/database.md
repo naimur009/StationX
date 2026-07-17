@@ -14,7 +14,7 @@
 |---|---|
 | Primary key | MongoDB default `_id: ObjectId` on every collection |
 | Timestamps | `{ timestamps: true }` (Mongoose) → `createdAt`, `updatedAt` on every collection except `ActivityLog`, which is append-only and omits `updatedAt` |
-| Soft delete | `isActive: Boolean (default: true)` on **User, Customer, Product** — entities referenced by historical records (Order, Expense, ActivityLog). Matches `ARCHITECTURE.md` §7. Vendor and Category use hard delete. |
+| Soft delete | `isActive: Boolean (default: true)` on **User, Customer** — entities referenced by historical records (Order, Expense, ActivityLog). Matches `ARCHITECTURE.md` §7. Vendor, Category, and Product use hard delete. `isActive` remains on Product as an availability toggle (POS catalog filtering), not a soft-delete flag. |
 | Hard delete | **Coupon, Task, Salary** — no downstream historical references, may be physically removed. Salary deletion is blocked at the service layer if advances exist. |
 | Reference naming | `<entity>Id` (e.g. `customerId`, `vendorId`), type `ObjectId` with `ref: '<Collection>'` |
 | Money fields | Stored as `Number`, decimal currency value (e.g. `199.50`), **not** integer minor units (paise/cents). **Assumption, flag if wrong:** the PRD doesn't specify multi-currency, so minor-unit storage isn't required for v1; all monetary math is rounded to 2 decimal places at the application layer (Zod `.multipleOf(0.01)`) before persisting, to satisfy the NFR "no rounding/discount errors." |
@@ -100,13 +100,15 @@ Authentication identity + embedded permission grants (per `ARCHITECTURE.md` §6,
 | Field | Type | Required | Notes |
 |---|---|---|---|
 | `name` | String | ✓ | |
-| `price` | Number | ✓ | current sell price; historical orders use a **snapshot**, not this live value (see 3.9) |
+| `price` | Number | ✓ | current sell price; historical orders use a **snapshot**, not this live value (see 3.8) |
 | `categoryId` | ObjectId → Category | ✓ | |
 | `image` | `{ url: String, publicId: String }` | — | Cloudinary; `publicId` needed to delete/replace the asset later |
 | `description` | String | — | |
-| `isActive` | Boolean | ✓ (default `true`) | doubles as the PRD's "availability" toggle |
+| `isActive` | Boolean | ✓ (default `true`) | availability toggle for POS catalog — not a soft-delete flag |
 
 **Indexes:** `categoryId`, `isActive`, text index on `name` (POS product search per PRD Feature 4).
+
+> **Hard delete:** Products are permanently removed from the database via `DELETE /products/:id`. `isActive` remains as an availability toggle for POS catalog filtering (products with `isActive: false` are hidden from the POS catalog but still visible in admin lists). Historical orders are safe because they store product name/price snapshots at order time.
 
 > **Future scope hook (no schema change needed today):** `ARCHITECTURE.md` §13 defers `stock: Number` for inventory tracking — adding it later is additive and non-breaking, exactly as noted there.
 
@@ -384,12 +386,12 @@ Singleton — exactly one document for the whole restaurant (single-tenant per `
 ## 4. Indexing Strategy — Summary
 
 | Collection | Index | Purpose |
-|---|---|---|
+|---|---|---|---|
 | User | `email` (unique) | login lookup |
 | PasswordResetToken | `tokenHash` (unique), TTL on `expiresAt` | reset flow + auto-cleanup |
 | Category | `name` (unique) | dedupe, list sort |
 | Category | — | no `isActive` index — hard-deleted, no status filter needed |
-| Product | `categoryId`, `isActive`, text(`name`) | filtered lists, POS search |
+| Product | `categoryId`, `isActive`, text(`name`) | filtered lists, POS catalog filtering by availability |
 | Coupon | `code` (unique), `{isEnabled, validUntil}` | redemption lookup |
 | Customer | `phone`, text(`name`) | POS lookup, search |
 | Vendor | `name` | list/search |

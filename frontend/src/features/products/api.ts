@@ -114,16 +114,14 @@ export function useDeleteProduct() {
   });
 }
 
-export function usePermanentDeleteProduct() {
-  const queryClient = useQueryClient();
+interface ReferenceDataResponse {
+  categories: { id: string; name: string }[];
+}
 
-  return useMutation({
-    mutationFn: (id: string) =>
-      apiClient<{ data: { success: boolean } }>(`/products/${id}/permanent`, {
-        method: 'DELETE',
-      }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['products'] });
-    },
+export function useProductReferenceData() {
+  return useQuery({
+    queryKey: ['products', 'reference-data'],
+    queryFn: () => apiClient<ReferenceDataResponse>('/products/reference-data'),
+    staleTime: 60_000,
   });
 }

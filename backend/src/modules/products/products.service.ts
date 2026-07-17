@@ -146,39 +146,20 @@ export async function updateProduct(id: string, dto: UpdateProductDto) {
   return toProductResponse(updated);
 }
 
-export async function deleteProduct(id: string) {
-  const product = await Product.findByIdAndUpdate(
-    id,
-    { $set: { isActive: false } },
-    { new: true }
-  );
+export async function getReferenceData() {
+  const categories = await Category.find({}).select('name').sort({ name: 1 }).lean();
 
-  if (!product) {
-    throw createError(404, 'NOT_FOUND', 'Product not found');
-  }
-
-  return { success: true };
+  return {
+    categories: categories.map((c) => ({ id: String(c._id), name: c.name })),
+  };
 }
 
-export async function permanentDeleteProduct(id: string) {
+export async function deleteProduct(id: string) {
   const product = await Product.findById(id);
 
   if (!product) {
     throw createError(404, 'NOT_FOUND', 'Product not found');
   }
-
-  if (product.isActive) {
-    throw createError(400, 'PRODUCT_IS_ACTIVE', 'Deactivate the product first before permanent deletion');
-  }
-
-  // TODO: When Orders module is implemented, check that no OrderItem references
-  // this productId before allowing hard delete. See DATABASE.md §3.8 — OrderItems
-  // embed productId as a reference retained for reporting joins, and removing the
-  // product would orphan that reference.
-  //   const orderCount = await Order.countDocuments({ 'items.productId': id });
-  //   if (orderCount > 0) {
-  //     throw createError(409, 'PRODUCT_IN_USE', 'Cannot delete product referenced by orders');
-  //   }
 
   if (product.image?.publicId) {
     deleteFromCloudinary(product.image.publicId).catch(() => {});
