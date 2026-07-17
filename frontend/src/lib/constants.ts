@@ -5,6 +5,8 @@
 // ============================================================
 
 export const MODULE_ACTIONS: Record<string, readonly string[]> = {
+  // All feature modules in the project are listed here.
+  // See API.md §24 for the full list.
   dashboard: ['view'],
   pos: ['view', 'create'],
   orders: ['view', 'edit', 'delete'],

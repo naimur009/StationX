@@ -43,7 +43,7 @@ export const NAV_ITEMS: NavItem[] = [
   { href: '/tasks', label: 'Tasks', module: 'tasks', icon: CheckSquare },
   { href: '/attendance', label: 'Attendance', module: 'attendance', icon: CalendarCheck },
   { href: '/expenses', label: 'Expenses', module: 'expenses', icon: ArrowUpDown },
-  { href: '/salaries', label: 'Salaries', module: 'expenses', icon: DollarSign },
+  { href: '/salaries', label: 'Salaries', module: 'salary', icon: DollarSign },
   { href: '/vendors', label: 'Vendors', module: 'vendors', icon: Truck },
   { href: '/products', label: 'Products', module: 'products', icon: Package },
   { href: '/categories', label: 'Categories', module: 'categories', icon: FolderTree },

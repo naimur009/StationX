@@ -809,7 +809,7 @@ The authoritative list referenced loosely by `DATABASE.md` §3.1 ("≤18 modules
 | `reports` | `view`, `create` | `create` gates PDF export, see §20 |
 | `uploads` | `create` | Utility — gates `POST /uploads/image` endpoint |
 | `activity-log` | `view`, `delete` | `delete` clears all log entries; realistically admin-only |
-| `salary` | `view`, `create`, `edit`, `delete` | Reserved — not used by any backend route in v1. Listed for forward compatibility. |
+| `salary` | `view`, `create`, `edit`, `delete` | Manages employee salaries, advances, adjustments, and summaries via `/salaries` endpoints. |
 
 `Admin` bypasses all of the above (`ARCHITECTURE.md` §6); this table only matters for `manager`/`employee` accounts.
 

@@ -23,6 +23,21 @@
 
 ## Log
 
+### [—] Permission List Alignment: Sidebar Uses `salary` Module Key — 2026-07-17
+
+**Open item resolved:** Sidebar Salaries nav item used `module: 'expenses'` while the backend routes used `salary` and the page used `PermissionGate module="salary"`. This mismatch meant a user with `expenses:view` could see the Salaries nav link but then be denied by the page's `salary` permission gate.
+
+**Decision:** Changed the Salaries nav item in `Sidebar.tsx` from `module: 'expenses'` to `module: 'salary'` — the correct permission key that matches the backend routes and page gate. The `salary` module key was already fully defined in both `MODULE_ACTIONS` constants (`view`, `create`, `edit`, `delete`).
+
+**Doc(s) updated:**
+- `API.md` §24 (salary: removed "Reserved — not used" note, added active description)
+- `decision.md` (this entry)
+
+**Files changed:**
+- `frontend/src/components/shared/Sidebar.tsx` (changed Salaries module from `'expenses'` to `'salary'`)
+
+**Reasoning:** Every feature should use its own module key for permission checks. Using `expenses` for Salaries was a leftover from the initial implementation when salaries were a tab inside Expenses. Now that Salaries is a standalone section, it should use its own `salary` permission key consistently across sidebar, page gate, and backend routes.
+
 ### [—] QA Fix Batch — Category Snapshot, Coupon Validate, Default Status, Payment Filter — 2026-07-11
 
 **Open items resolved:** Multiple — see individual decisions below.
