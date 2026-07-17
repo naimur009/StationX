@@ -8,8 +8,7 @@ import {
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Select } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
-import { useEmployeeAttendanceMonth } from '../api';
-import { useEmployeesList } from '../../employees/api';
+import { useEmployeeAttendanceMonth, useTodayStaff } from '../api';
 
 const STATUS_META: Record<string, { label: string; bg: string; dot: string; icon: React.ElementType }> = {
   present: { label: 'Present', bg: 'bg-green-500', dot: 'bg-green-500', icon: Check },
@@ -42,9 +41,13 @@ export default function AttendanceCalendar() {
   const [month, setMonth] = useState(now.getMonth() + 1);
 
   const { data, isLoading, isError, refetch } = useEmployeeAttendanceMonth(selectedEmployeeId, year, month);
-  const { data: employeesData } = useEmployeesList({ limit: 100 });
+  const { data: todayData } = useTodayStaff();
 
-  const selectedEmployee = (employeesData?.data || []).find((e) => e.id === selectedEmployeeId);
+  const employees = useMemo(() =>
+    (todayData?.staff || []).map((s) => ({ id: s.employee._id, name: s.employee.name })),
+    [todayData]
+  );
+  const selectedEmployee = employees.find((e) => e.id === selectedEmployeeId);
   const records = data?.data || [];
 
   const recordMap = useMemo(() => {
@@ -129,7 +132,7 @@ export default function AttendanceCalendar() {
             <User className="h-4 w-4 shrink-0 text-slate-400" />
             <Select value={selectedEmployeeId} onChange={(e) => setSelectedEmployeeId(e.target.value)} className="w-full sm:w-64 text-sm" placeholder="Select staff">
               <option value="">Select a staff member</option>
-              {(employeesData?.data || []).map((e) => (
+              {employees.map((e) => (
                 <option key={e.id} value={e.id}>{e.name}</option>
               ))}
             </Select>
