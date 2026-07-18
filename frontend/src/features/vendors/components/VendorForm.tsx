@@ -191,7 +191,7 @@ export default function VendorForm({ open, vendor, onClose }: VendorFormProps) {
             id="vendor-name"
             type="text"
             placeholder="e.g. Fresh Farms Produce"
-            className={`w-full rounded-xl border bg-white px-3.5 py-2.5 text-sm text-slate-800 placeholder-slate-400 ring-ring focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-ring ${
+            className={`w-full rounded-xl border bg-white px-3.5 py-2.5 text-sm text-slate-800 placeholder-slate-400 ring-ring focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring ${
               errors.name ? 'border-red-400' : 'border-slate-300'
             }`}
             {...register('name')}
@@ -207,7 +207,7 @@ export default function VendorForm({ open, vendor, onClose }: VendorFormProps) {
             id="vendor-contact"
             type="text"
             placeholder="e.g. Rahim Mia"
-            className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-800 placeholder-slate-400 ring-ring focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-ring"
+            className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-800 placeholder-slate-400 ring-ring focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring"
             {...register('contactPerson')}
           />
         </div>
@@ -221,7 +221,7 @@ export default function VendorForm({ open, vendor, onClose }: VendorFormProps) {
               id="vendor-phone"
               type="tel"
               placeholder="e.g. +8801712345678"
-              className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-800 placeholder-slate-400 ring-ring focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-ring"
+              className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-800 placeholder-slate-400 ring-ring focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring"
               {...register('phone')}
             />
           </div>
@@ -234,7 +234,7 @@ export default function VendorForm({ open, vendor, onClose }: VendorFormProps) {
               id="vendor-email"
               type="email"
               placeholder="e.g. rahim@freshfarms.com"
-              className={`w-full rounded-xl border bg-white px-3.5 py-2.5 text-sm text-slate-800 placeholder-slate-400 ring-ring focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-ring ${
+              className={`w-full rounded-xl border bg-white px-3.5 py-2.5 text-sm text-slate-800 placeholder-slate-400 ring-ring focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring ${
                 errors.email ? 'border-red-400' : 'border-slate-300'
               }`}
               {...register('email')}
@@ -251,7 +251,7 @@ export default function VendorForm({ open, vendor, onClose }: VendorFormProps) {
             id="vendor-address"
             rows={3}
             placeholder="e.g. 123 Kawran Bazar, Dhaka"
-            className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-800 placeholder-slate-400 ring-ring focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-ring"
+            className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-800 placeholder-slate-400 ring-ring focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring"
             {...register('address')}
           />
         </div>
@@ -269,13 +269,13 @@ export default function VendorForm({ open, vendor, onClose }: VendorFormProps) {
                   {itemsSupplied.map((tag) => (
                     <span
                       key={tag}
-                      className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-medium text-blue-700"
+                      className="inline-flex items-center gap-1 rounded-full bg-indigo-50 px-2.5 py-0.5 text-xs font-medium text-indigo-700"
                     >
                       {tag}
                       <button
                         type="button"
                         onClick={() => removeTag(tag)}
-                        className="text-blue-400 hover:text-blue-700"
+                        className="text-indigo-400 hover:text-indigo-700"
                       >
                         <X className="h-3 w-3" />
                       </button>
@@ -290,7 +290,7 @@ export default function VendorForm({ open, vendor, onClose }: VendorFormProps) {
                     value={tagInput}
                     onChange={(e) => setTagInput(e.target.value)}
                     onKeyDown={handleTagKeyDown}
-                    className="flex-1 rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-800 placeholder-slate-400 ring-ring focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-ring"
+                    className="flex-1 rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-800 placeholder-slate-400 ring-ring focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring"
                     maxLength={100}
                   />
                   <Button

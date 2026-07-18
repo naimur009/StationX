@@ -75,16 +75,8 @@ export default function Sidebar({ onLogout }: SidebarProps) {
         sidebarCollapsed ? 'w-16' : 'w-64'
       )}
     >
-      <div className="flex min-h-[64px] items-center gap-3 border-b border-white/10 p-4">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary shadow-lg">
-          <span className="text-sm font-bold text-white">W</span>
-        </div>
-        {!sidebarCollapsed && (
-          <div className="overflow-hidden">
-            <div className="truncate text-sm font-bold text-white">StationX</div>
-            <div className="truncate text-xs text-slate-400">Management</div>
-          </div>
-        )}
+      <div className="flex min-h-[64px] items-center justify-center border-b border-white/10 px-4">
+        <span className={cn('flex items-center', sidebarCollapsed && 'hidden')}><span className="text-lg font-bold text-[#F8C301]">Station</span><span className="text-2xl font-black italic text-[#D81B26]">X</span></span>
       </div>
 
       <nav className="flex-1 space-y-1 overflow-y-auto p-3">

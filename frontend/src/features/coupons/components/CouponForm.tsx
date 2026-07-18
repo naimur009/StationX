@@ -150,7 +150,7 @@ export default function CouponForm({ open, coupon, onClose }: CouponFormProps) {
             id="coupon-code"
             type="text"
             placeholder="e.g. SUMMER20"
-            className={`w-full rounded-xl border bg-white px-3.5 py-2.5 text-sm text-slate-800 placeholder-slate-400 ring-ring focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 uppercase ${
+            className={`w-full rounded-xl border bg-white px-3.5 py-2.5 text-sm text-slate-800 placeholder-slate-400 ring-ring focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 uppercase ${
               errors.code ? 'border-red-400' : 'border-slate-300'
             }`}
             {...register('code')}
@@ -165,7 +165,7 @@ export default function CouponForm({ open, coupon, onClose }: CouponFormProps) {
             </label>
             <select
               id="coupon-discount-type"
-              className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-800 ring-ring focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+              className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-800 ring-ring focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
               {...register('discountType')}
             >
               <option value="flat">Flat (TK)</option>
@@ -183,7 +183,7 @@ export default function CouponForm({ open, coupon, onClose }: CouponFormProps) {
               step={discountType === 'flat' ? '0.01' : '1'}
               inputMode="decimal"
               placeholder={discountType === 'flat' ? '0.00' : '0'}
-              className={`w-full rounded-xl border bg-white px-3.5 py-2.5 text-sm text-slate-800 placeholder-slate-400 ring-ring focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 ${
+              className={`w-full rounded-xl border bg-white px-3.5 py-2.5 text-sm text-slate-800 placeholder-slate-400 ring-ring focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 ${
                 errors.value ? 'border-red-400' : 'border-slate-300'
               }`}
               {...register('value', { setValueAs: (v) => (v === '' ? '' : Number(v)) })}
@@ -200,7 +200,7 @@ export default function CouponForm({ open, coupon, onClose }: CouponFormProps) {
             <input
               id="coupon-valid-from"
               type="date"
-              className={`w-full rounded-xl border bg-white px-3.5 py-2.5 text-sm text-slate-800 ring-ring focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 ${
+              className={`w-full rounded-xl border bg-white px-3.5 py-2.5 text-sm text-slate-800 ring-ring focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 ${
                 errors.validFrom ? 'border-red-400' : 'border-slate-300'
               }`}
               {...register('validFrom')}
@@ -215,7 +215,7 @@ export default function CouponForm({ open, coupon, onClose }: CouponFormProps) {
             <input
               id="coupon-valid-until"
               type="date"
-              className={`w-full rounded-xl border bg-white px-3.5 py-2.5 text-sm text-slate-800 ring-ring focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 ${
+              className={`w-full rounded-xl border bg-white px-3.5 py-2.5 text-sm text-slate-800 ring-ring focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 ${
                 errors.validUntil ? 'border-red-400' : 'border-slate-300'
               }`}
               {...register('validUntil')}
@@ -234,7 +234,7 @@ export default function CouponForm({ open, coupon, onClose }: CouponFormProps) {
             step="1"
             inputMode="numeric"
             placeholder="Unlimited"
-            className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-800 placeholder-slate-400 ring-ring focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+            className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-800 placeholder-slate-400 ring-ring focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
             {...register('usageLimit', { setValueAs: (v) => (v === '' ? undefined : Number(v)) })}
           />
           {errors.usageLimit && <p className="mt-1 text-xs text-red-500">{errors.usageLimit.message}</p>}

@@ -83,14 +83,14 @@ export default function CouponList({ onEdit, onDelete }: CouponListProps) {
             placeholder="Search coupons..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full rounded-xl border border-slate-300 bg-white py-2.5 pl-10 pr-3.5 text-sm text-slate-800 placeholder-slate-400 ring-ring focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+            className="w-full rounded-xl border border-slate-300 bg-white py-2.5 pl-10 pr-3.5 text-sm text-slate-800 placeholder-slate-400 ring-ring focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
           />
         </div>
 
         <select
           value={filterType}
           onChange={(e) => setFilterType(e.target.value)}
-          className="rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-700 ring-ring focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+          className="rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-700 ring-ring focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
         >
           <option value="">All Types</option>
           <option value="flat">Flat</option>
@@ -100,7 +100,7 @@ export default function CouponList({ onEdit, onDelete }: CouponListProps) {
         <select
           value={filterEnabled}
           onChange={(e) => setFilterEnabled(e.target.value)}
-          className="rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-700 ring-2 ring-ring ring-offset-2 focus:border-blue-500 focus:outline-none"
+          className="rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-700 ring-2 ring-ring ring-offset-2 focus:border-ring focus:outline-none"
         >
           <option value="all">All</option>
           <option value="true">Enabled</option>
@@ -138,7 +138,7 @@ export default function CouponList({ onEdit, onDelete }: CouponListProps) {
                     <div className="min-w-0 flex-1">
                       <button
                         onClick={() => onEdit(coupon)}
-                        className="truncate text-sm font-semibold text-slate-800 hover:text-blue-600 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 rounded"
+                        className="truncate text-sm font-semibold text-slate-800 hover:text-primary focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 rounded"
                       >
                         {coupon.code}
                       </button>
@@ -176,7 +176,7 @@ export default function CouponList({ onEdit, onDelete }: CouponListProps) {
                     <button
                       onClick={() => handleToggle(coupon)}
                       disabled={toggleCoupon.isPending}
-                      className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-blue-600 disabled:opacity-40 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                      className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-primary disabled:opacity-40 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
                       title={coupon.isEnabled ? 'Disable' : 'Enable'}
                     >
                       {coupon.isEnabled ? (
@@ -187,7 +187,7 @@ export default function CouponList({ onEdit, onDelete }: CouponListProps) {
                     </button>
                     <button
                       onClick={() => onEdit(coupon)}
-                      className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-blue-600 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                      className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-primary focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
                       title="Edit"
                     >
                       <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -230,7 +230,7 @@ export default function CouponList({ onEdit, onDelete }: CouponListProps) {
                       <td className="px-5 py-3.5">
                         <button
                           onClick={() => onEdit(coupon)}
-                          className="font-semibold text-slate-800 hover:text-blue-600 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 rounded"
+                          className="font-semibold text-slate-800 hover:text-primary focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 rounded"
                         >
                           {coupon.code}
                         </button>
@@ -256,7 +256,7 @@ export default function CouponList({ onEdit, onDelete }: CouponListProps) {
                           <button
                             onClick={() => handleToggle(coupon)}
                             disabled={toggleCoupon.isPending}
-                            className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-blue-600 disabled:opacity-40 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                            className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-primary disabled:opacity-40 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
                             title={coupon.isEnabled ? 'Disable' : 'Enable'}
                           >
                             {coupon.isEnabled ? (
@@ -267,7 +267,7 @@ export default function CouponList({ onEdit, onDelete }: CouponListProps) {
                           </button>
                           <button
                             onClick={() => onEdit(coupon)}
-                            className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-blue-600 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                            className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-primary focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
                             title="Edit"
                           >
                             <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>

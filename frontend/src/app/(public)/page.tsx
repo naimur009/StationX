@@ -65,7 +65,7 @@ export default function HomePage() {
           </span>
           <Link
             href={loginHref}
-            className="inline-flex h-11 items-center justify-center rounded-xl bg-blue-600 px-5 text-sm font-medium text-white shadow-blue-500/25 transition-all hover:bg-blue-700 active:translate-y-px"
+            className="inline-flex h-11 items-center justify-center rounded-xl bg-primary px-5 text-sm font-medium text-white shadow-primary/25 transition-all hover:bg-primary/90 active:translate-y-px"
           >
             Staff Login
           </Link>
@@ -74,15 +74,15 @@ export default function HomePage() {
 
       <main className="relative flex-1">
         <div className="relative overflow-hidden">
-          <div aria-hidden="true" className="pointer-events-none absolute -top-32 right-0 h-[500px] w-[500px] rounded-full bg-blue-50" />
+          <div aria-hidden="true" className="pointer-events-none absolute -top-32 right-0 h-[500px] w-[500px] rounded-full bg-indigo-50" />
           <div aria-hidden="true" className="pointer-events-none absolute -bottom-40 -left-40 h-[600px] w-[600px] rounded-full bg-indigo-50/50" />
 
           <section className="relative mx-auto flex max-w-4xl flex-col items-center px-6 pb-20 pt-28 text-center md:pt-40">
-            <div className="mb-8 h-1 w-20 rounded-full bg-blue-600/60" aria-hidden="true" />
+            <div className="mb-8 h-1 w-20 rounded-full bg-primary/60" aria-hidden="true" />
 
             <h1 className="text-5xl font-bold tracking-tight text-slate-800 max-md:text-4xl">
               Welcome to{' '}
-              <span className="bg-gradient-to-r from-blue-800 via-blue-600 to-indigo-700 bg-clip-text text-transparent">
+              <span className="bg-gradient-to-r from-red-800 via-red-600 to-indigo-700 bg-clip-text text-transparent">
                 {brandName}
               </span>
             </h1>
@@ -95,7 +95,7 @@ export default function HomePage() {
             <div className="mt-12 flex flex-col items-center gap-4 sm:flex-row">
               <Link
                 href="/login"
-                className="inline-flex h-12 items-center justify-center rounded-xl bg-blue-600 px-8 text-sm font-medium text-white shadow-blue-500/25 transition-all hover:bg-blue-700 active:translate-y-px"
+                className="inline-flex h-12 items-center justify-center rounded-xl bg-primary px-8 text-sm font-medium text-white shadow-primary/25 transition-all hover:bg-primary/90 active:translate-y-px"
               >
                 Explore Our Menu
               </Link>
@@ -113,8 +113,8 @@ export default function HomePage() {
           <div className="mx-auto max-w-7xl px-6 py-20">
             <div className="grid gap-12 md:grid-cols-3">
               <div className="text-center">
-                <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-50 shadow-sm">
-                  <svg className="h-7 w-7 text-blue-600" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" aria-hidden="true">
+                <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-indigo-50 shadow-sm">
+                  <svg className="h-7 w-7 text-primary" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" aria-hidden="true">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M12 8.25v-1.5m0 1.5c-1.355 0-2.697.056-4.024.166C6.845 8.51 6 9.473 6 10.608v2.513m6-4.87c1.355 0 2.697.055 4.024.165C17.155 8.51 18 9.473 18 10.608v2.513m-3-4.87v-1.5m-6 1.5v-1.5m12 9.75l-1.5.75a3.354 3.354 0 01-3 0 3.354 3.354 0 00-3 0 3.354 3.354 0 01-3 0 3.354 3.354 0 00-3 0 3.354 3.354 0 01-3 0L3 16.5m15-3.38a48.474 48.474 0 00-6-.37c-2.032 0-4.034.125-6 .37m12 0c.39.049.777.102 1.163.16 1.07.16 1.837 1.094 1.837 2.175v5.17c0 .62-.504 1.125-1.125 1.125H4.125A1.125 1.125 0 013 20.625v-5.17c0-1.08.768-2.014 1.837-2.174A47.78 47.78 0 016 13.12m12 0a48.517 48.517 0 01-12 0" />
                   </svg>
                 </div>

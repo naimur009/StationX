@@ -159,7 +159,7 @@ export default function ProductForm({ open, product, onClose }: ProductFormProps
             id="product-name"
             type="text"
             placeholder="e.g. Chicken Fry"
-            className={`w-full rounded-xl border bg-white px-3.5 py-2.5 text-sm text-slate-800 placeholder-slate-400 ring-ring focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-ring ${
+            className={`w-full rounded-xl border bg-white px-3.5 py-2.5 text-sm text-slate-800 placeholder-slate-400 ring-ring focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring ${
               errors.name ? 'border-red-400' : 'border-slate-300'
             }`}
             {...register('name')}
@@ -180,7 +180,7 @@ export default function ProductForm({ open, product, onClose }: ProductFormProps
                 step="0.01"
                 inputMode="decimal"
                 placeholder="0.00"
-                className={`w-full rounded-xl border bg-white py-2.5 pl-9 pr-3.5 text-sm text-slate-800 placeholder-slate-400 ring-ring focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-ring ${
+                className={`w-full rounded-xl border bg-white py-2.5 pl-9 pr-3.5 text-sm text-slate-800 placeholder-slate-400 ring-ring focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring ${
                   errors.price ? 'border-red-400' : 'border-slate-300'
                 }`}
                 {...register('price', { valueAsNumber: true })}
@@ -195,7 +195,7 @@ export default function ProductForm({ open, product, onClose }: ProductFormProps
             </label>
             <select
               id="product-category"
-              className={`w-full rounded-xl border bg-white px-3.5 py-2.5 text-sm text-slate-800 ring-ring focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-ring ${
+              className={`w-full rounded-xl border bg-white px-3.5 py-2.5 text-sm text-slate-800 ring-ring focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring ${
                 errors.categoryId ? 'border-red-400' : 'border-slate-300'
               }`}
               {...register('categoryId')}
@@ -224,7 +224,7 @@ export default function ProductForm({ open, product, onClose }: ProductFormProps
             id="product-description"
             rows={3}
             placeholder="Optional description..."
-            className={`w-full rounded-xl border bg-white px-3.5 py-2.5 text-sm text-slate-800 placeholder-slate-400 ring-ring focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-ring ${
+            className={`w-full rounded-xl border bg-white px-3.5 py-2.5 text-sm text-slate-800 placeholder-slate-400 ring-ring focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring ${
               errors.description ? 'border-red-400' : 'border-slate-300'
             }`}
             {...register('description')}

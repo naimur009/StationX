@@ -56,7 +56,7 @@ export default function CategoryList({ onEdit, onDelete }: CategoryListProps) {
             placeholder="Search categories..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full rounded-xl border border-slate-300 bg-white py-2.5 pl-10 pr-3.5 text-sm text-slate-800 placeholder-slate-400 ring-ring focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-ring"
+            className="w-full rounded-xl border border-slate-300 bg-white py-2.5 pl-10 pr-3.5 text-sm text-slate-800 placeholder-slate-400 ring-ring focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring"
           />
         </div>
       </div>
@@ -91,7 +91,7 @@ export default function CategoryList({ onEdit, onDelete }: CategoryListProps) {
                 <div className="mt-3 flex items-center justify-end gap-1.5">
                   <button
                     onClick={() => onEdit(category)}
-                    className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-blue-600"
+                    className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-primary"
                     title="Edit category"
                   >
                     <Edit3 className="h-4 w-4" />
@@ -132,7 +132,7 @@ export default function CategoryList({ onEdit, onDelete }: CategoryListProps) {
                       <div className="flex items-center justify-end gap-2">
                         <button
                           onClick={() => onEdit(category)}
-                          className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-blue-600"
+                          className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-primary"
                           title="Edit category"
                         >
                           <Edit3 className="h-4 w-4" />

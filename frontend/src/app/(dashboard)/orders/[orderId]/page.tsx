@@ -41,7 +41,7 @@ export default function OrderDetailPage() {
           </p>
           <Link
             href="/orders"
-            className="mt-6 inline-flex items-center gap-2 text-sm font-medium text-blue-600 hover:text-blue-700"
+            className="mt-6 inline-flex items-center gap-2 text-sm font-medium text-primary hover:text-primary"
           >
             <ChevronLeft className="h-4 w-4" />
             Back to Orders

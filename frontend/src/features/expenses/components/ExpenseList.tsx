@@ -118,14 +118,14 @@ export default function ExpenseList({ onEdit, onDelete }: ExpenseListProps) {
               placeholder="Filter by category..."
               value={categoryFilter}
               onChange={(e) => setCategoryFilter(e.target.value)}
-              className="w-full rounded-xl border border-slate-300 bg-white py-2.5 pl-10 pr-3.5 text-sm text-slate-800 placeholder-slate-400 ring-ring focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-ring"
+              className="w-full rounded-xl border border-slate-300 bg-white py-2.5 pl-10 pr-3.5 text-sm text-slate-800 placeholder-slate-400 ring-ring focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring"
             />
           </div>
 
           <select
             value={vendorFilter}
             onChange={(e) => setVendorFilter(e.target.value)}
-            className="rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-700 ring-ring focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-ring min-w-[160px]"
+            className="rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-700 ring-ring focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring min-w-[160px]"
           >
             <option value="">All Vendors</option>
             {vendors.map((v) => (
@@ -136,7 +136,7 @@ export default function ExpenseList({ onEdit, onDelete }: ExpenseListProps) {
           <select
             value={paymentFilter}
             onChange={(e) => setPaymentFilter(e.target.value)}
-            className="rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-700 ring-ring focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-ring"
+            className="rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-700 ring-ring focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring"
           >
             <option value="">All Methods</option>
             <option value="cash">Cash</option>
@@ -148,7 +148,7 @@ export default function ExpenseList({ onEdit, onDelete }: ExpenseListProps) {
           <select
             value={paidByFilter}
             onChange={(e) => setPaidByFilter(e.target.value)}
-            className="rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-700 ring-ring focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-ring min-w-[160px]"
+            className="rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-700 ring-ring focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring min-w-[160px]"
           >
             <option value="">All Staff</option>
             {employees.map((employee) => (
@@ -201,7 +201,7 @@ export default function ExpenseList({ onEdit, onDelete }: ExpenseListProps) {
                 <div className="mt-3 flex items-center justify-end gap-1.5">
                   <button
                     onClick={() => goToDetail(expense)}
-                    className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-blue-600"
+                    className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-primary"
                     title="View expense"
                   >
                     <Eye className="h-4 w-4" />
@@ -209,7 +209,7 @@ export default function ExpenseList({ onEdit, onDelete }: ExpenseListProps) {
                   <PermissionGate module="expenses" action="edit">
                     <button
                       onClick={() => onEdit(expense)}
-                      className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-blue-600"
+                      className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-primary"
                       title="Edit expense"
                     >
                       <Edit3 className="h-4 w-4" />
@@ -269,7 +269,7 @@ export default function ExpenseList({ onEdit, onDelete }: ExpenseListProps) {
                       {expense.vendorId ? (
                         <button
                           onClick={() => router.push(`/vendors/${expense.vendorId!._id}`)}
-                          className="text-blue-600 hover:underline"
+                          className="text-primary hover:underline"
                         >
                           {expense.vendorId.name}
                         </button>
@@ -290,7 +290,7 @@ export default function ExpenseList({ onEdit, onDelete }: ExpenseListProps) {
                       <div className="flex items-center justify-end gap-2">
                         <button
                           onClick={() => goToDetail(expense)}
-                          className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-blue-600"
+                          className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-primary"
                           title="View expense"
                         >
                           <Eye className="h-4 w-4" />
@@ -298,7 +298,7 @@ export default function ExpenseList({ onEdit, onDelete }: ExpenseListProps) {
                         <PermissionGate module="expenses" action="edit">
                           <button
                             onClick={() => onEdit(expense)}
-                            className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-blue-600"
+                            className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-primary"
                             title="Edit expense"
                           >
                             <Edit3 className="h-4 w-4" />

@@ -145,7 +145,7 @@ export default function SalaryForm({ open, onClose, preSelectedEmployeeId }: Sal
           </label>
           <select
             id="salary-employee"
-            className={`w-full rounded-xl border bg-white px-3.5 py-2.5 text-sm text-slate-800 ring-ring focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-ring ${
+            className={`w-full rounded-xl border bg-white px-3.5 py-2.5 text-sm text-slate-800 ring-ring focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring ${
               errors.employeeId ? 'border-red-400' : 'border-slate-300'
             }`}
             {...register('employeeId')}
@@ -187,7 +187,7 @@ export default function SalaryForm({ open, onClose, preSelectedEmployeeId }: Sal
             step="0.01"
             min="0"
             placeholder="e.g. 10000"
-            className={`w-full rounded-xl border bg-white px-3.5 py-2.5 text-sm text-slate-800 placeholder-slate-400 ring-ring focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-ring ${
+            className={`w-full rounded-xl border bg-white px-3.5 py-2.5 text-sm text-slate-800 placeholder-slate-400 ring-ring focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring ${
               errors.paidAmount ? 'border-red-400' : 'border-slate-300'
             }`}
             {...register('paidAmount', { valueAsNumber: true })}
@@ -202,7 +202,7 @@ export default function SalaryForm({ open, onClose, preSelectedEmployeeId }: Sal
             </label>
             <select
               id="salary-month"
-              className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-800 ring-ring focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-ring"
+              className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-800 ring-ring focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring"
               {...register('month', { valueAsNumber: true })}
             >
               {MONTHS.map((name, idx) => (
@@ -220,7 +220,7 @@ export default function SalaryForm({ open, onClose, preSelectedEmployeeId }: Sal
               type="number"
               min="2000"
               max="2100"
-              className={`w-full rounded-xl border bg-white px-3.5 py-2.5 text-sm text-slate-800 placeholder-slate-400 ring-ring focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-ring ${
+              className={`w-full rounded-xl border bg-white px-3.5 py-2.5 text-sm text-slate-800 placeholder-slate-400 ring-ring focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring ${
                 errors.year ? 'border-red-400' : 'border-slate-300'
               }`}
               {...register('year', { valueAsNumber: true })}

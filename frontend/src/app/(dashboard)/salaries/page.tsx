@@ -60,7 +60,7 @@ export default function SalariesPage() {
             onClick={() => setActiveTab('list')}
             className={`flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-medium transition-colors ${
               activeTab === 'list'
-                ? 'border-blue-600 text-blue-600'
+                ? 'border-primary text-primary'
                 : 'border-transparent text-slate-500 hover:text-slate-700'
             }`}
           >
@@ -72,7 +72,7 @@ export default function SalariesPage() {
             onClick={() => setActiveTab('report')}
             className={`flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-medium transition-colors ${
               activeTab === 'report'
-                ? 'border-blue-600 text-blue-600'
+                ? 'border-primary text-primary'
                 : 'border-transparent text-slate-500 hover:text-slate-700'
             }`}
           >

@@ -52,7 +52,7 @@ export default function ActivityLogFilters({ onFiltersChange }: ActivityLogFilte
     onFiltersChange({ from: from || undefined, to: value || undefined });
   }
 
-  const inputClass = 'rounded-xl border border-slate-300 bg-white py-2.5 px-3.5 text-sm text-slate-800 placeholder-slate-400 focus:ring-ring focus:border-blue-500';
+  const inputClass = 'rounded-xl border border-slate-300 bg-white py-2.5 px-3.5 text-sm text-slate-800 placeholder-slate-400 focus:ring-ring focus:border-ring';
 
   return (
     <div className="flex flex-wrap items-center gap-3">

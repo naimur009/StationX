@@ -64,7 +64,7 @@ export default function OrderList({ data, isLoading, isError, onView, onDelete, 
       key: 'orderNumber',
       label: 'Order',
       render: (item) => (
-        <span className="font-medium text-blue-600">{item.orderNumber}</span>
+        <span className="font-medium text-primary">{item.orderNumber}</span>
       ),
     },
     {

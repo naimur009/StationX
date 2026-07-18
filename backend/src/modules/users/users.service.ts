@@ -1,5 +1,6 @@
 import bcrypt from 'bcrypt';
 import User, { IUser } from '../../models/User';
+import Employee from '../../models/Employee';
 import { createError } from '../../middleware/errorHandler';
 import { MODULE_ACTIONS } from '../../shared/constants';
 import type {
@@ -93,6 +94,14 @@ export async function createUser(dto: CreateUserDto, actorId: string) {
     permissions: dto.permissions,
     isActive: true,
   });
+
+  // Sync to Employee collection for task assignment
+  if (['employee', 'manager', 'chief'].includes(dto.role) && dto.name) {
+    const empExists = await Employee.findOne({ name: dto.name });
+    if (!empExists) {
+      await Employee.create({ name: dto.name, phone: '', address: '', baseSalary: 0 });
+    }
+  }
 
   return toUserResponse(user);
 }

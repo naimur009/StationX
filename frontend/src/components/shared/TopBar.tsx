@@ -51,7 +51,7 @@ export default function TopBar({ onLogout }: TopBarProps) {
       </div>
 
       <div className="flex items-center gap-3">
-        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-blue-700 shadow-md">
+        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-[#D81B26] to-[#F8C301] shadow-md">
           <span className="text-xs font-bold text-white">
             {user?.name?.charAt(0)?.toUpperCase() ?? 'U'}
           </span>

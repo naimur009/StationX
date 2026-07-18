@@ -83,7 +83,7 @@ export default function TaskCard({ task, onEdit, onDelete }: TaskCardProps) {
         <div className="min-w-0 flex-1">
           <button
             onClick={() => router.push(`/tasks/${task.id}`)}
-            className="text-left font-semibold text-slate-800 hover:text-blue-600 transition-colors line-clamp-1"
+            className="text-left font-semibold text-slate-800 hover:text-primary transition-colors line-clamp-1"
           >
             {task.title}
           </button>
@@ -132,7 +132,7 @@ export default function TaskCard({ task, onEdit, onDelete }: TaskCardProps) {
       <div className="mt-4 flex flex-wrap items-center gap-3 text-xs text-slate-500">
         {task.assignedTo ? (
           <div className="flex items-center gap-1.5">
-            <div className="flex h-5 w-5 items-center justify-center rounded-full bg-blue-100 text-[10px] font-semibold text-blue-700">
+            <div className="flex h-5 w-5 items-center justify-center rounded-full bg-indigo-100 text-[10px] font-semibold text-indigo-700">
               {getInitials(task.assignedTo.name)}
             </div>
             <span className="truncate max-w-[100px]">{task.assignedTo.name}</span>
@@ -155,7 +155,7 @@ export default function TaskCard({ task, onEdit, onDelete }: TaskCardProps) {
           <button
             onClick={() => handleStatusTransition('in_progress')}
             disabled={updateTaskStatus.isPending}
-            className="inline-flex items-center gap-1.5 rounded-xl bg-blue-50 px-3 py-1.5 text-xs font-medium text-blue-700 hover:bg-blue-100 transition-colors disabled:opacity-50"
+            className="inline-flex items-center gap-1.5 rounded-xl bg-indigo-50 px-3 py-1.5 text-xs font-medium text-indigo-700 hover:bg-indigo-100 transition-colors disabled:opacity-50"
           >
             <Play className="h-3 w-3" />
             Start

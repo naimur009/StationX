@@ -108,7 +108,7 @@ export default function TaskList({ onEdit, onDelete }: TaskListProps) {
           <span className="text-slate-300">|</span>
           <span className="text-yellow-600">{taskCounts.pending} pending</span>
           <span className="text-slate-300">|</span>
-          <span className="text-blue-600">{taskCounts.in_progress} in progress</span>
+          <span className="text-indigo-600">{taskCounts.in_progress} in progress</span>
           <span className="text-slate-300">|</span>
           <span className="text-green-600">{taskCounts.completed} completed</span>
         </div>
@@ -124,7 +124,7 @@ export default function TaskList({ onEdit, onDelete }: TaskListProps) {
               onClick={() => setStatusFilter(tab.value)}
               className={`rounded-xl px-3.5 py-1.5 text-xs font-medium transition-colors ${
                 statusFilter === tab.value
-                  ? 'bg-blue-600 text-white shadow-sm'
+                  ? 'bg-primary text-white shadow-sm'
                   : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
               }`}
             >
@@ -142,14 +142,14 @@ export default function TaskList({ onEdit, onDelete }: TaskListProps) {
               placeholder="Search tasks..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full rounded-xl border border-slate-300 bg-white py-2 pl-10 pr-3.5 text-sm text-slate-800 placeholder-slate-400 ring-ring focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-ring"
+              className="w-full rounded-xl border border-slate-300 bg-white py-2 pl-10 pr-3.5 text-sm text-slate-800 placeholder-slate-400 ring-ring focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring"
             />
           </div>
 
           <select
             value={priorityFilter}
             onChange={(e) => setPriorityFilter(e.target.value)}
-            className="rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-sm text-slate-700 ring-ring focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-ring"
+            className="rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-sm text-slate-700 ring-ring focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring"
           >
             {priorityOptions.map((opt) => (
               <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -159,7 +159,7 @@ export default function TaskList({ onEdit, onDelete }: TaskListProps) {
           <select
             value={assigneeFilter}
             onChange={(e) => setAssigneeFilter(e.target.value)}
-            className="rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-sm text-slate-700 ring-ring focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-ring min-w-[140px]"
+            className="rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-sm text-slate-700 ring-ring focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring min-w-[140px]"
           >
             <option value="">All Assignees</option>
             {employees.map((employee) => (
@@ -170,7 +170,7 @@ export default function TaskList({ onEdit, onDelete }: TaskListProps) {
           <select
             value={sort}
             onChange={(e) => setSort(e.target.value)}
-            className="rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-sm text-slate-700 ring-ring focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-ring"
+            className="rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-sm text-slate-700 ring-ring focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring"
           >
             {sortOptions.map((opt) => (
               <option key={opt.value} value={opt.value}>{opt.label}</option>

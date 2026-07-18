@@ -197,7 +197,7 @@ export default function SalaryAdjustmentDialog({
             </label>
             <select
               id="adj-employee"
-              className={`w-full rounded-xl border bg-white px-3.5 py-2.5 text-sm text-slate-800 ring-ring focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-ring ${
+              className={`w-full rounded-xl border bg-white px-3.5 py-2.5 text-sm text-slate-800 ring-ring focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring ${
                 (errors as Record<string, unknown>).employeeId ? 'border-red-400' : 'border-slate-300'
               }`}
               {...register('employeeId')}
@@ -253,7 +253,7 @@ export default function SalaryAdjustmentDialog({
             step="0.01"
             min="0"
             placeholder="e.g. 1000"
-            className={`w-full rounded-xl border bg-white px-3.5 py-2.5 text-sm text-slate-800 placeholder-slate-400 ring-ring focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-ring ${
+            className={`w-full rounded-xl border bg-white px-3.5 py-2.5 text-sm text-slate-800 placeholder-slate-400 ring-ring focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring ${
               errors.amount ? 'border-red-400' : 'border-slate-300'
             }`}
             {...register('amount', { valueAsNumber: true })}
@@ -269,7 +269,7 @@ export default function SalaryAdjustmentDialog({
             id="adj-reason"
             type="text"
             placeholder="Enter reason"
-            className={`w-full rounded-xl border bg-white px-3.5 py-2.5 text-sm text-slate-800 placeholder-slate-400 ring-ring focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-ring ${
+            className={`w-full rounded-xl border bg-white px-3.5 py-2.5 text-sm text-slate-800 placeholder-slate-400 ring-ring focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring ${
               errors.reason ? 'border-red-400' : 'border-slate-300'
             }`}
             {...register('reason')}
@@ -284,7 +284,7 @@ export default function SalaryAdjustmentDialog({
           <input
             id="adj-date"
             type="date"
-            className={`w-full rounded-xl border bg-white px-3.5 py-2.5 text-sm text-slate-800 ring-ring focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-ring ${
+            className={`w-full rounded-xl border bg-white px-3.5 py-2.5 text-sm text-slate-800 ring-ring focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring ${
               errors.date ? 'border-red-400' : 'border-slate-300'
             }`}
             {...register('date')}
@@ -300,7 +300,7 @@ export default function SalaryAdjustmentDialog({
               </label>
               <select
                 id="adj-month"
-                className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-800 ring-ring focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-ring"
+                className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-800 ring-ring focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring"
                 {...register('month', { valueAsNumber: true })}
               >
                 {MONTHS.map((name, idx) => (
@@ -318,7 +318,7 @@ export default function SalaryAdjustmentDialog({
                 type="number"
                 min="2000"
                 max="2100"
-                className={`w-full rounded-xl border bg-white px-3.5 py-2.5 text-sm text-slate-800 placeholder-slate-400 ring-ring focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-ring ${
+                className={`w-full rounded-xl border bg-white px-3.5 py-2.5 text-sm text-slate-800 placeholder-slate-400 ring-ring focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring ${
                   (errors as Record<string, unknown>).year ? 'border-red-400' : 'border-slate-300'
                 }`}
                 {...register('year', { valueAsNumber: true })}

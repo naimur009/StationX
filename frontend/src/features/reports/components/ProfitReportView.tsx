@@ -23,7 +23,7 @@ export default function ProfitReportView({ data }: ProfitReportViewProps) {
           {data.range.from} — {data.range.to}
         </div>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-          <MetricBox label="Total Revenue" value={`৳${data.income.totalRevenue.toLocaleString()}`} color="text-blue-600" />
+          <MetricBox label="Total Revenue" value={`৳${data.income.totalRevenue.toLocaleString()}`} color="text-primary" />
           <MetricBox label="Total Orders" value={String(data.income.totalOrders)} color="text-green-600" />
           <MetricBox label="Products Sold" value={String(data.income.totalProductsSold)} color="text-green-600" />
         </div>
@@ -32,9 +32,9 @@ export default function ProfitReportView({ data }: ProfitReportViewProps) {
       <div className="rounded-xl border border-border bg-white p-5 shadow-sm">
         <h3 className="mb-3 text-sm font-semibold text-slate-700">Profit Calculation</h3>
         <div className="space-y-3">
-          <div className="flex items-center justify-between rounded-lg bg-blue-50 px-4 py-3">
-            <span className="text-sm font-medium text-blue-700">Revenue</span>
-            <span className="text-lg font-bold text-blue-700">+ ৳{data.income.totalRevenue.toLocaleString()}</span>
+          <div className="flex items-center justify-between rounded-lg bg-indigo-50 px-4 py-3">
+            <span className="text-sm font-medium text-indigo-700">Revenue</span>
+            <span className="text-lg font-bold text-indigo-700">+ ৳{data.income.totalRevenue.toLocaleString()}</span>
           </div>
           <div className="flex items-center justify-between rounded-lg bg-red-50 px-4 py-3">
             <span className="text-sm font-medium text-red-700">Expenses</span>

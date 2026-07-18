@@ -136,7 +136,7 @@ export default function EmployeeForm({ open, employee, onClose }: EmployeeFormPr
               id="emp-name"
               type="text"
               placeholder="John Doe"
-              className={`w-full rounded-xl border bg-white px-3.5 py-2.5 text-sm text-slate-800 placeholder-slate-400 ring-ring focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-ring ${
+              className={`w-full rounded-xl border bg-white px-3.5 py-2.5 text-sm text-slate-800 placeholder-slate-400 ring-ring focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring ${
                 fieldErrors.name ? 'border-red-400' : 'border-slate-300'
               }`}
               {...fields.name}
@@ -152,7 +152,7 @@ export default function EmployeeForm({ open, employee, onClose }: EmployeeFormPr
               id="emp-phone"
               type="text"
               placeholder="+8801XXXXXXXXX"
-              className={`w-full rounded-xl border bg-white px-3.5 py-2.5 text-sm text-slate-800 placeholder-slate-400 ring-ring focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-ring ${
+              className={`w-full rounded-xl border bg-white px-3.5 py-2.5 text-sm text-slate-800 placeholder-slate-400 ring-ring focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring ${
                 fieldErrors.phone ? 'border-red-400' : 'border-slate-300'
               }`}
               {...fields.phone}
@@ -170,7 +170,7 @@ export default function EmployeeForm({ open, employee, onClose }: EmployeeFormPr
               step="0.01"
               min="0"
               placeholder="e.g. 10000"
-              className={`w-full rounded-xl border bg-white px-3.5 py-2.5 text-sm text-slate-800 placeholder-slate-400 ring-ring focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-ring ${
+              className={`w-full rounded-xl border bg-white px-3.5 py-2.5 text-sm text-slate-800 placeholder-slate-400 ring-ring focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring ${
                 fieldErrors.baseSalary ? 'border-red-400' : 'border-slate-300'
               }`}
               {...fields.baseSalary}
@@ -187,7 +187,7 @@ export default function EmployeeForm({ open, employee, onClose }: EmployeeFormPr
             id="emp-address"
             type="text"
             placeholder="123 Main Street, Dhaka"
-            className={`w-full rounded-xl border bg-white px-3.5 py-2.5 text-sm text-slate-800 placeholder-slate-400 ring-ring focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-ring ${
+            className={`w-full rounded-xl border bg-white px-3.5 py-2.5 text-sm text-slate-800 placeholder-slate-400 ring-ring focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring ${
               fieldErrors.address ? 'border-red-400' : 'border-slate-300'
             }`}
             {...fields.address}

@@ -8,7 +8,7 @@ const buttonVariants = cva(
     variants: {
       variant: {
         primary:
-          "bg-primary text-primary-foreground shadow-blue-500/25 hover:bg-[hsl(var(--primary-hover))]",
+          "bg-primary text-primary-foreground shadow-primary/25 hover:bg-[hsl(var(--primary-hover))]",
         secondary:
           "bg-secondary text-secondary-foreground hover:bg-[hsl(var(--secondary-hover))]",
         success:
@@ -16,7 +16,7 @@ const buttonVariants = cva(
         destructive:
           "bg-destructive text-destructive-foreground shadow-red-500/25 hover:bg-[hsl(var(--destructive-hover))]",
         warning:
-          "bg-warning text-warning-foreground shadow-amber-500/25 hover:bg-[hsl(var(--warning-hover))]",
+          "bg-warning text-warning-foreground shadow-[#F8C301]/40 hover:bg-[hsl(var(--warning-hover))]",
         ghost:
           "text-slate-600 hover:bg-slate-100",
         outline:

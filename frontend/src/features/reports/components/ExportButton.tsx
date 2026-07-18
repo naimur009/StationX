@@ -28,7 +28,7 @@ export default function ExportButton({ type, range, from, to }: ExportButtonProp
         size="sm"
         onClick={handleExport}
         disabled={mutation.isPending}
-        className="shadow-blue-500/25"
+        className="shadow-primary/25"
       >
         {mutation.isPending ? (
           <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />

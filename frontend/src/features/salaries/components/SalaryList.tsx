@@ -174,7 +174,7 @@ export default function SalaryList({ onAddAdvance, onViewDetail, onDelete, onPay
         <select
           value={monthFilter}
           onChange={(e) => { setMonthFilter(Number(e.target.value)); setPage(1); }}
-          className="rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-700 ring-ring focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-ring"
+          className="rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-700 ring-ring focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring"
         >
           {MONTHS.map((name, idx) => (
             <option key={idx + 1} value={idx + 1}>{name}</option>
@@ -184,7 +184,7 @@ export default function SalaryList({ onAddAdvance, onViewDetail, onDelete, onPay
         <select
           value={yearFilter}
           onChange={(e) => { setYearFilter(Number(e.target.value)); setPage(1); }}
-          className="rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-700 ring-ring focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-ring"
+          className="rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-700 ring-ring focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring"
         >
           {years.map((y) => (
             <option key={y} value={y}>{y}</option>
@@ -194,7 +194,7 @@ export default function SalaryList({ onAddAdvance, onViewDetail, onDelete, onPay
         <select
           value={paymentFilter}
           onChange={(e) => { setPaymentFilter(e.target.value); setPage(1); }}
-          className="rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-700 ring-ring focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-ring"
+          className="rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-700 ring-ring focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring"
         >
           <option value="">All</option>
           <option value="unpaid">Unpaid</option>
@@ -411,7 +411,7 @@ export default function SalaryList({ onAddAdvance, onViewDetail, onDelete, onPay
                         <div className="flex items-center justify-end gap-1">
                           <button
                             onClick={() => onViewDetail(salary)}
-                            className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-blue-600"
+                            className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-primary"
                             title="View details"
                           >
                             <Eye className="h-4 w-4" />

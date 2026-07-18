@@ -98,8 +98,8 @@ export default function VendorDetail({ vendorId, onEdit }: VendorDetailProps) {
       <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex items-start gap-4">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-blue-100">
-              <Building2 className="h-6 w-6 text-blue-600" />
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-indigo-100">
+              <Building2 className="h-6 w-6 text-indigo-600" />
             </div>
             <div>
               <h1 className="text-xl font-bold text-slate-800 sm:text-2xl">{vendor.name}</h1>
@@ -161,7 +161,7 @@ export default function VendorDetail({ vendorId, onEdit }: VendorDetailProps) {
             {vendor.itemsSupplied.map((tag) => (
               <span
                 key={tag}
-                className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-3 py-1 text-sm font-medium text-blue-700"
+                className="inline-flex items-center gap-1 rounded-full bg-indigo-50 px-3 py-1 text-sm font-medium text-indigo-700"
               >
                 {tag}
               </span>

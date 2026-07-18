@@ -139,7 +139,7 @@ export default function EditUserForm({ user, onClose }: EditUserFormProps) {
           <input
             id="edit-name"
             type="text"
-            className={`w-full rounded-xl border bg-white px-3.5 py-2.5 text-sm text-slate-800 placeholder-slate-400 ring-ring focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-ring ${
+            className={`w-full rounded-xl border bg-white px-3.5 py-2.5 text-sm text-slate-800 placeholder-slate-400 ring-ring focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring ${
               errors.name ? 'border-red-400' : 'border-slate-300'
             }`}
             {...register('name')}
@@ -154,7 +154,7 @@ export default function EditUserForm({ user, onClose }: EditUserFormProps) {
           <input
             id="edit-email"
             type="email"
-            className={`w-full rounded-xl border bg-white px-3.5 py-2.5 text-sm text-slate-800 placeholder-slate-400 ring-ring focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-ring ${
+            className={`w-full rounded-xl border bg-white px-3.5 py-2.5 text-sm text-slate-800 placeholder-slate-400 ring-ring focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring ${
               errors.email ? 'border-red-400' : 'border-slate-300'
             }`}
             {...register('email')}
@@ -200,7 +200,7 @@ export default function EditUserForm({ user, onClose }: EditUserFormProps) {
                     setNewPassword(e.target.value);
                     setPasswordError(null);
                   }}
-                  className="flex-1 rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-800 placeholder-slate-400 ring-ring focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-ring"
+                  className="flex-1 rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-800 placeholder-slate-400 ring-ring focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring"
                 />
                 <Button
                   type="button"

@@ -140,7 +140,7 @@ export default function AddAdvanceDialog({ open, salary, onClose }: AddAdvanceDi
             step="0.01"
             min="0"
             placeholder="e.g. 3000"
-            className={`w-full rounded-xl border bg-white px-3.5 py-2.5 text-sm text-slate-800 placeholder-slate-400 ring-ring focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-ring ${
+            className={`w-full rounded-xl border bg-white px-3.5 py-2.5 text-sm text-slate-800 placeholder-slate-400 ring-ring focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring ${
               errors.amount ? 'border-red-400' : 'border-slate-300'
             }`}
             {...register('amount', { valueAsNumber: true })}
@@ -155,7 +155,7 @@ export default function AddAdvanceDialog({ open, salary, onClose }: AddAdvanceDi
           <input
             id="advance-date"
             type="date"
-            className={`w-full rounded-xl border bg-white px-3.5 py-2.5 text-sm text-slate-800 ring-ring focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-ring ${
+            className={`w-full rounded-xl border bg-white px-3.5 py-2.5 text-sm text-slate-800 ring-ring focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring ${
               errors.date ? 'border-red-400' : 'border-slate-300'
             }`}
             {...register('date')}
@@ -171,7 +171,7 @@ export default function AddAdvanceDialog({ open, salary, onClose }: AddAdvanceDi
             id="advance-note"
             type="text"
             placeholder="Optional note"
-            className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-800 placeholder-slate-400 ring-ring focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-ring"
+            className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-800 placeholder-slate-400 ring-ring focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring"
             {...register('note')}
           />
         </div>

@@ -48,7 +48,7 @@ export default function OrderFilters({ onFilter }: OrderFiltersProps) {
         <select
           value={status}
           onChange={(e) => setStatus(e.target.value)}
-          className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-ring"
+          className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-800 focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring"
         >
           <option value="all">All statuses</option>
           <option value="pending">Pending</option>
@@ -62,7 +62,7 @@ export default function OrderFilters({ onFilter }: OrderFiltersProps) {
         <select
           value={paymentStatus}
           onChange={(e) => setPaymentStatus(e.target.value)}
-          className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-ring"
+          className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-800 focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring"
         >
           <option value="all">All payments</option>
           <option value="paid">Paid</option>

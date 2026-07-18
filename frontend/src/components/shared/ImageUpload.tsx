@@ -158,7 +158,7 @@ export default function ImageUpload({
           <button
             type="button"
             onClick={() => inputRef.current?.click()}
-            className="text-sm font-medium text-blue-600 hover:text-blue-700"
+            className="text-sm font-medium text-primary hover:text-primary"
             disabled={disabled}
           >
             Replace
@@ -192,7 +192,7 @@ export default function ImageUpload({
         style={aspectStyle}
       >
         <div className="flex flex-col items-center gap-2">
-          <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
           <span className="text-xs text-slate-500">Uploading...</span>
         </div>
       </div>
@@ -213,7 +213,7 @@ export default function ImageUpload({
         <button
           type="button"
           onClick={handleRetry}
-          className="text-sm font-medium text-blue-600 hover:text-blue-700"
+          className="text-sm font-medium text-primary hover:text-primary"
           disabled={disabled}
         >
           Try again
@@ -236,7 +236,7 @@ export default function ImageUpload({
           'flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed p-4 sm:p-6 transition-colors',
           dropZoneSize,
           dragOver
-            ? 'border-blue-500 bg-blue-50/50'
+            ? 'border-primary bg-indigo-50/50'
             : 'border-slate-300 bg-slate-50 hover:border-slate-400',
           disabled && 'cursor-not-allowed opacity-50'
         )}
@@ -244,8 +244,8 @@ export default function ImageUpload({
       >
         {dragOver ? (
           <>
-            <Upload className="mb-2 h-8 w-8 text-blue-500" />
-            <p className="text-sm font-medium text-blue-600">Drop here</p>
+            <Upload className="mb-2 h-8 w-8 text-primary" />
+            <p className="text-sm font-medium text-primary">Drop here</p>
           </>
         ) : (
           <>

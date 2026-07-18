@@ -188,8 +188,8 @@ export default function DashboardLayout({
       />
 
       {navigating && (
-        <div className="fixed top-0 left-0 right-0 z-50 h-0.5 bg-blue-600/20">
-          <div className="h-full bg-blue-600 animate-[nav-bar_0.6s_ease-in-out_forwards]" />
+        <div className="fixed top-0 left-0 right-0 z-50 h-0.5 bg-gradient-to-r from-[#D81B26]/20 via-[#F8C301]/20 to-[#D81B26]/20">
+          <div className="h-full bg-gradient-to-r from-[#D81B26] via-[#F8C301] to-[#D81B26] animate-[nav-bar_0.6s_ease-in-out_forwards]" />
         </div>
       )}
 

@@ -1,5 +1,6 @@
 import Task, { ITask } from '../../models/Task';
 import Employee from '../../models/Employee';
+import User from '../../models/User';
 import { createError } from '../../middleware/errorHandler';
 import type {
   CreateTaskDto,
@@ -207,6 +208,35 @@ export async function updateTaskStatus(id: string, status: UpdateTaskStatusDto['
 }
 
 export async function listAssignableEmployees() {
+  // Sync users with employee-type roles into the Employee collection
+  const users = await User.find(
+    { role: { $in: ['employee', 'manager', 'chief'] }, name: { $exists: true, $ne: '' } },
+    'name'
+  ).lean();
+
+  if (users.length > 0) {
+    const validUsers = users.filter((u): u is typeof u & { name: string } => !!u.name);
+
+    const existingEmps = await Employee.find(
+      { name: { $in: validUsers.map((u) => u.name) } },
+      'name'
+    ).lean();
+    const existingNames = new Set(existingEmps.map((e) => e.name));
+
+    const newEmps = validUsers
+      .filter((u) => !existingNames.has(u.name))
+      .map((u) => ({
+        name: u.name,
+        phone: '',
+        address: '',
+        baseSalary: 0,
+      }));
+
+    if (newEmps.length > 0) {
+      await Employee.insertMany(newEmps);
+    }
+  }
+
   const employees = await Employee.find({}, 'name').sort({ name: 1 }).lean();
   return employees.map((e) => ({ id: e._id.toString(), name: e.name }));
 }

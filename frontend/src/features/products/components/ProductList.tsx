@@ -66,14 +66,14 @@ export default function ProductList({ onEdit, onDelete }: ProductListProps) {
             placeholder="Search products..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full rounded-xl border border-slate-300 bg-white py-2.5 pl-10 pr-3.5 text-sm text-slate-800 placeholder-slate-400 ring-ring focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-ring"
+            className="w-full rounded-xl border border-slate-300 bg-white py-2.5 pl-10 pr-3.5 text-sm text-slate-800 placeholder-slate-400 ring-ring focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring"
           />
         </div>
 
         <select
           value={categoryFilter}
           onChange={(e) => setCategoryFilter(e.target.value)}
-          className="w-full md:w-auto rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-700 ring-ring focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-ring"
+          className="w-full md:w-auto rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-700 ring-ring focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring"
         >
           <option value="">All Categories</option>
           {categoriesData?.data.map((cat) => (
@@ -129,7 +129,7 @@ export default function ProductList({ onEdit, onDelete }: ProductListProps) {
                 )}
                 <button
                   onClick={() => onEdit(product)}
-                  className="absolute right-2 top-2 z-10 rounded-lg bg-white/90 p-2 text-slate-500 shadow-sm backdrop-blur transition-colors hover:bg-white hover:text-blue-600"
+                  className="absolute right-2 top-2 z-10 rounded-lg bg-white/90 p-2 text-slate-500 shadow-sm backdrop-blur transition-colors hover:bg-white hover:text-primary"
                   title="Edit product"
                   aria-label="Edit product"
                 >
@@ -142,7 +142,7 @@ export default function ProductList({ onEdit, onDelete }: ProductListProps) {
                   {product.name}
                 </h3>
 
-                <p className="mt-1 text-sm sm:text-base font-semibold text-blue-600">
+                <p className="mt-1 text-sm sm:text-base font-semibold text-primary">
                   {formatCurrency(product.price)}
                 </p>
 

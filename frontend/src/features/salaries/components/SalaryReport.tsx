@@ -83,7 +83,7 @@ export default function SalaryReport() {
         <select
           value={monthFilter}
           onChange={(e) => setMonthFilter(Number(e.target.value))}
-          className="rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-700 ring-ring focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-ring"
+          className="rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-700 ring-ring focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring"
         >
           {MONTHS.map((name, idx) => (
             <option key={idx + 1} value={idx + 1}>{name}</option>
@@ -93,7 +93,7 @@ export default function SalaryReport() {
         <select
           value={yearFilter}
           onChange={(e) => { setYearFilter(Number(e.target.value)); setSelectedEmployeeId('') }}
-          className="rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-700 ring-ring focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-ring"
+          className="rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-700 ring-ring focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring"
         >
           {years.map((y) => (
             <option key={y} value={y}>{y}</option>
@@ -103,7 +103,7 @@ export default function SalaryReport() {
         <select
           value={viewMode}
           onChange={(e) => setViewMode(e.target.value === 'all' ? 'all' : Number(e.target.value))}
-          className="rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-700 ring-ring focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-ring"
+          className="rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-700 ring-ring focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring"
         >
           <option value="all">All Employees</option>
           <option value={1}>Unpaid</option>
@@ -114,7 +114,7 @@ export default function SalaryReport() {
         <select
           value={selectedEmployeeId}
           onChange={(e) => setSelectedEmployeeId(e.target.value)}
-          className="rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-700 ring-ring focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-ring min-w-[220px]"
+          className="rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-700 ring-ring focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring min-w-[220px]"
         >
           <option value="">Select Employee for Details</option>
           {employees.map((emp) => (
@@ -125,7 +125,7 @@ export default function SalaryReport() {
 
       {reportLoading ? (
         <div className="flex items-center justify-center rounded-2xl border border-slate-200 bg-white py-16 shadow-sm">
-          <div className="h-10 w-10 animate-spin rounded-full border-4 border-blue-600 border-t-transparent spinner-smooth" />
+          <div className="h-10 w-10 animate-spin rounded-full border-4 border-primary border-t-transparent spinner-smooth" />
         </div>
       ) : reportError ? (
         <div className="rounded-2xl border border-slate-200 bg-white px-4 py-12 text-center text-sm text-red-500 shadow-sm">
@@ -156,7 +156,7 @@ export default function SalaryReport() {
             </div>
             <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
               <span className="text-xs text-slate-500">Net Salary</span>
-              <p className="mt-1 text-xl sm:text-2xl font-bold text-blue-600">{formatCurrency(report.grandTotalNet)}</p>
+              <p className="mt-1 text-xl sm:text-2xl font-bold text-primary">{formatCurrency(report.grandTotalNet)}</p>
             </div>
           </div>
 
@@ -238,7 +238,7 @@ export default function SalaryReport() {
                   </div>
                   <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
                     <span className="text-xs text-slate-500">Net Salary</span>
-                    <p className="mt-1 text-xl sm:text-2xl font-bold text-blue-600">{formatCurrency(totalBase + totalBonus - totalCut)}</p>
+                    <p className="mt-1 text-xl sm:text-2xl font-bold text-primary">{formatCurrency(totalBase + totalBonus - totalCut)}</p>
                   </div>
                 </>
               );
@@ -247,7 +247,7 @@ export default function SalaryReport() {
 
           {empReportLoading ? (
             <div className="flex items-center justify-center rounded-2xl border border-slate-200 bg-white py-16 shadow-sm">
-              <div className="h-10 w-10 animate-spin rounded-full border-4 border-blue-600 border-t-transparent spinner-smooth" />
+              <div className="h-10 w-10 animate-spin rounded-full border-4 border-primary border-t-transparent spinner-smooth" />
             </div>
           ) : (
             <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">

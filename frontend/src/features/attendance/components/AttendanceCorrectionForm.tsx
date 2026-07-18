@@ -98,9 +98,9 @@ export default function AttendanceCorrectionForm({ recordId, onClose }: Attendan
       }
     >
       {/* Header banner */}
-      <div className="-mx-6 -mt-5 mb-5 bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-border/50 px-6 py-4">
+      <div className="-mx-6 -mt-5 mb-5 bg-gradient-to-r from-indigo-50 to-indigo-50 border-b border-border/50 px-6 py-4">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-100 text-blue-600">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-100 text-indigo-600">
             <FileText className="h-5 w-5" />
           </div>
           <div>
@@ -218,7 +218,7 @@ export default function AttendanceCorrectionForm({ recordId, onClose }: Attendan
               onChange={(e) => setNotes(e.target.value)}
               maxLength={500}
               rows={3}
-              className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-ring focus:border-blue-500 resize-none"
+              className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring resize-none"
               placeholder="Reason for correction..."
             />
             <p className="mt-1 text-right text-xs text-slate-400">{notes.length}/500</p>

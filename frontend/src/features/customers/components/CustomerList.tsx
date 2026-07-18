@@ -66,7 +66,7 @@ export default function CustomerList({ onEdit, onDelete, onCreate }: CustomerLis
           placeholder="Search by name or phone..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="w-full rounded-xl border border-slate-300 bg-white py-2.5 pl-10 pr-3.5 text-sm text-slate-800 placeholder-slate-400 ring-ring focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-ring"
+          className="w-full rounded-xl border border-slate-300 bg-white py-2.5 pl-10 pr-3.5 text-sm text-slate-800 placeholder-slate-400 ring-ring focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring"
         />
       </div>
 
@@ -129,7 +129,7 @@ export default function CustomerList({ onEdit, onDelete, onCreate }: CustomerLis
                 <div className="mt-3 flex items-center justify-end gap-1.5">
                   <button
                     onClick={() => onEdit(customer)}
-                    className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-blue-600 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                    className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-primary focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
                     title="Edit customer"
                   >
                     <Edit3 className="h-4 w-4" />
@@ -179,7 +179,7 @@ export default function CustomerList({ onEdit, onDelete, onCreate }: CustomerLis
                       <div className="flex items-center justify-end gap-2">
                         <button
                           onClick={() => onEdit(customer)}
-                          className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-blue-600 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                          className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-primary focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
                           title="Edit customer"
                         >
                           <Edit3 className="h-4 w-4" />

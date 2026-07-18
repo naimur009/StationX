@@ -12,8 +12,8 @@
     --popover: 0 0% 100%;
     --popover-foreground: 222 47% 11%;
 
-    --primary: 221 83% 53%;
-    --primary-hover: 224 76% 48%;
+    --primary: 356 78% 48%;
+    --primary-hover: 356 78% 38%;
     --primary-foreground: 0 0% 100%;
 
     --secondary: 210 40% 96%;
@@ -27,8 +27,8 @@
     --success-hover: 142 72% 29%;
     --success-foreground: 0 0% 100%;
 
-    --warning: 38 92% 50%;
-    --warning-hover: 32 95% 44%;
+    --warning: 47 99% 49%;
+    --warning-hover: 47 99% 40%;
     --warning-foreground: 0 0% 100%;
 
     --destructive: 0 72% 51%;
@@ -38,15 +38,18 @@
     --info: 244 75% 59%;
     --info-foreground: 0 0% 100%;
 
+    --accent: 47 99% 49%;
+    --accent-foreground: 0 0% 100%;
+
     --border: 214 32% 91%;
     --input: 213 27% 84%;
-    --ring: 217 91% 60%;
+    --ring: 47 99% 49%;
     --radius: 0.75rem;
 
-    --chart-1: 221 83% 53%;
-    --chart-2: 142 76% 36%;
-    --chart-3: 244 75% 59%;
-    --chart-4: 38 92% 50%;
+    --chart-1: 356 78% 48%;
+    --chart-2: 47 99% 49%;
+    --chart-3: 142 76% 36%;
+    --chart-4: 244 75% 59%;
     --chart-5: 0 72% 51%;
   }
 
@@ -80,7 +83,7 @@
   }
 
   .gradient-bg {
-    background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 50%, #1d4ed8 100%);
+    background: linear-gradient(135deg, #D81B26 0%, #F8C301 50%, #D81B26 100%);
   }
 
   .table-row-hover:hover {
@@ -159,7 +162,7 @@
 
 .spinner-smooth {
   border-color: hsl(var(--primary) / 0.15);
-  border-top-color: hsl(var(--primary));
+  border-top-color: hsl(var(--warning));
 }
 
 

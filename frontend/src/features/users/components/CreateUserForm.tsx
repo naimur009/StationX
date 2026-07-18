@@ -95,7 +95,7 @@ export default function CreateUserForm({ open, onClose }: CreateUserFormProps) {
             id="create-name"
             type="text"
             placeholder="John Doe"
-            className={`w-full rounded-xl border bg-white px-3.5 py-2.5 text-sm text-slate-800 placeholder-slate-400 ring-ring focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-ring ${
+            className={`w-full rounded-xl border bg-white px-3.5 py-2.5 text-sm text-slate-800 placeholder-slate-400 ring-ring focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring ${
               errors.name ? 'border-red-400' : 'border-slate-300'
             }`}
             {...register('name')}
@@ -111,7 +111,7 @@ export default function CreateUserForm({ open, onClose }: CreateUserFormProps) {
             id="create-email"
             type="email"
             placeholder="user@restaurant.com"
-            className={`w-full rounded-xl border bg-white px-3.5 py-2.5 text-sm text-slate-800 placeholder-slate-400 ring-ring focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-ring ${
+            className={`w-full rounded-xl border bg-white px-3.5 py-2.5 text-sm text-slate-800 placeholder-slate-400 ring-ring focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring ${
               errors.email ? 'border-red-400' : 'border-slate-300'
             }`}
             {...register('email')}
@@ -127,7 +127,7 @@ export default function CreateUserForm({ open, onClose }: CreateUserFormProps) {
             id="create-password"
             type="password"
             placeholder="At least 8 characters"
-            className={`w-full rounded-xl border bg-white px-3.5 py-2.5 text-sm text-slate-800 placeholder-slate-400 ring-ring focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-ring ${
+            className={`w-full rounded-xl border bg-white px-3.5 py-2.5 text-sm text-slate-800 placeholder-slate-400 ring-ring focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring ${
               errors.password ? 'border-red-400' : 'border-slate-300'
             }`}
             {...register('password')}

@@ -185,7 +185,7 @@ export default function ExpenseDetail({ expenseId, onEdit }: ExpenseDetailProps)
                 <p className="text-xs font-medium text-slate-500">Vendor</p>
                 <button
                   onClick={() => router.push(`/vendors/${expense.vendorId!._id}`)}
-                  className="truncate text-sm text-blue-600 hover:underline"
+                  className="truncate text-sm text-primary hover:underline"
                 >
                   {expense.vendorId.name}
                 </button>

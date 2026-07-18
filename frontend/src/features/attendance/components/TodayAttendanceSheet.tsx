@@ -127,7 +127,7 @@ export default function TodayAttendanceSheet() {
       <CardHeader className="border-b border-border/50 bg-gradient-to-r from-slate-50 to-white">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-100 text-blue-600">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-100 text-indigo-600">
               <Users className="h-5 w-5" />
             </div>
             <div>
@@ -324,7 +324,7 @@ function StaffRow({
     <tr className={`border-b border-slate-100 last:border-0 transition-opacity ${isPending ? 'opacity-50' : 'hover:bg-slate-50/50'}`}>
       <td className="px-4 py-3.5 pl-6">
         <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-blue-600 text-xs font-bold text-white shadow-sm">
+          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-primary to-primary text-xs font-bold text-white shadow-sm">
             {item.employee.name.charAt(0).toUpperCase()}
           </div>
           <div>
@@ -405,7 +405,7 @@ function StaffCard({
       {/* Header row */}
       <div className="mb-3 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-blue-600 text-sm font-bold text-white shadow-sm">
+          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-primary to-primary text-sm font-bold text-white shadow-sm">
             {item.employee.name.charAt(0).toUpperCase()}
           </div>
           <div>

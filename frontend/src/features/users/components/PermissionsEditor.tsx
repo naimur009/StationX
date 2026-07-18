@@ -83,7 +83,7 @@ export default function PermissionsEditor({ value, onChange }: PermissionsEditor
                         disabled={isDisabled}
                         checked={checked}
                         onChange={() => handleToggle(module, action)}
-                        className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 disabled:opacity-30"
+                        className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-ring disabled:opacity-30"
                       />
                     </td>
                   );
@@ -93,7 +93,7 @@ export default function PermissionsEditor({ value, onChange }: PermissionsEditor
                     type="checkbox"
                     checked={allSelected && validActions.length > 0}
                     onChange={() => handleRowSelectAll(module, validActions)}
-                    className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                    className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-ring"
                   />
                 </td>
               </tr>

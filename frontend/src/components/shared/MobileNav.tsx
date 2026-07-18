@@ -41,13 +41,7 @@ export default function MobileNav({ open, onClose, onLogout }: MobileNavProps) {
       >
         <div className="flex min-h-[64px] items-center justify-between border-b border-white/10 p-4">
           <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary shadow-lg">
-              <span className="text-sm font-bold text-white">W</span>
-            </div>
-            <div>
-              <div className="text-sm font-bold text-white">StationX</div>
-              <div className="text-xs text-slate-400">Management</div>
-            </div>
+            <span className="text-lg font-bold"><span className="text-[#F8C301]">Station</span><span className="text-2xl font-black italic text-[#D81B26]">X</span></span>
           </div>
           <button
             type="button"

@@ -205,7 +205,7 @@ export default function ExpenseForm({ open, expense, onClose }: ExpenseFormProps
               step="0.01"
               min="0"
               placeholder="e.g. 4500"
-              className={`w-full rounded-xl border bg-white px-3.5 py-2.5 text-sm text-slate-800 placeholder-slate-400 ring-ring focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-ring ${
+              className={`w-full rounded-xl border bg-white px-3.5 py-2.5 text-sm text-slate-800 placeholder-slate-400 ring-ring focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring ${
                 errors.amount ? 'border-red-400' : 'border-slate-300'
               }`}
               {...register('amount', { valueAsNumber: true })}
@@ -220,7 +220,7 @@ export default function ExpenseForm({ open, expense, onClose }: ExpenseFormProps
             <input
               id="expense-date"
               type="date"
-              className={`w-full rounded-xl border bg-white px-3.5 py-2.5 text-sm text-slate-800 placeholder-slate-400 ring-ring focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-ring ${
+              className={`w-full rounded-xl border bg-white px-3.5 py-2.5 text-sm text-slate-800 placeholder-slate-400 ring-ring focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring ${
                 errors.date ? 'border-red-400' : 'border-slate-300'
               }`}
               {...register('date')}
@@ -237,7 +237,7 @@ export default function ExpenseForm({ open, expense, onClose }: ExpenseFormProps
             id="expense-description"
             rows={3}
             placeholder="e.g. Weekly vegetable supply from Fresh Farms"
-            className={`w-full rounded-xl border bg-white px-3.5 py-2.5 text-sm text-slate-800 placeholder-slate-400 ring-ring focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-ring ${
+            className={`w-full rounded-xl border bg-white px-3.5 py-2.5 text-sm text-slate-800 placeholder-slate-400 ring-ring focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring ${
               errors.description ? 'border-red-400' : 'border-slate-300'
             }`}
             {...register('description')}
@@ -253,7 +253,7 @@ export default function ExpenseForm({ open, expense, onClose }: ExpenseFormProps
             id="expense-category"
             type="text"
             placeholder="e.g. Ingredients, Utilities, Maintenance"
-            className={`w-full rounded-xl border bg-white px-3.5 py-2.5 text-sm text-slate-800 placeholder-slate-400 ring-ring focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-ring ${
+            className={`w-full rounded-xl border bg-white px-3.5 py-2.5 text-sm text-slate-800 placeholder-slate-400 ring-ring focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring ${
               errors.category ? 'border-red-400' : 'border-slate-300'
             }`}
             {...register('category')}
@@ -268,7 +268,7 @@ export default function ExpenseForm({ open, expense, onClose }: ExpenseFormProps
             </label>
             <select
               id="expense-vendor"
-              className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-800 ring-ring focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-ring"
+              className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-800 ring-ring focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring"
               {...register('vendorId')}
             >
               <option value="">-- None (ad-hoc) --</option>
@@ -288,7 +288,7 @@ export default function ExpenseForm({ open, expense, onClose }: ExpenseFormProps
               id="expense-paid-to"
               type="text"
               placeholder="e.g. Fresh Farms Co."
-              className={`w-full rounded-xl border bg-white px-3.5 py-2.5 text-sm text-slate-800 placeholder-slate-400 ring-ring focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-ring ${
+              className={`w-full rounded-xl border bg-white px-3.5 py-2.5 text-sm text-slate-800 placeholder-slate-400 ring-ring focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring ${
                 errors.paidTo ? 'border-red-400' : 'border-slate-300'
               }`}
               {...register('paidTo')}
@@ -304,7 +304,7 @@ export default function ExpenseForm({ open, expense, onClose }: ExpenseFormProps
             </label>
             <select
               id="expense-paid-by"
-              className={`w-full rounded-xl border bg-white px-3.5 py-2.5 text-sm text-slate-800 ring-ring focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-ring ${
+              className={`w-full rounded-xl border bg-white px-3.5 py-2.5 text-sm text-slate-800 ring-ring focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring ${
                 errors.paidBy ? 'border-red-400' : 'border-slate-300'
               }`}
               {...register('paidBy')}
@@ -325,7 +325,7 @@ export default function ExpenseForm({ open, expense, onClose }: ExpenseFormProps
             </label>
             <select
               id="expense-payment"
-              className={`w-full rounded-xl border bg-white px-3.5 py-2.5 text-sm text-slate-800 ring-ring focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-ring ${
+              className={`w-full rounded-xl border bg-white px-3.5 py-2.5 text-sm text-slate-800 ring-ring focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring ${
                 errors.paymentMethod ? 'border-red-400' : 'border-slate-300'
               }`}
               {...register('paymentMethod')}

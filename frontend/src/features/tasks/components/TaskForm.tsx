@@ -136,7 +136,7 @@ export default function TaskForm({ open, task, onClose }: TaskFormProps) {
             id="task-title"
             type="text"
             placeholder="e.g. Clean the walk-in freezer"
-            className={`w-full rounded-xl border bg-white px-3.5 py-2.5 text-sm text-slate-800 placeholder-slate-400 ring-ring focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-ring ${
+            className={`w-full rounded-xl border bg-white px-3.5 py-2.5 text-sm text-slate-800 placeholder-slate-400 ring-ring focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring ${
               errors.title ? 'border-red-400' : 'border-slate-300'
             }`}
             {...register('title')}
@@ -152,7 +152,7 @@ export default function TaskForm({ open, task, onClose }: TaskFormProps) {
             id="task-description"
             rows={3}
             placeholder="Optional details about the task"
-            className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-800 placeholder-slate-400 ring-ring focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-ring"
+            className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-800 placeholder-slate-400 ring-ring focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring"
             {...register('description')}
           />
           {errors.description && <p className="mt-1 text-xs text-red-500">{errors.description.message as string}</p>}
@@ -165,7 +165,7 @@ export default function TaskForm({ open, task, onClose }: TaskFormProps) {
             </label>
             <select
               id="task-assignee"
-              className={`w-full rounded-xl border bg-white px-3.5 py-2.5 text-sm text-slate-800 ring-ring focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-ring ${
+              className={`w-full rounded-xl border bg-white px-3.5 py-2.5 text-sm text-slate-800 ring-ring focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring ${
                 errors.assignedTo ? 'border-red-400' : 'border-slate-300'
               }`}
               {...register('assignedTo')}
@@ -184,7 +184,7 @@ export default function TaskForm({ open, task, onClose }: TaskFormProps) {
             </label>
             <select
               id="task-priority"
-              className={`w-full rounded-xl border bg-white px-3.5 py-2.5 text-sm text-slate-800 ring-ring focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-ring ${
+              className={`w-full rounded-xl border bg-white px-3.5 py-2.5 text-sm text-slate-800 ring-ring focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring ${
                 errors.priority ? 'border-red-400' : 'border-slate-300'
               }`}
               {...register('priority')}
@@ -204,7 +204,7 @@ export default function TaskForm({ open, task, onClose }: TaskFormProps) {
           <input
             id="task-deadline"
             type="date"
-            className={`w-full rounded-xl border bg-white px-3.5 py-2.5 text-sm text-slate-800 ring-ring focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-ring ${
+            className={`w-full rounded-xl border bg-white px-3.5 py-2.5 text-sm text-slate-800 ring-ring focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring ${
               errors.deadline ? 'border-red-400' : 'border-slate-300'
             }`}
             {...register('deadline')}

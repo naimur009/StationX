@@ -211,8 +211,8 @@ export default function TaskDetail({ taskId, onEdit }: TaskDetailProps) {
           <h2 className="mb-4 text-base font-bold text-slate-800">Assignment</h2>
           <div className="space-y-4">
             <div className="flex items-start gap-3">
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-100">
-                <User className="h-4 w-4 text-blue-600" />
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-indigo-100">
+                <User className="h-4 w-4 text-indigo-600" />
               </div>
               <div>
                 <p className="text-xs font-medium text-slate-500">Assigned To</p>

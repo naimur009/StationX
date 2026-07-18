@@ -138,7 +138,7 @@ export default function BusinessHoursSection() {
                   <input
                     type="checkbox"
                     {...register(`hours.${index}.isOpen`)}
-                    className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-ring"
+                    className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-ring"
                   />
                   Open
                 </label>
@@ -148,13 +148,13 @@ export default function BusinessHoursSection() {
                     <input
                       type="time"
                       {...register(`hours.${index}.open`)}
-                      className="rounded-xl border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-ring focus:border-blue-500"
+                      className="rounded-xl border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring"
                     />
                     <span className="text-sm text-slate-400">to</span>
                     <input
                       type="time"
                       {...register(`hours.${index}.close`)}
-                      className="rounded-xl border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-ring focus:border-blue-500"
+                      className="rounded-xl border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring"
                     />
                   </div>
                 )}

@@ -89,7 +89,7 @@ export default function AttendanceHistoryList({ onCorrect }: AttendanceHistoryLi
           >
             <SlidersHorizontal className="h-4 w-4" />
             <span className="hidden sm:inline">Filters</span>
-            {hasActiveFilters && <span className="ml-1 flex h-2 w-2 rounded-full bg-blue-500" />}
+            {hasActiveFilters && <span className="ml-1 flex h-2 w-2 rounded-full bg-primary" />}
           </Button>
         </div>
       </CardHeader>
@@ -144,7 +144,7 @@ export default function AttendanceHistoryList({ onCorrect }: AttendanceHistoryLi
               <button
                 type="button"
                 onClick={() => { setEmployeeId(''); setStatus(''); setFrom(''); setTo(''); setSearch(''); }}
-                className="text-xs text-blue-600 hover:text-blue-800 transition-colors"
+                className="text-xs text-primary hover:text-primary transition-colors"
               >
                 Clear all filters
               </button>
@@ -187,7 +187,7 @@ export default function AttendanceHistoryList({ onCorrect }: AttendanceHistoryLi
               <button
                 type="button"
                 onClick={() => { setEmployeeId(''); setStatus(''); setFrom(''); setTo(''); setSearch(''); }}
-                className="mt-2 text-xs text-blue-600 hover:text-blue-800"
+                className="mt-2 text-xs text-primary hover:text-primary"
               >
                 Clear filters
               </button>
@@ -227,7 +227,7 @@ export default function AttendanceHistoryList({ onCorrect }: AttendanceHistoryLi
                         <div className="flex items-center gap-2.5">
                           {record.employee ? (
                             <>
-                              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-blue-600 text-xs font-bold text-white shadow-sm">
+                              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-primary to-primary text-xs font-bold text-white shadow-sm">
                                 {record.employee.name.charAt(0).toUpperCase()}
                               </div>
                               <span className="font-medium text-slate-800">{record.employee.name}</span>
@@ -348,7 +348,7 @@ function MobileRecordCard({
         <div className="flex items-center gap-2.5">
           {record.employee ? (
             <>
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-blue-600 text-xs font-bold text-white shadow-sm">
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-primary to-primary text-xs font-bold text-white shadow-sm">
                 {record.employee.name.charAt(0).toUpperCase()}
               </div>
               <div>
