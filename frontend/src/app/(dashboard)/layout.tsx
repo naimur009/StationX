@@ -162,7 +162,7 @@ export default function DashboardLayout({
     }
     clearAuth();
     queryClient.removeQueries({ queryKey: ['auth', 'me'] });
-    router.replace('/login');
+    router.replace('/redirect?to=/');
   }
 
   if (!isAuthenticated) {

@@ -45,7 +45,7 @@ export default function HomePage() {
   const logoSrc = !isError ? settings?.logo?.url : undefined;
   const brandName = settings?.restaurantName || 'StationX';
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
-  const loginHref = isAuthenticated ? '/overview' : '/login';
+  const loginHref = isAuthenticated ? '/redirect?to=/overview' : '/login';
 
   return (
     <div className="flex min-h-screen flex-col bg-slate-50">
