@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import Providers from '@/components/Providers';
 import Favicon from '@/components/Favicon';
+import DynamicTitle from '@/components/DynamicTitle';
 import './globals.css';
 
 const inter = Inter({
@@ -12,7 +13,10 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: 'StationX',
+  title: {
+    template: '%s · StationX',
+    default: 'StationX',
+  },
   description: 'Restaurant Management Dashboard',
 };
 
@@ -26,6 +30,7 @@ export default function RootLayout({
       <body className="font-sans antialiased" suppressHydrationWarning>
         <Providers>
           <Favicon />
+          <DynamicTitle />
           {children}
         </Providers>
       </body>
