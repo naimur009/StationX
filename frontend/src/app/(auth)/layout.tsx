@@ -32,7 +32,7 @@ export default function AuthLayout({
 
   useEffect(() => {
     if (hasSession) {
-      router.replace('/overview');
+      router.replace('/redirect?to=/overview');
     }
   }, [hasSession, pathname, router]);
 

@@ -10,6 +10,11 @@ Fix review findings without changing unrelated code.
 
 Review Findings:
 
+when admin or user is already logged in, then from homepage when click staff login it redirect to dashboard. but in between a blank white screen is shown. i want that a cool annimation is shown in between. the animation should look very look. 
+
+in dashboard, when click logout, it redirect to homepage. but in between a blank white screen is shown. i want that a cool annimation is shown in between. the animation should look very look. 
+
+the animation should be like the name of the organization is shwoing in the screen for 2 seconds and then it should redirect to the homepage. and the organization name is coming from config.json file. 
 
 
 # REQUIREMENTS

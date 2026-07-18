@@ -25,7 +25,7 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (isAuthenticated) {
-      router.replace('/overview');
+      router.replace('/redirect?to=/overview');
     }
   }, [isAuthenticated, router]);
 
@@ -34,7 +34,7 @@ export default function LoginPage() {
       const token = useAuthStore.getState().accessToken;
       if (token) {
         setAuth(sessionUser, token);
-        router.replace('/overview');
+        router.replace('/redirect?to=/overview');
       }
     }
   }, [sessionUser, setAuth, router]);
@@ -56,7 +56,7 @@ export default function LoginPage() {
 
       setAuth(user, accessToken);
       queryClient.invalidateQueries({ queryKey: ['auth', 'me'] });
-      router.push('/overview');
+      router.push('/redirect?to=/overview');
     } catch (error) {
       if (error instanceof AppError) {
         setAuthError(error.message);
