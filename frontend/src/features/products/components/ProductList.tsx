@@ -28,7 +28,7 @@ export default function ProductList({ onEdit, onDelete }: ProductListProps) {
     return () => clearTimeout(timer);
   }, [search]);
 
-  const { data, isLoading, isError, refetch } = useProductList({
+  const { data, isError, refetch } = useProductList({
     page,
     limit: 20,
     categoryId: categoryFilter || undefined,
@@ -84,7 +84,14 @@ export default function ProductList({ onEdit, onDelete }: ProductListProps) {
         </select>
       </div>
 
-      {isLoading ? (
+      {isError ? (
+        <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-slate-200 bg-white py-12 sm:py-20 text-sm shadow-sm">
+          <span className="text-red-500">Failed to load products</span>
+          <Button variant="primary" size="sm" onClick={() => refetch()}>
+            Retry
+          </Button>
+        </div>
+      ) : !data ? (
         <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
           {Array.from({ length: 8 }).map((_, i) => (
             <div key={i} className="animate-pulse rounded-2xl border border-slate-200 bg-white shadow-sm">
@@ -97,14 +104,7 @@ export default function ProductList({ onEdit, onDelete }: ProductListProps) {
             </div>
           ))}
         </div>
-      ) : isError ? (
-        <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-slate-200 bg-white py-12 sm:py-20 text-sm shadow-sm">
-          <span className="text-red-500">Failed to load products</span>
-          <Button variant="primary" size="sm" onClick={() => refetch()}>
-            Retry
-          </Button>
-        </div>
-      ) : data && data.data.length === 0 ? (
+      ) : data.data.length === 0 ? (
         <div className="flex items-center justify-center rounded-2xl border border-slate-200 bg-white py-12 sm:py-20 text-sm text-slate-400 shadow-sm">
           No products found — create one to get started
         </div>

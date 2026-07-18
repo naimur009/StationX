@@ -1,6 +1,6 @@
 'use client';
 
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api-client';
 
 export interface CategoryResponse {
@@ -34,6 +34,7 @@ export function useCategoriesList(params: CategoriesListParams) {
   return useQuery({
     queryKey: ['categories', 'list', qs],
     queryFn: () => apiClient<CategoriesListResponse>(`/categories${qs ? `?${qs}` : ''}`),
+    placeholderData: keepPreviousData,
   });
 }
 

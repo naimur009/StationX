@@ -1,6 +1,6 @@
 'use client';
 
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api-client';
 
 export function useAssignableEmployees() {
@@ -52,6 +52,7 @@ export function useTasksList(params: TasksListParams) {
   return useQuery({
     queryKey: ['tasks', 'list', qs],
     queryFn: () => apiClient<TasksListResponse>(`/tasks${qs ? `?${qs}` : ''}`),
+    placeholderData: keepPreviousData,
   });
 }
 

@@ -29,7 +29,7 @@ export default function CategoryList({ onEdit, onDelete }: CategoryListProps) {
     };
   }, [search]);
 
-  const { data, isLoading, isError } = useCategoriesList({
+  const { data, isError } = useCategoriesList({
     page,
     limit: 20,
     search: debouncedSearch || undefined,
@@ -61,15 +61,15 @@ export default function CategoryList({ onEdit, onDelete }: CategoryListProps) {
         </div>
       </div>
 
-      {isLoading ? (
-        <div className="flex items-center justify-center rounded-2xl border border-slate-200 bg-white py-16 shadow-sm">
-          <div className="h-10 w-10 animate-spin rounded-full border-4 spinner-smooth" />
-        </div>
-      ) : isError ? (
+      {isError ? (
         <div className="rounded-2xl border border-slate-200 bg-white px-4 py-12 text-center text-sm text-red-500 shadow-sm">
           Failed to load categories
         </div>
-      ) : data && data.data.length === 0 ? (
+      ) : !data ? (
+        <div className="flex items-center justify-center rounded-2xl border border-slate-200 bg-white py-16 shadow-sm">
+          <div className="h-10 w-10 animate-spin rounded-full border-4 spinner-smooth" />
+        </div>
+      ) : data.data.length === 0 ? (
         <div className="rounded-2xl border border-slate-200 bg-white px-4 py-12 text-center text-sm text-slate-400 shadow-sm">
           No categories yet — create one to get started
         </div>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api-client';
 export interface EmployeeResponse {
   id: string;
@@ -34,6 +34,7 @@ export function useEmployeesList(params: EmployeesListParams) {
   return useQuery({
     queryKey: ['employees', 'list', qs],
     queryFn: () => apiClient<EmployeesListResponse>(`/employees${qs ? `?${qs}` : ''}`),
+    placeholderData: keepPreviousData,
   });
 }
 

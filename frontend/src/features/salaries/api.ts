@@ -1,6 +1,6 @@
 'use client';
 
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api-client';
 
 export interface AdvanceResponse {
@@ -54,6 +54,7 @@ export function useSalariesList(params: SalariesListParams) {
   return useQuery({
     queryKey: ['salaries', 'list', qs],
     queryFn: () => apiClient<SalariesListResponse>(`/salaries${qs ? `?${qs}` : ''}`),
+    placeholderData: keepPreviousData,
   });
 }
 

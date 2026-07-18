@@ -1,6 +1,6 @@
 'use client';
 
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api-client';
 
 export interface StaffEmployee {
@@ -120,6 +120,7 @@ export function useAttendanceList(params: AttendanceListParams) {
   return useQuery({
     queryKey: ['attendance', 'list', qs],
     queryFn: () => apiClient<AttendanceListResponse>(`/attendance${qs ? `?${qs}` : ''}`),
+    placeholderData: keepPreviousData,
   });
 }
 

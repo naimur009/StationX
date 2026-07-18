@@ -1,6 +1,6 @@
 'use client';
 
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api-client';
 
 export interface ProductResponse {
@@ -43,6 +43,7 @@ export function useProductList(params: ProductsListParams) {
     queryKey: ['products', 'list', qs],
     queryFn: () => apiClient<ProductsListResponse>(`/products${qs ? `?${qs}` : ''}`),
     staleTime: 30_000,
+    placeholderData: keepPreviousData,
   });
 }
 

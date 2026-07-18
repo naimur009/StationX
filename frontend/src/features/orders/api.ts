@@ -1,6 +1,6 @@
 'use client';
 
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api-client';
 
 export interface OrderListItem {
@@ -106,6 +106,7 @@ export function useOrderList(params: OrdersListParams) {
     queryKey: ['orders', 'list', qs],
     queryFn: () => apiClient<OrdersListResponse>(`/orders${qs ? `?${qs}` : ''}`),
     refetchInterval: 30_000,
+    placeholderData: keepPreviousData,
   });
 }
 

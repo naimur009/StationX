@@ -1,6 +1,6 @@
 'use client';
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api-client';
 import type { ActivityLogFilters, ActivityLogListResponse } from './schema';
 
@@ -19,6 +19,7 @@ export function useActivityLogs(filters: ActivityLogFilters) {
   return useQuery({
     queryKey: ['activity-log', qs],
     queryFn: () => apiClient<ActivityLogListResponse>(`/activity-log?${qs}`),
+    placeholderData: keepPreviousData,
   });
 }
 

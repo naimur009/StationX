@@ -1,6 +1,6 @@
 'use client';
 
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api-client';
 
 export interface ExpenseResponse {
@@ -58,6 +58,7 @@ export function useExpensesList(params: ExpensesListParams) {
   return useQuery({
     queryKey: ['expenses', 'list', qs],
     queryFn: () => apiClient<ExpensesListResponse>(`/expenses${qs ? `?${qs}` : ''}`),
+    placeholderData: keepPreviousData,
   });
 }
 
