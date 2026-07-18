@@ -222,6 +222,7 @@ Tailwind defaults, no custom scale.
 
 | Breakpoint | Min width | Purpose |
 |---|---|---|
+| `xs` | 480px | Mobile stacked card view (`DataTable` row → card), compact POS layout |
 | `sm` | 640px | Responsive text, layout shifts |
 | `md` | 768px | Table column visibility, grid changes |
 | `lg` | 1024px | Sidebar collapse/expand, multi-column |

@@ -4,6 +4,7 @@ import Salary from '../../models/Salary';
 import SalaryAdjustment from '../../models/SalaryAdjustment';
 import SalarySummary from '../../models/SalarySummary';
 import { createError } from '../../middleware/errorHandler';
+import { withTransaction } from '../../lib/transaction';
 import type {
   CreateEmployeeDto,
   UpdateEmployeeDto,
@@ -101,14 +102,16 @@ export async function deleteEmployee(id: string) {
     throw createError(404, 'NOT_FOUND', 'Employee not found');
   }
 
-  await Promise.all([
-    Attendance.deleteMany({ employee: id }),
-    Salary.deleteMany({ employeeId: id }),
-    SalaryAdjustment.deleteMany({ employeeId: id }),
-    SalarySummary.deleteMany({ employeeId: id }),
-  ]);
+  await withTransaction(async (session) => {
+    await Promise.all([
+      Attendance.deleteMany({ employee: id }).session(session),
+      Salary.deleteMany({ employeeId: id }).session(session),
+      SalaryAdjustment.deleteMany({ employeeId: id }).session(session),
+      SalarySummary.deleteMany({ employeeId: id }).session(session),
+    ]);
 
-  await Employee.findByIdAndDelete(id);
+    await Employee.findByIdAndDelete(id, { session });
+  });
 
   return { success: true };
 }

@@ -784,6 +784,28 @@ export async function deleteOrder(id: string) {
     throw createError(404, 'NOT_FOUND', 'Order not found');
   }
 
+  if (order.status !== 'pending') {
+    throw createError(409, 'ORDER_NOT_DELETABLE', 'Only pending orders can be deleted');
+  }
+
+  const today = new Date();
+  const created = new Date(order.createdAt);
+  if (
+    created.getFullYear() !== today.getFullYear() ||
+    created.getMonth() !== today.getMonth() ||
+    created.getDate() !== today.getDate()
+  ) {
+    throw createError(409, 'ORDER_NOT_DELETABLE', 'Only orders created today can be deleted');
+  }
+
+  if (order.couponId && order.paymentStatus === 'paid') {
+    throw createError(
+      409,
+      'ORDER_NOT_DELETABLE',
+      'Orders with coupon usage cannot be deleted'
+    );
+  }
+
   await withTransaction(async (session) => {
     if (order.couponId && order.paymentStatus === 'paid') {
       await Coupon.findByIdAndUpdate(

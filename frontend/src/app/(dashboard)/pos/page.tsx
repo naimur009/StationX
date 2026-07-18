@@ -328,14 +328,16 @@ export default function PosPage() {
                 </div>
               </div>
 
-              <Button
-                className="w-full"
-                size="lg"
-                disabled={items.length === 0 || submitting}
-                onClick={() => { setCartOpen(false); handleCheckout(); }}
-              >
-                {submitting ? 'Processing...' : `Place Order — BDT ${grandTotal.toFixed(2)}`}
-              </Button>
+              <PermissionGate module="pos" action="create">
+                <Button
+                  className="w-full"
+                  size="lg"
+                  disabled={items.length === 0 || submitting}
+                  onClick={() => { setCartOpen(false); handleCheckout(); }}
+                >
+                  {submitting ? 'Processing...' : `Place Order — BDT ${grandTotal.toFixed(2)}`}
+                </Button>
+              </PermissionGate>
 
               {items.length > 0 && (
                 <Button
@@ -364,9 +366,11 @@ export default function PosPage() {
             <Button variant="secondary" onClick={() => setConfirmOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={handleConfirm}>
-              Place Order
-            </Button>
+            <PermissionGate module="pos" action="create">
+              <Button onClick={handleConfirm}>
+                Place Order
+              </Button>
+            </PermissionGate>
           </>
         }
       >

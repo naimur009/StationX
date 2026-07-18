@@ -44,7 +44,7 @@
 
 **Decision:** Batch of 22 QA fixes addressing priority items from the implementation plan. Key architectural decisions:
 
-1. **Order item category snapshot** (`CM-FIX-01`): Added `categorySnapshot` (`{ categoryId, name }`) to `IOrderItem`/`orderItemSchema`. Resolved from live `Category` at order creation (`pos.service.ts`) and item edit (`orders.service.ts`). Report pipelines (`byProduct`/`byCategory`) replaced `$lookup` joins with direct `$items.categorySnapshot` reads — no cross-collection aggregation.
+1. **Order item category snapshot** (`CM-FIX-01`): Added `categorySnapshot` (string — category name only) to `IOrderItem`/`orderItemSchema`. Resolved from live `Category` at order creation (`pos.service.ts`) and item edit (`orders.service.ts`). Report pipelines (`byProduct`/`byCategory`) use `$lookup` as the primary source with `$items.categorySnapshot` as a fallback for backward compatibility with orders placed before the snapshot was introduced.
 
 2. **Socket event naming** (`CM-FIX-03`): POS order creation emits both legacy `pos:order_created` and canonical `order:created` + `dashboard:metricsInvalidate`. The `order:paid` path also emits `dashboard:metricsInvalidate`.
 
@@ -74,7 +74,7 @@
 - `backend/src/modules/pos/pos.controller.ts` (coupon validate handler)
 - `backend/src/modules/orders/orders.service.ts` (category snapshot on item edit, non-cash payment validation, socket event)
 - `backend/src/modules/orders/orders.validation.ts` (paymentStatus filter, non-cash transactionId refine)
-- `backend/src/modules/reports/reports.helper.ts` (removed $lookup, uses categorySnapshot)
+- `backend/src/modules/reports/reports.helper.ts` (added categorySnapshot fallback to $lookup pipelines)
 - `backend/src/modules/reports/reports.service.ts` (salary month/year filter)
 - `frontend/src/features/pos/api.ts` (coupon mutation to POST)
 - `frontend/src/features/pos/components/CouponInput.tsx` (rewritten for new response shape)
@@ -84,7 +84,7 @@
 - `frontend/src/app/(dashboard)/orders/page.tsx` (paymentStatus integration, socket listener update)
 
 **Reasoning:**
-- Category snapshot follows the established snapshot pattern (`nameSnapshot`/`priceSnapshot`), ensuring reports remain accurate even when categories are renamed later. Replacing `$lookup` with a snapshot field eliminates a slow cross-collection aggregation step in report generation.
+- Category snapshot follows the established snapshot pattern (`nameSnapshot`/`priceSnapshot`), ensuring reports remain accurate even when categories are renamed later. The snapshot is used as a fallback in aggregation pipelines, with `$lookup` retained as the primary source to handle orders placed before the snapshot was introduced.
 - Dual socket emit (`pos:order_created` + `order:created`) maintains backward compatibility while moving toward a canonical event namespace.
 - Defaulting to `pending` (not `completed`) allows cashiers to explicitly review and complete orders, preventing accidental automatic completion before payment is confirmed.
 - POST-based coupon validation supports a request body with `subtotal` and `customerId`, enabling server-side computation of `discountAmount` and `minOrderAmount` checks that a GET query string couldn't cleanly express. Structured response with typed reason codes gives the frontend deterministic error display for each failure mode.
@@ -153,7 +153,7 @@
 - Item 2 (Auto Round) → implemented as display-only computed value at render time, no schema change
 - Item 1 (VAT conditionally rendered) → uses `Settings.vatInfo.bin` presence + `order.taxAmount > 0` as trigger
 
-**Decision:** Enhanced the existing `renderBillHtml` template to produce a full thermal-receipt-style bill matching the reference design. The template now consumes `Settings` data (logo, restaurant name, address, phone, BIN, Mushak) for the header, displays all order fields (table, waiter, date/time, invoice, items, subtotal, discount, VAT, auto-round, grand total), payment details (method, cash tendered, change returned), and a footer. The `getOrderBill` service method fetches the `Settings` singleton and passes it to the template. Auto-round is computed as `Math.round(grandTotal) - grandTotal` and shown as a display-only line when non-zero. VAT line only renders when both `vatInfo.bin` is populated AND `taxAmount > 0`.
+**Decision:** Enhanced the existing `renderBillHtml` template to produce a full thermal-receipt-style bill matching the reference design. The template now consumes `Settings` data (logo, restaurant name, address, phone, BIN, Mushak) for the header, displays all order fields (table, waiter, date/time, invoice, items, subtotal, discount, VAT, auto-round, grand total), payment details (method, cash tendered, change returned), and a footer. The `getOrderBill` service method fetches the `Settings` singleton and passes it to the template. Auto-round is computed as `Math.floor(grandTotal) - grandTotal` and shown as a display-only line when non-zero. VAT line only renders when both `vatInfo.bin` is populated AND `taxAmount > 0`.
 
 **Doc(s) updated:** None — the template lives in `orders.service.ts`; the bill endpoint, route, and schema already existed. Tests updated with new assertions matching the enhanced output.
 

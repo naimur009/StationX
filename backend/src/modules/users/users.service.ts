@@ -14,7 +14,7 @@ import type {
 const escapeRegex = (str: string): string =>
   str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-const SALT_ROUNDS = 10;
+const SALT_ROUNDS = 12;
 
 interface UserResponse {
   id: string;

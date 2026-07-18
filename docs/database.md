@@ -68,7 +68,7 @@ Authentication identity + embedded permission grants (per `ARCHITECTURE.md` §6,
 | `name` | String | ✓ | |
 | `email` | String | ✓ | unique, lowercase, trimmed |
 | `passwordHash` | String | ✓ | bcrypt, cost 12; never returned in API responses |
-| `role` | String enum `admin \| manager \| employee` | ✓ | Admin bypasses granular permission checks (§6) |
+| `role` | String enum `admin \| manager \| employee \| chief` | ✓ | Admin bypasses granular permission checks (§6); `chief` is an admin-level operational role with full system access |
 | `phone` | String | — | Contact number, used in employee management |
 | `address` | String | — | Physical address, used in employee management |
 | `baseSalary` | Number | — | Default monthly salary rate for employee records; distinct from per-month `baseSalary` in the Salary collection (§3.12) |

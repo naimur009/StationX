@@ -769,7 +769,7 @@ Single namespace, all authenticated dashboard clients join one shared room — n
 | 409 | `COUPON_IN_USE` | (reserved — not currently used; coupons are unconditionally hard-deletable) |
 | 409 | `COUPON_USAGE_LIMIT_REACHED` | Lost a race at order-commit time |
 | 409 | `ALREADY_CHECKED_IN` | Attendance unique-index violation (duplicate mark for same user+date) |
-| 409 | `LAST_ADMIN_PROTECTED` / `CANNOT_DEACTIVATE_SELF` | User-deactivation guard rails |
+| 409 | `LAST_ADMIN_PROTECTED` / `CANNOT_DEACTIVATE_SELF` / `CANNOT_DELETE_SELF` | User-deactivation and permanent-deletion guard rails |
 | 409 | `ORDER_NOT_DELETABLE` | See §10 open item |
 | 409 | `PRODUCT_UNAVAILABLE` | A submitted product went inactive mid-checkout |
 | 409 | `PRODUCT_IN_USE` | Hard-delete of product blocked because it is referenced by one or more orders |
