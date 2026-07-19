@@ -95,11 +95,14 @@ export async function createUser(dto: CreateUserDto, actorId: string) {
     isActive: true,
   });
 
-  // Sync to Employee collection for task assignment
   if (['employee', 'manager', 'chief'].includes(dto.role) && dto.name) {
-    const empExists = await Employee.findOne({ name: dto.name });
-    if (!empExists) {
-      await Employee.create({ name: dto.name, phone: '', address: '', baseSalary: 0 });
+    try {
+      const empExists = await Employee.findOne({ name: dto.name });
+      if (!empExists) {
+        await Employee.create({ name: dto.name, phone: 'N/A', address: '', baseSalary: 0 });
+      }
+    } catch (err) {
+      console.error('[createUser] Failed to sync employee record:', err);
     }
   }
 
