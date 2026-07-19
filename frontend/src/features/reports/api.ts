@@ -63,10 +63,19 @@ export interface CategoryExpenseEntry {
   total: number;
 }
 
+export interface MiscIncomeCategory {
+  category: string;
+  count: number;
+  total: number;
+}
+
 export interface ProfitIncome {
   totalRevenue: number;
   totalOrders: number;
   totalProductsSold: number;
+  totalMiscIncome: number;
+  miscEntries: number;
+  byMiscCategory: MiscIncomeCategory[];
 }
 
 export interface ProfitExpenses {

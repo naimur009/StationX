@@ -179,6 +179,36 @@ export function salesAggregation(from: Date, to: Date): PipelineStage[] {
   ];
 }
 
+export function incomeAggregation(from: Date, to: Date): PipelineStage[] {
+  return [
+    { $match: { date: { $gte: from, $lte: to } } },
+    {
+      $facet: {
+        summary: [
+          {
+            $group: {
+              _id: null,
+              totalMiscIncome: { $sum: '$amount' },
+              totalEntries: { $sum: 1 },
+            },
+          },
+        ],
+        byCategory: [
+          {
+            $group: {
+              _id: '$category',
+              count: { $sum: 1 },
+              total: { $sum: '$amount' },
+            },
+          },
+          { $project: { _id: 0, category: '$_id', count: 1, total: 1 } },
+          { $sort: { total: -1 } },
+        ],
+      },
+    },
+  ];
+}
+
 export function expenseAggregation(from: Date, to: Date): PipelineStage[] {
   return [
     { $match: { date: { $gte: from, $lte: to } } },

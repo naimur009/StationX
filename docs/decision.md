@@ -63,7 +63,29 @@
 
 **Reasoning:** The PRD's original "Income" feature (§16) was folded into the Profit Report (product-based income from Orders data). However, the restaurant also needs to track non-food income streams (scrap sales, recycling, etc.) that don't come from Order data. Creating a standalone Income module (mirroring the Expenses pattern) gives staff a familiar interface to record these entries, and using its own permission key (`incomes`) allows granular access control independent of both `expenses` and `dashboard`. The module is intentionally simple (no vendor linkage, no snapshot fields) since income entries are typically one-off ad-hoc records rather than recurring transactions.
 
-### [—] Permission List Alignment: Sidebar Uses `salary` Module Key — 2026-07-17
+### [—] Profit Report Includes Miscellaneous Income from Incomes Module — 2026-07-19
+
+**Open item resolved:** N/A — enhancement of existing Reports module.
+
+**Decision:** Added non-order miscellaneous income (from the `incomes` collection) to the profit report. The profit report now has two income sources:
+- `income.totalRevenue` — product-based revenue from completed+paid Orders (unchanged)
+- `income.totalMiscIncome` — non-order income from the Incomes module (new)
+
+Profit formula updated from `totalRevenue - totalExpenses - totalSalary` to `totalRevenue + totalMiscIncome - totalExpenses - totalSalary`.
+
+**Doc(s) updated:**
+- `API.md` §21 (updated profit report response shape with `totalMiscIncome`, `miscEntries`, `byMiscCategory`)
+- `TEST_CASES.md` §19 (added REP-CALC-02, REP-CALC-03, updated REP-CALC-01)
+- `decision.md` (this entry)
+
+**Files modified:**
+- `backend/src/modules/reports/reports.helper.ts` — added `incomeAggregation` pipeline
+- `backend/src/modules/reports/reports.service.ts` — import Income model, run income pipeline, include misc income in response, update profit formula
+- `backend/src/modules/reports/report-template.ts` — added Other Income section + category table in PDF template, updated profit breakdown
+- `frontend/src/features/reports/api.ts` — added `MiscIncomeCategory` interface, updated `ProfitIncome` with misc fields
+- `frontend/src/features/reports/components/ProfitReportView.tsx` — show Other Income metric card and profit-calculation line
+
+**Reasoning:** The newly created Incomes module (non-order miscellaneous income like scrap sales, recycling) needs to feed into the profit report so the restaurant sees a complete financial picture — total revenue from products plus any additional income sources. Adding `totalMiscIncome` to the existing `income` section keeps the Order-based revenue and misc income separate for clarity while combining them in the profit formula. The `byMiscCategory` array provides category-level drill-down matching the expense `byCategory` pattern.
 
 **Open item resolved:** Sidebar Salaries nav item used `module: 'expenses'` while the backend routes used `salary` and the page used `PermissionGate module="salary"`. This mismatch meant a user with `expenses:view` could see the Salaries nav link but then be denied by the page's `salary` permission gate.
 

@@ -692,14 +692,26 @@ Sales report excludes cancelled orders via the shared aggregation helper from §
 ```json
 {
   "range": { "from": "2026-06-01", "to": "2026-06-30" },
-  "income": { "totalRevenue": 150000, "totalOrders": 320, "totalProductsSold": 580 },
+  "income": {
+    "totalRevenue": 150000,
+    "totalOrders": 320,
+    "totalProductsSold": 580,
+    "totalMiscIncome": 5000,
+    "miscEntries": 3,
+    "byMiscCategory": [
+      { "category": "Scrap", "count": 2, "total": 4000 },
+      { "category": "Other", "count": 1, "total": 1000 }
+    ]
+  },
   "expenses": { "totalExpenses": 45000, "totalEntries": 28, "byCategory": [...] },
   "salaries": { "totalSalary": 60000, "totalRecords": 5, "byEmployee": [...] },
-  "profit": 45000
+  "profit": 50000
 }
 ```
 
-Profit is calculated as: `profit = income.totalRevenue - expenses.totalExpenses - salaries.totalSalary`.
+Profit is calculated as: `profit = totalRevenue + totalMiscIncome - totalExpenses - totalSalary`.
+
+> `totalMiscIncome` aggregates non-order miscellaneous income from the `/incomes` module. The `byMiscCategory` array provides a category-level breakdown of those entries. Both fields are `0` / empty when no Income records exist for the period.
 
 ### Extension Point
 `ARCHITECTURE.md` §13 lists scheduled/automated report email delivery as out of scope for v1. The `export` route above is deliberately what a future cron/worker (`POST /reports/:type/schedule`, not built yet) would call internally to produce the PDF it emails — so no second code path needs to be written when that feature is picked up.

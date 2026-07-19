@@ -533,7 +533,9 @@ These apply to **every** module below; listed once here and referenced by ID rat
 | REP-V-01 | Validation | `type` outside `sales|profit` | `400 INVALID_REPORT_TYPE` |
 | REP-E-01 | Edge | Export requested for a range with zero data | PDF still generates (e.g. "No data for this period."), doesn't error |
 | REP-AUTH-01 | Security | User has `reports:view` but not `reports:create` | On-screen `GET /reports/:type` succeeds; `GET /reports/:type/export` returns `403 FORBIDDEN` |
-| REP-CALC-01 | Integration | Profit report calculation | `profit = totalRevenue - totalExpenses - totalSalary` for the same range |
+| REP-CALC-01 | Integration | Profit report calculation | `profit = totalRevenue + totalMiscIncome - totalExpenses - totalSalary` for the same range |
+| REP-CALC-02 | Integration | Profit report includes misc income from Incomes module | `income.totalMiscIncome` matches sum of Income records in range, `income.byMiscCategory` provides category breakdown |
+| REP-CALC-03 | Edge | No Income records exist for the selected range | `totalMiscIncome: 0`, `miscEntries: 0`, `byMiscCategory: []` — profit calculation still works with only Order revenue |
 | REP-PERF-01 | Performance | Export for a full year of data (`range=custom`, 12-month span) | PDF generation completes within an acceptable time bound (define SLA in feature spec); no timeout on the Puppeteer render |
 
 ---

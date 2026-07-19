@@ -1,6 +1,7 @@
 import { Types } from 'mongoose';
 import Order from '../../models/Order';
 import Expense from '../../models/Expense';
+import Income from '../../models/Income';
 import Salary from '../../models/Salary';
 
 import Settings from '../../models/Settings';
@@ -10,6 +11,7 @@ import { renderReportToHtml } from './report-template';
 import {
   salesAggregation,
   expenseAggregation,
+  incomeAggregation,
   REPORT_TYPES,
   type ReportType,
 } from './reports.helper';
@@ -106,6 +108,12 @@ export async function getReport(type: string, query: ReportQueryDto) {
       const expenseSummaryRow = expenseData.summary[0] || {};
       const totalExpenses = expenseSummaryRow.totalExpenses || 0;
 
+      const incomePipeline = incomeAggregation(dateRange.from, dateRange.to);
+      const incomeAggResult = await Income.aggregate(incomePipeline);
+      const incomeData = incomeAggResult[0] || { summary: [] };
+      const incomeSummaryRow = incomeData.summary[0] || {};
+      const totalMiscIncome = incomeSummaryRow.totalMiscIncome || 0;
+
       const fromMonth = dateRange.from.getMonth() + 1;
       const fromYear = dateRange.from.getFullYear();
       const toMonth = dateRange.to.getMonth() + 1;
@@ -132,7 +140,7 @@ export async function getReport(type: string, query: ReportQueryDto) {
         }))
         .sort((a, b) => a.employeeName.localeCompare(b.employeeName));
 
-      const profit = totalRevenue - totalExpenses - totalSalary;
+      const profit = totalRevenue + totalMiscIncome - totalExpenses - totalSalary;
 
       const endDate = new Date(dateRange.to);
       endDate.setDate(endDate.getDate() - 1);
@@ -146,6 +154,9 @@ export async function getReport(type: string, query: ReportQueryDto) {
           totalRevenue,
           totalOrders: salesSummaryRow.totalOrders || 0,
           totalProductsSold: salesSummaryRow.totalProductsSold || 0,
+          totalMiscIncome,
+          miscEntries: incomeSummaryRow.totalEntries || 0,
+          byMiscCategory: incomeData.byCategory || [],
         },
         expenses: {
           totalExpenses,
