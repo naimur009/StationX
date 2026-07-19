@@ -19,7 +19,7 @@ describe('userService', () => {
 
       try {
         await userService.createUser(
-          { email: 'test@test.com', password: 'StrongPass1', role: 'manager', permissions: [] },
+          { email: 'test@test.com', password: 'StrongPass1', role: 'employee', permissions: [] },
           'actor-id'
         );
         expect.unreachable('Expected error to be thrown');
@@ -37,7 +37,7 @@ describe('userService', () => {
         _id: { toString: () => 'new-id' },
         name: 'Test',
         email: 'test@test.com',
-        role: 'manager',
+        role: 'employee',
         permissions: [],
         isActive: true,
         lastLoginAt: null,
@@ -46,7 +46,7 @@ describe('userService', () => {
       } as never);
 
       const result = await userService.createUser(
-        { email: 'test@test.com', password: 'StrongPass1', role: 'manager', permissions: [] },
+        { email: 'test@test.com', password: 'StrongPass1', role: 'employee', permissions: [] },
         'actor-id'
       );
 

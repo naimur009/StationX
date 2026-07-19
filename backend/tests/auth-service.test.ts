@@ -67,7 +67,7 @@ describe('authService.login', () => {
       name: 'Test',
       email: 'test@test.com',
       passwordHash: 'hash',
-      role: 'manager',
+      role: 'employee',
       permissions: [],
       isActive: true,
       save: saveMock,
@@ -85,6 +85,6 @@ describe('authService.login', () => {
 
     expect(result).toHaveProperty('accessToken');
     expect(result).toHaveProperty('refreshToken');
-    expect(result.user).toHaveProperty('role', 'manager');
+    expect(result.user).toHaveProperty('role', 'employee');
   });
 });

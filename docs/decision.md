@@ -23,6 +23,46 @@
 
 ## Log
 
+### [—] Income Module — New Dashboard Section for Miscellaneous Income — 2026-07-19
+
+**Open item resolved:** N/A — new feature not previously documented in the project's permission key list.
+
+**Decision:** Created a standalone Income module (`incomes`) as a new dashboard section for recording non-food, non-order miscellaneous income (e.g., scrap sales, plastic recycling, other ad-hoc revenue). The module mirrors the Expenses module structure:
+- Backend: `Income` Mongoose model, full CRUD routes under `/incomes`, Zod validation, reference-data endpoint for staff dropdown
+- Frontend: List page with date-range/category/method/staff filters, create/edit form in dialog, detail view page, delete confirmation dialog
+- Uses its own `incomes` permission module key (`view`, `create`, `edit`, `delete`) — does not reuse the `expenses` or `dashboard` key
+- Hard-deletable (no `isActive` field), consistent with the Expenses pattern
+- Fields: `amount`, `date`, `description`, `category`, `receivedFrom`, `receivedBy` (Employee), `paymentMethod`, `createdBy`
+
+**Doc(s) updated:**
+- `API.md` §15 (new Incomes section), §26 (added `incomes` to permission module keys), renumbered all subsequent sections (§16–§27)
+- `database.md` §3.16 (new Income schema), §4 (indexes), §1 (hard-delete list), §2 (ER diagram)
+- `TEST_CASES.md` §11 (new Income test cases, 14 cases), renumbered all subsequent sections (§12–§26)
+- `decision.md` (this entry)
+
+**Files created:**
+- `backend/src/models/Income.ts`
+- `backend/src/modules/incomes/incomes.routes.ts`
+- `backend/src/modules/incomes/incomes.controller.ts`
+- `backend/src/modules/incomes/incomes.service.ts`
+- `backend/src/modules/incomes/incomes.validation.ts`
+- `frontend/src/features/incomes/api.ts`
+- `frontend/src/features/incomes/schema.ts`
+- `frontend/src/features/incomes/components/IncomeList.tsx`
+- `frontend/src/features/incomes/components/IncomeForm.tsx`
+- `frontend/src/features/incomes/components/IncomeDetail.tsx`
+- `frontend/src/app/(dashboard)/incomes/page.tsx`
+- `frontend/src/app/(dashboard)/incomes/DeleteIncomeDialog.tsx`
+- `frontend/src/app/(dashboard)/incomes/[incomeId]/page.tsx`
+
+**Files modified:**
+- `backend/src/app.ts` (registered incomes routes + rate limiter)
+- `backend/src/shared/constants.ts` (added `incomes` module)
+- `frontend/src/lib/constants.ts` (added `incomes` module + label)
+- `frontend/src/components/shared/Sidebar.tsx` (added Incomes nav item with `ArrowDownUp` icon before Expenses)
+
+**Reasoning:** The PRD's original "Income" feature (§16) was folded into the Profit Report (product-based income from Orders data). However, the restaurant also needs to track non-food income streams (scrap sales, recycling, etc.) that don't come from Order data. Creating a standalone Income module (mirroring the Expenses pattern) gives staff a familiar interface to record these entries, and using its own permission key (`incomes`) allows granular access control independent of both `expenses` and `dashboard`. The module is intentionally simple (no vendor linkage, no snapshot fields) since income entries are typically one-off ad-hoc records rather than recurring transactions.
+
 ### [—] Permission List Alignment: Sidebar Uses `salary` Module Key — 2026-07-17
 
 **Open item resolved:** Sidebar Salaries nav item used `module: 'expenses'` while the backend routes used `salary` and the page used `PermissionGate module="salary"`. This mismatch meant a user with `expenses:view` could see the Salaries nav link but then be denied by the page's `salary` permission gate.

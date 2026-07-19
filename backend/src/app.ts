@@ -26,6 +26,7 @@ import activityLogRoutes from './modules/activity-log/activity-log.routes';
 import dashboardRoutes from './modules/dashboard/dashboard.routes';
 import salariesRoutes from './modules/salaries/salaries.routes';
 import employeesRoutes from './modules/employees/employees.routes';
+import incomesRoutes from './modules/incomes/incomes.routes';
 
 const app = express();
 
@@ -174,6 +175,14 @@ app.use('/api/v1', activityLogRoutes);
 app.use('/api/v1', dashboardRoutes);
 app.use('/api/v1', salariesRoutes);
 app.use('/api/v1', employeesRoutes);
+const incomesMutationLimiter = makeRateLimiter(env.RATE_LIMIT_MAX);
+app.use('/api/v1/incomes', (req, res, next) => {
+  if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method)) {
+    return incomesMutationLimiter(req, res, next);
+  }
+  next();
+});
+app.use('/api/v1', incomesRoutes);
 
 app.use(errorHandler);
 

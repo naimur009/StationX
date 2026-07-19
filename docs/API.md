@@ -396,7 +396,51 @@ Base path: `/expenses`. **Permission module key:** `expenses`. **Hard-deletable*
   "paymentMethod": "cash" }
 ```
 
-## 15. Salaries
+## 15. Incomes
+
+Base path: `/incomes`. **Permission module key:** `incomes`. **Hard-deletable** — `Income` has no `isActive` field (see `DATABASE.md` §3.16).
+
+Manages non-food miscellaneous income (e.g., scrap sales, plastic recycling, other non-order revenue). Mirrors the Expenses module structure.
+
+| Method | Path | Action | Description |
+|---|---|---|---|
+| GET | `/incomes?range=&category=&paymentMethod=&receivedBy=` | `view` | List, paginated, date-range filter |
+| GET | `/incomes/reference-data` | `view` | Reference data (employees list for receivedBy dropdown) |
+| GET | `/incomes/:id` | `view` | Detail |
+| POST | `/incomes` | `create` | Create |
+| PUT | `/incomes/:id` | `edit` | Edit |
+| DELETE | `/incomes/:id` | `delete` | Hard delete |
+
+```json
+// POST /incomes request
+{ "amount": 5000, "date": "2026-07-19", "description": "Sold scrap plastic bottles",
+  "category": "Scrap", "receivedFrom": "Scrap Dealer", "receivedBy": "...",
+  "paymentMethod": "cash" }
+```
+
+```json
+// GET /incomes response
+{
+  "data": [
+    {
+      "id": "...",
+      "amount": 5000,
+      "date": "2026-07-19T00:00:00.000Z",
+      "description": "Sold scrap plastic bottles",
+      "category": "Scrap",
+      "receivedFrom": "Scrap Dealer",
+      "receivedBy": { "_id": "...", "name": "John" },
+      "paymentMethod": "cash",
+      "createdBy": { "_id": "...", "name": "Admin" },
+      "createdAt": "2026-07-19T10:00:00.000Z",
+      "updatedAt": "2026-07-19T10:00:00.000Z"
+    }
+  ],
+  "meta": { "total": 1, "page": 1, "limit": 20 }
+}
+```
+
+## 16. Salaries
 
 Manages employee monthly salary records with advance tracking. `baseSalary` is fixed per employee (from the Employee record, not user-entered). When creating a salary record, `paidAmount` is entered instead — it creates the first advance automatically. `remainingBalance` = `baseSalary` - sum of all advances. Uses the `expenses` permission module key.
 
@@ -443,7 +487,7 @@ Manages employee monthly salary records with advance tracking. `baseSalary` is f
 }
 ```
 
-### 15.1 Salary Adjustments (Bonus / Cut)
+### 16.1 Salary Adjustments (Bonus / Cut)
 
 Manages bonuses (positive adjustments) and salary cuts/deductions for employees. Each adjustment is a single record with a type, amount, and reason. Uses the `expenses` permission module key.
 
@@ -499,7 +543,7 @@ Manages bonuses (positive adjustments) and salary cuts/deductions for employees.
 }
 ```
 
-### 15.2 Salary Summary
+### 16.2 Salary Summary
 
 Read-only endpoint that computes or retrieves a monthly salary summary for an employee, including total salary, total bonus, total cut, total paid, and net salary. Uses the `expenses:view` permission.
 
@@ -528,7 +572,7 @@ The summary is auto-created on first query if it doesn't exist, computed from th
 
 ---
 
-## 16. Vendors
+## 17. Vendors
 
 Base path: `/vendors`. **Permission module key:** `vendors`. Standard soft-delete CRUD.
 
@@ -542,7 +586,7 @@ Base path: `/vendors`. **Permission module key:** `vendors`. Standard soft-delet
 
 ---
 
-## 17. Products
+## 18. Products
 
 Base path: `/products`. **Permission module key:** `products`. Hard-delete CRUD; `isActive` is an availability toggle (not soft-delete). `image` is set via `POST /uploads/image` (§4) first, then referenced here.
 
@@ -563,7 +607,7 @@ Base path: `/products`. **Permission module key:** `products`. Hard-delete CRUD;
 
 ---
 
-## 18. Categories
+## 19. Categories
 
 Base path: `/categories`. **Permission module key:** `categories`. Standard hard-delete CRUD.
 
@@ -577,7 +621,7 @@ Base path: `/categories`. **Permission module key:** `categories`. Standard hard
 
 ---
 
-## 19. Customers
+## 20. Customers
 
 Base path: `/customers`. **Permission module key:** `customers`. Standard CRUD with **hard delete**.
 
@@ -630,7 +674,7 @@ Base path: `/customers`. **Permission module key:** `customers`. Standard CRUD w
 
 ---
 
-## 20. Reports
+## 21. Reports
 
 Base path: `/reports`. **Permission module key:** `reports`. One key covers both report types (Sales, Profit).
 
@@ -662,7 +706,7 @@ Profit is calculated as: `profit = income.totalRevenue - expenses.totalExpenses 
 
 ---
 
-## 21. Settings
+## 22. Settings
 
 Base path: `/settings`. **Permission module key:** `settings`. Singleton (fixed `_id`, `DATABASE.md` §3.14).
 
@@ -678,7 +722,7 @@ Base path: `/settings`. **Permission module key:** `settings`. Singleton (fixed 
 
 ---
 
-## 22. Activity Log
+## 23. Activity Log
 
 Base path: `/activity-log`. **Permission module key:** `activity-log`. **`view` is the only action that exists** — no `PUT`/`DELETE`/`POST` handler is ever registered for this collection (`DATABASE.md` §3.13's "read-only by omission" rule).
 
@@ -730,7 +774,7 @@ The `actor` field is populated from the `User` collection (`.populate('actor', '
 
 ---
 
-## 23. Real-Time Events (Socket.io)
+## 24. Real-Time Events (Socket.io)
 
 Single namespace, all authenticated dashboard clients join one shared room — no tenant scoping needed per `ARCHITECTURE.md` §1 (single-restaurant v1). A future multi-tenant build would room-scope these by `restaurantId` per `ARCHITECTURE.md` §13.
 
@@ -747,7 +791,7 @@ Single namespace, all authenticated dashboard clients join one shared room — n
 
 ---
 
-## 24. Error Code Reference
+## 25. Error Code Reference
 
 | HTTP | `code` | Meaning |
 |---|---|---|
@@ -785,7 +829,7 @@ Single namespace, all authenticated dashboard clients join one shared room — n
 
 ---
 
-## 25. Permission Module Keys
+## 26. Permission Module Keys
 
 The authoritative list referenced loosely by `DATABASE.md` §3.1 ("≤18 modules").
 
@@ -798,6 +842,7 @@ The authoritative list referenced loosely by `DATABASE.md` §3.1 ("≤18 modules
 | `tasks` | `view`, `create`, `edit`, `delete` | |
 | `attendance` | `view`, `create`, `edit` | No `delete` — corrections only |
 | `expenses` | `view`, `create`, `edit`, `delete` | |
+| `incomes` | `view`, `create`, `edit`, `delete` | Manages non-food miscellaneous income entries via `/incomes` endpoints. |
 | `vendors` | `view`, `create`, `edit`, `delete` | |
 | `products` | `view`, `create`, `edit`, `delete` | |
 | `categories` | `view`, `create`, `edit`, `delete` | |
@@ -814,7 +859,7 @@ The authoritative list referenced loosely by `DATABASE.md` §3.1 ("≤18 modules
 
 ---
 
-## 26. Open Items Carried Forward
+## 27. Open Items Carried Forward
 
 1. **`Order` deletion vs. schema** (§10): **RESOLVED — narrow hard-delete rules accepted for v1.** `Order` gets no `isActive` field. `DELETE /orders/:id` succeeds only for orders that are `status: pending`, created the same day (server date), and have no `couponId` set. All other orders return `409 ORDER_NOT_DELETABLE`. Decision rationale: see `tasks/implementation_plan.md` Decision 1.
 2. **`completed → cancelled` transition** (§10): **RESOLVED — gated by `orders:edit` for v1.** No new permission action added. The `cancelReason` field provides the audit trail. If a stricter gate is wanted later, it's a non-breaking addition. Decision rationale: see `tasks/implementation_plan.md` Decision 2.

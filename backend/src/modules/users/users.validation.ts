@@ -8,7 +8,7 @@ export const createUserSchema = z.object({
   name: z.string().min(1).max(100).optional(),
   email: emailField,
   password: z.string().min(8, 'Password must be at least 8 characters'),
-  role: z.enum(['admin', 'manager', 'employee', 'chief']),
+  role: z.enum(['admin', 'employee']),
   permissions: z
     .array(
       z.object({
@@ -31,7 +31,7 @@ export const createUserSchema = z.object({
 export const updateUserSchema = z.object({
   name: z.string().min(1).max(100).optional(),
   email: emailField.optional(),
-  role: z.enum(['admin', 'manager', 'employee', 'chief']).optional(),
+  role: z.enum(['admin', 'employee']).optional(),
 }).strict();
 
 export const deactivateUserSchema = z.object({}).strict();
@@ -69,7 +69,7 @@ export const adminResetPasswordSchema = z.object({
 export const listUsersSchema = z.object({
   page: z.coerce.number().int().positive().default(1),
   limit: z.coerce.number().int().positive().max(100).default(20),
-  role: z.enum(['admin', 'manager', 'employee', 'chief']).optional(),
+  role: z.enum(['admin', 'employee']).optional(),
   includeInactive: z
     .enum(['true', 'false'])
     .optional(),

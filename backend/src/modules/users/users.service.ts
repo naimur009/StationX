@@ -95,7 +95,7 @@ export async function createUser(dto: CreateUserDto, actorId: string) {
     isActive: true,
   });
 
-  if (['employee', 'manager', 'chief'].includes(dto.role) && dto.name) {
+  if (dto.role === 'employee' && dto.name) {
     try {
       const empExists = await Employee.findOne({ name: dto.name });
       if (!empExists) {

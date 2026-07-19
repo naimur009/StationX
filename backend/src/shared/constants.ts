@@ -16,6 +16,7 @@ export const MODULE_ACTIONS: Record<string, readonly string[]> = {
   tasks: ['view', 'create', 'edit', 'delete'],
   attendance: ['view', 'create', 'edit'],
   expenses: ['view', 'create', 'edit', 'delete'],
+  incomes: ['view', 'create', 'edit', 'delete'],
   vendors: ['view', 'create', 'edit', 'delete'],
   products: ['view', 'create', 'edit', 'delete'],
   categories: ['view', 'create', 'edit', 'delete'],

@@ -210,7 +210,7 @@ export async function updateTaskStatus(id: string, status: UpdateTaskStatusDto['
 export async function listAssignableEmployees() {
   // Sync users with employee-type roles into the Employee collection
   const users = await User.find(
-    { role: { $in: ['employee', 'manager', 'chief'] }, name: { $exists: true, $ne: '' } },
+    { role: 'employee', name: { $exists: true, $ne: '' } },
     'name'
   ).lean();
 

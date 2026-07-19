@@ -20,7 +20,7 @@ describe('JWT', () => {
 
     it('rejects an expired token', () => {
       const expiredToken = jwt.sign(
-        { sub: userId, role: 'manager', permissions: [] },
+        { sub: userId, role: 'employee', permissions: [] },
         process.env.JWT_ACCESS_SECRET!,
         { expiresIn: '0s' }
       );

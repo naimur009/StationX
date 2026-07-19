@@ -55,7 +55,7 @@ describe('authenticate middleware', () => {
   });
 
   it('attaches user to req when token is valid', () => {
-    const token = signAccessToken('user-1', 'manager', [
+    const token = signAccessToken('user-1', 'employee', [
       { module: 'pos', actions: ['view'] },
     ]);
     const { req, res, next } = mockReqResNext({ authorization: `Bearer ${token}` });
@@ -65,7 +65,7 @@ describe('authenticate middleware', () => {
     expect(next.mock.calls[0][0]).toBeUndefined();
     expect(req.user).toBeDefined();
     expect(req.user.id).toBe('user-1');
-    expect(req.user.role).toBe('manager');
+    expect(req.user.role).toBe('employee');
     expect(req.user.permissions).toEqual([{ module: 'pos', actions: ['view'] }]);
   });
 });
@@ -94,7 +94,7 @@ describe('authorize middleware', () => {
 
   it('returns 403 if module is not in permissions', () => {
     const { req, res, next } = mockReqResNext();
-    req.user = { id: '1', role: 'manager', permissions: [] };
+    req.user = { id: '1', role: 'employee', permissions: [] };
     const middleware = authorize('pos', 'view');
     middleware(req, res, next);
 
@@ -108,7 +108,7 @@ describe('authorize middleware', () => {
     const { req, res, next } = mockReqResNext();
     req.user = {
       id: '1',
-      role: 'manager',
+      role: 'employee',
       permissions: [{ module: 'pos', actions: ['view'] }],
     };
     const middleware = authorize('pos', 'delete');
@@ -124,7 +124,7 @@ describe('authorize middleware', () => {
     const { req, res, next } = mockReqResNext();
     req.user = {
       id: '1',
-      role: 'manager',
+      role: 'employee',
       permissions: [{ module: 'orders', actions: ['view', 'edit'] }],
     };
     const middleware = authorize('orders', 'edit');
@@ -173,7 +173,7 @@ describe('optionalAuth middleware', () => {
   });
 
   it('attaches user to req when token is valid', () => {
-    const token = signAccessToken('user-1', 'manager', [
+    const token = signAccessToken('user-1', 'employee', [
       { module: 'pos', actions: ['view'] },
     ]);
     const { req, res, next } = mockReqResNext({ authorization: `Bearer ${token}` });
@@ -183,7 +183,7 @@ describe('optionalAuth middleware', () => {
     expect(next.mock.calls[0][0]).toBeUndefined();
     expect(req.user).toBeDefined();
     expect(req.user.id).toBe('user-1');
-    expect(req.user.role).toBe('manager');
+    expect(req.user.role).toBe('employee');
   });
 });
 

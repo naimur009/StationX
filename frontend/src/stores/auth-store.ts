@@ -9,7 +9,7 @@ export interface User {
   id: string;
   name: string;
   email: string;
-  role: 'admin' | 'manager' | 'employee' | 'chief';
+  role: 'admin' | 'employee';
   permissions: UserPermission[];
   isActive: boolean;
 }

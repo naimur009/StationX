@@ -9,7 +9,7 @@ export interface IUser extends Document {
   name?: string;
   email: string;
   passwordHash: string;
-  role: 'admin' | 'manager' | 'employee' | 'chief';
+  role: 'admin' | 'employee';
   permissions: IUserPermission[];
   isActive: boolean;
   lastLoginAt?: Date;
@@ -39,7 +39,7 @@ const userSchema = new Schema<IUser>(
     role: {
       type: String,
       required: true,
-      enum: ['admin', 'manager', 'employee', 'chief'],
+      enum: ['admin', 'employee'],
     },
 
     permissions: {

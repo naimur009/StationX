@@ -382,7 +382,28 @@ These apply to **every** module below; listed once here and referenced by ID rat
 
 ---
 
-## 11. Vendors
+## 11. Incomes
+
+| ID | Type | Case | Expected |
+|---|---|---|---|
+| INC-H-01 | Happy | `POST /incomes` full valid payload | `201`, income created with `receivedBy` and `createdBy` populated |
+| INC-H-02 | Happy | `POST /incomes` with minimal payload (amount, date, category, receivedFrom, receivedBy, paymentMethod) | `201` |
+| INC-V-01 | Validation | Negative `amount` | `400 VALIDATION_ERROR` |
+| INC-V-02 | Validation | Missing `receivedFrom` or `receivedBy` | `400 VALIDATION_ERROR` (both required) |
+| INC-V-03 | Validation | `paymentMethod: split` | `400 VALIDATION_ERROR` — `split` is not in the Income payment-method enum |
+| INC-H-03 | Happy | `GET /incomes?range=&category=&paymentMethod=&receivedBy=` | Correctly filtered |
+| INC-H-04 | Happy | `GET /incomes/reference-data` | Returns employees list for receivedBy dropdown |
+| INC-H-05 | Happy | `PUT /incomes/:id` updating description and amount | `200`, fields updated |
+| INC-H-06 | Happy | `DELETE /incomes/:id` | Hard delete succeeds |
+| INC-E-01 | Error | `GET /incomes/:id` with nonexistent ID | `404 NOT_FOUND` |
+| INC-E-02 | Error | `PUT /incomes/:id` with nonexistent ID | `404 NOT_FOUND` |
+| INC-E-03 | Error | `receivedBy` references a nonexistent employee | `404 EMPLOYEE_NOT_FOUND` |
+| INC-AUTH-01 | Security | User lacks `incomes:create` | `403 FORBIDDEN` |
+| INC-AUTH-02 | Security | User lacks `incomes:view` | `403 FORBIDDEN` |
+
+---
+
+## 12. Vendors
 
 | ID | Type | Case | Expected |
 |---|---|---|---|
@@ -393,7 +414,7 @@ These apply to **every** module below; listed once here and referenced by ID rat
 
 ---
 
-## 12. Products
+## 13. Products
 
 | ID | Type | Case | Expected |
 |---|---|---|---|
@@ -409,7 +430,7 @@ These apply to **every** module below; listed once here and referenced by ID rat
 
 ---
 
-## 13. Categories
+## 14. Categories
 
 | ID | Type | Case | Expected |
 |---|---|---|---|---|
@@ -421,7 +442,7 @@ These apply to **every** module below; listed once here and referenced by ID rat
 
 ---
 
-## 14. Customers
+## 15. Customers
 
 | ID | Type | Case | Expected |
 |---|---|---|---|
@@ -444,7 +465,7 @@ These apply to **every** module below; listed once here and referenced by ID rat
 
 ---
 
-## 15. User Management
+## 16. User Management
 
 | ID | Type | Case | Expected |
 |---|---|---|---|
@@ -471,7 +492,7 @@ These apply to **every** module below; listed once here and referenced by ID rat
 
 ---
 
-## 16. Settings
+## 17. Settings
 
 | ID | Type | Case | Expected |
 |---|---|---|---|
@@ -485,7 +506,7 @@ These apply to **every** module below; listed once here and referenced by ID rat
 
 ---
 
-## 17. Activity Log
+## 18. Activity Log
 
 | ID | Type | Case | Expected |
 |---|---|---|---|
@@ -502,7 +523,7 @@ These apply to **every** module below; listed once here and referenced by ID rat
 
 ---
 
-## 18. Reports
+## 19. Reports
 
 | ID | Type | Case | Expected |
 |---|---|---|---|---|
@@ -517,7 +538,7 @@ These apply to **every** module below; listed once here and referenced by ID rat
 
 ---
 
-## 19. Salaries
+## 20. Salaries
 
 | ID | Type | Case | Expected |
 |---|---|---|---|
@@ -541,7 +562,7 @@ These apply to **every** module below; listed once here and referenced by ID rat
 | SAL-H-07 | Happy | `GET /salaries?month=&year=` | Correctly filtered list |
 | SAL-H-08 | Happy | `GET /salaries/:id` | Detail with advance history |
 
-## 20. Salary Adjustments (Bonus / Cut)
+## 21. Salary Adjustments (Bonus / Cut)
 
 | ID | Type | Case | Expected |
 |---|---|---|---|
@@ -557,7 +578,7 @@ These apply to **every** module below; listed once here and referenced by ID rat
 | ADJ-H-05 | Happy | `DELETE /salary-adjustments/:id` | Hard delete succeeds |
 | ADJ-E-02 | Error | `DELETE /salary-adjustments/:id` nonexistent | `404 NOT_FOUND` |
 
-## 21. Salary Summary
+## 22. Salary Summary
 
 | ID | Type | Case | Expected |
 |---|---|---|---|
@@ -568,7 +589,7 @@ These apply to **every** module below; listed once here and referenced by ID rat
 | SUM-E-01 | Error | `employeeId` references nonexistent employee | `404 EMPLOYEE_NOT_FOUND` |
 | SUM-H-03 | Happy | Auto-creation on first query | Summary document created in DB, subsequent queries return cached version |
 
-## 22. Employees
+## 23. Employees
 
 | ID | Type | Case | Expected |
 |---|---|---|---|
@@ -592,7 +613,7 @@ These apply to **every** module below; listed once here and referenced by ID rat
 
 ---
 
-## 23. Shared Uploads
+## 24. Shared Uploads
 
 ### `POST /uploads/image`
 
@@ -607,7 +628,7 @@ These apply to **every** module below; listed once here and referenced by ID rat
 
 ---
 
-## 24. Cross-Module Data Integrity Tests
+## 25. Cross-Module Data Integrity Tests
 
 These verify rules that span multiple collections/modules and are easy to silently break during iterative feature development.
 
@@ -625,7 +646,7 @@ These verify rules that span multiple collections/modules and are easy to silent
 
 ---
 
-## 25. Open Items Requiring Sign-Off Before Full Coverage
+## 26. Open Items Requiring Sign-Off Before Full Coverage
 
 These test areas can't be fully specified yet because the underlying behavior is itself an open item in `API.md`/`DATABASE.md`. Listed here so they aren't silently skipped — each should convert into real test cases once the linked decision is made.
 

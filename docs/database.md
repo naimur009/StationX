@@ -15,7 +15,7 @@
 | Primary key | MongoDB default `_id: ObjectId` on every collection |
 | Timestamps | `{ timestamps: true }` (Mongoose) → `createdAt`, `updatedAt` on every collection except `ActivityLog`, which is append-only and omits `updatedAt` |
 | Soft delete | `isActive: Boolean (default: true)` on **User, Customer** — entities referenced by historical records (Order, Expense, ActivityLog). Matches `ARCHITECTURE.md` §7. Vendor, Category, and Product use hard delete. `isActive` remains on Product as an availability toggle (POS catalog filtering), not a soft-delete flag. |
-| Hard delete | **Coupon, Task, Salary** — no downstream historical references, may be physically removed. Salary deletion is blocked at the service layer if advances exist. |
+| Hard delete | **Coupon, Task, Salary, Income** — no downstream historical references, may be physically removed. Salary deletion is blocked at the service layer if advances exist. |
 | Reference naming | `<entity>Id` (e.g. `customerId`, `vendorId`), type `ObjectId` with `ref: '<Collection>'` |
 | Money fields | Stored as `Number`, decimal currency value (e.g. `199.50`), **not** integer minor units (paise/cents). **Assumption, flag if wrong:** the PRD doesn't specify multi-currency, so minor-unit storage isn't required for v1; all monetary math is rounded to 2 decimal places at the application layer (Zod `.multipleOf(0.01)`) before persisting, to satisfy the NFR "no rounding/discount errors." |
 | Enums | Stored as lowercase string literals, validated by Mongoose `enum` **and** mirrored in a shared Zod schema (per future `AI_RULES.md`) so frontend/backend never drift |
@@ -40,6 +40,9 @@ Product ──< OrderItem (embedded snapshot inside Order, productId reference r
 Coupon ──< Order (couponId, optional)
 
 Vendor ──< Expense (vendorId, optional)
+
+Income ── receivedBy → Employee
+Income ── createdBy → User
 
 Employee ──┬─< Attendance (employee)
            ├─< Salary (employeeId)
@@ -344,6 +347,27 @@ Monthly salary summary per employee, computed from the salary record and all adj
 
 ---
 
+### 3.16 Income
+
+Records non-food miscellaneous income (e.g., scrap sales, plastic recycling, other non-order revenue). Mirrors the Expense schema structure.
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| `amount` | Number | ✓ | |
+| `date` | Date | ✓ | |
+| `description` | String | ✓ | |
+| `category` | String | ✓ | free-text/select (e.g. "Scrap", "Plastic", "Other") — not its own collection |
+| `receivedFrom` | String | ✓ | name of the payer/source; free text for ad-hoc income |
+| `receivedBy` | ObjectId → Employee | ✓ | staff member who received the payment |
+| `paymentMethod` | String enum `cash \| card \| bkash \| nagad` | ✓ | same method set as Expense |
+| `createdBy` | ObjectId → User | ✓ | |
+
+**Indexes:** `date`, `category`, `receivedBy`.
+
+> **Hard delete:** Incomes are permanently removed from the database via `DELETE /incomes/:id`. There is no `isActive` field — incomes are hard-deletable, consistent with the Expenses pattern.
+
+---
+
 ### 3.14 ActivityLog
 
 Append-only audit trail, written by the global `activityLogger` middleware (`ARCHITECTURE.md` §4) on every mutating request.
@@ -402,6 +426,7 @@ Singleton — exactly one document for the whole restaurant (single-tenant per `
 | SalaryAdjustment | `{employeeId, month, year}`, `{salaryId}`, `{type}` | lookups by employee, period, or type |
 | SalarySummary | `{employeeId, month, year}` (unique), `{month, year}` | monthly summary queries |
 | Expense | `date`, `category`, `vendorId` | reports, filters |
+| Income | `date`, `category`, `receivedBy` | reports, filters |
 | ActivityLog | `{actor, createdAt}`, `{module, createdAt}` | audit views |
 
 All `isActive`-bearing collections additionally get an index on `isActive` where it's a common list-filter predicate (Product, Customer) — omitted above where the field is rarely filtered on its own (User already covered by other compound use).
