@@ -1,5 +1,7 @@
 import Settings, { DEFAULT_SETTINGS } from '../../models/Settings';
+import Table from '../../models/Table';
 import { deleteFromCloudinary } from '../../lib/upload';
+import { getIO } from '../../config/socket';
 import type { UpdateSettingsDto } from './settings.validation';
 
 const SETTINGS_ID = 'restaurant-settings';
@@ -34,6 +36,7 @@ export async function updateSettings(dto: UpdateSettingsDto) {
     'businessHours',
     'vatInfo',
     'loyaltyOrderThreshold',
+    'tableCount',
   ];
 
   for (const field of allowedFields) {
@@ -58,5 +61,23 @@ export async function updateSettings(dto: UpdateSettingsDto) {
     { new: true, upsert: true, runValidators: true }
   );
 
+  if ('tableCount' in dto && dto.tableCount !== undefined) {
+    await syncTables(dto.tableCount);
+  }
+
   return settings;
+}
+
+async function syncTables(targetCount: number): Promise<void> {
+  await Table.deleteMany({});
+
+  if (targetCount > 0) {
+    const toCreate: Array<{ tableNumber: string; capacity: number | null; status: 'available' }> = [];
+    for (let i = 1; i <= targetCount; i++) {
+      toCreate.push({ tableNumber: String(i), capacity: null, status: 'available' });
+    }
+    await Table.insertMany(toCreate);
+  }
+
+  getIO().emit('table:statusChanged', {});
 }

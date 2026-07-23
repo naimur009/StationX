@@ -20,6 +20,7 @@ export interface SettingsResponse {
   vatInfo: { bin: string; mushak: string };
   businessHours: BusinessHourEntry[];
   loyaltyOrderThreshold: number;
+  tableCount: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -32,6 +33,7 @@ interface SettingsUpdateData {
   businessHours?: BusinessHourEntry[];
   vatInfo?: { bin?: string; mushak?: string };
   loyaltyOrderThreshold?: number;
+  tableCount?: number;
 }
 
 export interface PublicSettingsResponse {
@@ -67,6 +69,7 @@ export function useUpdateSettings() {
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['settings'] });
+      queryClient.invalidateQueries({ queryKey: ['tables'] });
     },
   });
 }

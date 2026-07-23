@@ -25,6 +25,7 @@ export interface ISettings {
   vatInfo: IVatInfo;
   businessHours: IBusinessHours[];
   loyaltyOrderThreshold: number;
+  tableCount: number;
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -82,6 +83,7 @@ const settingsSchema = new Schema(
       ],
     },
     loyaltyOrderThreshold: { type: Number, default: 0 },
+    tableCount: { type: Number, default: 0, min: 0, max: 100 },
   },
   { timestamps: true, toJSON: { versionKey: false } }
 );
@@ -107,6 +109,7 @@ export const DEFAULT_SETTINGS: ISettings = {
   vatInfo: { bin: '', mushak: '' },
   businessHours: DEFAULT_BUSINESS_HOURS,
   loyaltyOrderThreshold: 0,
+  tableCount: 0,
 };
 
 const Settings = mongoose.model<ISettings>('Settings', settingsSchema);

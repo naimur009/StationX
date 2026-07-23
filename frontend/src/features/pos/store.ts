@@ -15,7 +15,7 @@ interface PosActions {
   setCustomer: (customer: CustomerInfo | null) => void;
   setCustomerName: (name: string) => void;
   setCustomerPhone: (phone: string) => void;
-  setTableNumber: (table: string) => void;
+  setTableId: (tableId: string) => void;
   setServedBy: (userId: string) => void;
   setDiscountPercent: (percent: number) => void;
   setSubmitting: (submitting: boolean) => void;
@@ -27,7 +27,7 @@ const initialState: PosState = {
   customer: null,
   customerName: '',
   customerPhone: '',
-  tableNumber: '',
+  tableId: '',
   servedBy: '',
   couponCode: '',
   couponDiscount: 0,
@@ -70,7 +70,7 @@ export const usePosStore = create<PosState & PosActions>()(
       setCustomer: (customer) => set({ customer }),
       setCustomerName: (customerName) => set({ customerName }),
       setCustomerPhone: (customerPhone) => set({ customerPhone }),
-      setTableNumber: (tableNumber) => set({ tableNumber }),
+      setTableId: (tableId) => set({ tableId }),
       setServedBy: (servedBy) => set({ servedBy }),
       setDiscountPercent: (discountPercent) => set({ discountPercent }),
       setSubmitting: (submitting) => set({ submitting }),

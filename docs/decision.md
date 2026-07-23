@@ -561,3 +561,56 @@ Profit formula updated from `totalRevenue - totalExpenses - totalSalary` to `tot
 **Reasoning:**
 - The role enum fix ensures the dashboard can manage all user roles including admin, closing a gap where admin accounts could only be created via direct DB seeding.
 - The admin password reset endpoint follows the same pattern as the existing self-service endpoint but skips the `prevPassword` verification, since an admin resetting a password is a privileged operation that doesn't depend on knowing the user's current password.
+
+### [—] Table Count Configurable from Settings — 2026-07-24
+
+**Open item resolved:** N/A — enhancement to existing Table and Settings modules.
+
+**Decision:** Added `tableCount` field to Settings (default 0, max 100). When the admin updates `tableCount` in Settings, the backend auto-syncs the Table collection:
+- If `tableCount > existing count`: new tables are created with sequential labels ("1", "2", "3"...) and null capacity.
+- If `tableCount < existing count`: excess tables without active bookings are removed. Tables with active orders are preserved.
+- The manual "Add Table" button in the tables grid is removed, replaced by the Settings-driven auto-generation. Edit, Delete, and Manual Override remain available.
+
+**Doc(s) updated:**
+- `database.md` §3.15 (added `tableCount` to Settings schema)
+- `API.md` §23 (Settings section — `tableCount` now accepted in PUT body)
+- `decision.md` (this entry)
+
+**Files modified:**
+- `backend/src/models/Settings.ts` (added `tableCount` field)
+- `backend/src/modules/settings/settings.validation.ts` (added `tableCount` to updateSchema)
+- `backend/src/modules/settings/settings.service.ts` (added table sync logic)
+- `frontend/src/features/settings/api.ts` (added `tableCount` to types)
+- `frontend/src/features/settings/schema.ts` (added `tableSettingsSchema`)
+- `frontend/src/app/(dashboard)/settings/page.tsx` (added `TableSettingsSection`)
+- `frontend/src/features/tables/components/TableGrid.tsx` (removed "Add Table" button)
+- `frontend/src/app/(dashboard)/tables/page.tsx` (removed CreateTableDialog)
+
+**Files created:**
+- `frontend/src/features/settings/components/TableSettingsSection.tsx`
+
+**Reasoning:** The PRD specifies "The restaurant has a fixed set of tables (configurable, e.g. 20), each identified by a table number/label." The initial implementation required manual creation of each table via an "Add Table" button, which is tedious for a 20-table restaurant. Adding a `tableCount` setting allows the admin to set the total in one place and have tables auto-generated, matching the PRD's intent. The manual "Add Table" button is removed since the setting replaces the need for it, but individual table editing/deletion/override is preserved for operational flexibility.
+
+### [—] Table Management — Live Floor Status — 2026-07-23
+
+**Open item resolved:** `architecture.md §13` (deferred "Table & reservation management — Future Scope" item — pulled into v1 scope, narrowed to "Advanced reservation/scheduling system" for the future); `database.md §7` (scaling row that excluded tables/reservations from v1).
+
+**Decision:**
+1. **New `Table` collection** with fields: `label` (e.g. "T1"), `capacity` (optional Number), `status` (`available` | `booked`), `bookedBy` (`order` | `manual` | `null`), `orderId` (optional ObjectId ref to Order), `area` (optional string for zone grouping — "Indoor", "Patio", etc.), and standard timestamps.
+2. **Breaking field rename on Order:** `Order.tableNumber` (String) replaced with `Order.tableId` (ObjectId ref to `Table`) + `Order.tableLabelSnapshot` (String — the table's label at time of order, preserved for historical bill display). This is **not additive** — the old `tableNumber` field is removed. A migration script must migrate existing orders that had a `tableNumber` to create a Table document and set `tableId`/`tableLabelSnapshot`.
+3. **Booking/unbooking flow is dual-path:**
+   - **Auto** — POS order creation with a `tableId` sets `Table.status = 'booked'`, `Table.bookedBy = 'order'`, `Table.orderId = <orderId>`. Payment/cancel transitions on the order auto-unbook the table (sets `status = 'available'`, clears `bookedBy`/`orderId`). This is handled via Socket.io `table:statusChanged` events emitted from order-service hooks.
+   - **Manual** — Staff can toggle a table to `booked` via `PUT /tables/:id/status` with a `reason` body (e.g. "cleaning", "reserved for party"). In this case `bookedBy = 'manual'`, `orderId = null`. Manual override is blocked when the table already has an active order (status 409 + code `TABLE_HAS_ACTIVE_ORDER`). A confirmation dialog warns the staff member that this is an exceptional action.
+4. **Delete protection:** A Table cannot be deleted if it has an active (non-completed, non-cancelled) order. Delete returns 409 `TABLE_HAS_ACTIVE_ORDER`.
+5. **Permissions:** New `tables` module key with `view`, `create`, `edit`, `delete` actions.
+
+**Doc(s) updated:**
+- `PRD.md` §3.5 (new Feature 5: Table Management), §9.2 (Manager role description — "manage tables"), renumbered features 6–16
+- `architecture.md` §12 (narrowed Future Scope to "Advanced reservation/scheduling system"), §3.1 (frontend route `/tables`), §6.3 (backend `tables` module), §2/§7 (ER diagram + mapping table: Tables entity), §12 (Socket.io: `table:statusChanged`; open items: added `Order.tableNumber → tableId`, removed old deferred item, updated feature count to 16)
+- `database.md` §3.3 (new Table collection schema), §3.8 (Order: added `tableId` + `tableLabelSnapshot`, removed `tableNumber`), §5 (booking/unbooking integrity rules), §7 (narrowed scaling row), §8 (added open items for migration + table number already in use on POS)
+- `API.md` §11 (new Tables section — CRUD + manual-override-status endpoint + validation + security), updated POS/Orders to use `tableId` instead of `tableNumber`, §25 (added `TABLE_NOT_FOUND`, `TABLE_ALREADY_BOOKED`, `TABLE_HAS_ACTIVE_ORDER`, `TABLE_NUMBER_IN_USE` error codes), §26 (added `tables` to permission module keys), §23 (added `table:statusChanged` event), renumbered subsequent sections
+- `AI_rules.md` §2 (table CRUD validation rule), §3 (booking/unbooking integrity rule), §6 (hard-delete collection includes Table), §7 (strict-operator referential rules extended to `orderId` on Table), §8 (single-point-of-truth: `Table.status` is authoritative, UI derives from it); stale section references throughout fixed to match renumbered API.md/database.md sections
+- `theme.md` §12 (Status & Badge Color Mapping: added "Tables — `status: available` → green, `booked` → red"), §17b (new Table Grid Theme subsection with tile styling, capacity indicator, manual-block/order indicator distinction, responsive grid layout, Socket.io animation timing, empty state, hover/card-hover utility)
+
+**Reasoning:**
+Pulling table management into v1 was low-risk because `architecture.md`'s Future Scope had already reserved the concept — the deferred item was always "table *and reservation* management," and we split that: live floor status (now) vs. advanced booking/reservations (still Future Scope). The field on Order was already a string (`tableNumber`), which `architecture.md §12`'s own open-item note flagged as "will become a `tableId` ref when the Tables collection is created." Converting it to a reference (ObjectId) is correct now because the Table document carries a status that is more than just a label — the system needs to enforce booking/unbooking transitions, prevent double-booking, and emit Socket.io events on status changes. A free-text string cannot express that state machine. The breaking rename (`tableNumber` → `tableId`), while not additive, is justified because no external consumers depend on the old field name at this stage of development, and the migration is a one-time script that populates the new Tables collection from existing order data.

@@ -10,7 +10,7 @@ A web-based **Restaurant Management Dashboard** that allows a restaurant to run 
 |---|---|
 | **Admin** | Full access to all modules. Manages users, permissions, and restaurant settings. |
 | **Manager** | Operational access (scope to be defined via permissions in the User module). |
-| **Employee / Staff** | Limited access, primarily POS, Orders, Tasks, Attendance (scope to be defined via permissions). |
+| **Employee / Staff** | Limited access, primarily POS, Orders, Table Management, Tasks, Attendance (scope to be defined via permissions). |
 | **Customer** | Not a system user — a data record stored for order history and contact purposes. |
 
 > Note: Since Admin can configure "their access, what can he do, their permission, their role" per user, access control is **permission-based**, not just role-based. Each Manager/Employee account can have a custom set of allowed modules/actions.
@@ -45,7 +45,19 @@ A web-based **Restaurant Management Dashboard** that allows a restaurant to run 
 - Generate and print/download a bill
 - *(Open question: payment method tracking — cash/card/UPI/split? Table/order type — dine-in, takeaway, delivery?)*
 
-## 5. Orders
+## 5. Table Management
+- The restaurant has a fixed set of tables (configurable, e.g. 20), each identified by a table number/label
+- Each table has a status: **Available** (green) or **Booked** (red)
+- A table becomes **Booked** automatically when a dine-in POS order is created for it
+- A table becomes **Available** automatically when that order's bill is fully paid, or if the order is cancelled before payment
+- Staff can manually toggle a table's status at any time (e.g. to block for cleaning, or to fix a stuck state), independent of any order
+- Manual override is blocked if an active (unpaid) order still references the table
+- Table deletion is blocked while any active (unpaid) order references it
+- Tables are displayed as a **color-coded grid** so the floor status is visible at a glance
+- Table statuses update live across all connected dashboard/POS screens without a manual refresh
+- Permissions: view grid, create/edit/delete tables, manually change table status
+
+## 6. Orders
 - List of all orders generated from POS
 - Order detail view (items, quantities, totals, coupon used, timestamp, created by)
 - Edit order
@@ -53,7 +65,7 @@ A web-based **Restaurant Management Dashboard** that allows a restaurant to run 
 - Search and filter orders (by date, status, staff, customer)
 - *(Open question: should an order have a status — Pending / Completed / Cancelled?)*
 
-## 6. Coupons
+## 7. Coupons
 - Create discount coupons
 - Coupon code, value, and type (flat amount or percentage — *to be confirmed*)
 - Set validity period / expiry date
@@ -62,7 +74,7 @@ A web-based **Restaurant Management Dashboard** that allows a restaurant to run 
 - Edit / delete coupon
 - List of all coupons with usage status
 
-## 7. Task Management
+## 8. Task Management
 - Admin assigns tasks to a Manager or Employee
 - Set priority level (e.g., Low / Medium / High)
 - Set deadline / end time
@@ -70,65 +82,65 @@ A web-based **Restaurant Management Dashboard** that allows a restaurant to run 
 - View, edit, delete tasks
 - Task list, filterable by assignee/status/priority
 
-## 8. Attendance
+## 9. Attendance
 - Attendance tracking for Manager and Employee accounts
 - Check-in / check-out (or daily present/absent marking — *to be confirmed*)
 - Attendance history per staff member
 - Filter/report attendance by date range or staff
 
-## 9. Expenses
+## 10. Expenses
 - Record restaurant expenses (amount, date, description, category)
 - List of all expenses
 - Edit / delete expense entries
 - Filter expenses by date range / category
 - Feeds into the Reports module
 
-## 10. Vendors
+## 11. Vendors
 - List of all vendors
 - Vendor details (name, contact info, items supplied, etc. — *to be confirmed*)
 - Add / edit / delete vendor
 - *(Open question: should vendors be linked to specific products or expenses?)*
 
-## 11. Products
+## 12. Products
 - List of all products the restaurant sells
 - Add / edit / delete product
 - Product fields: name, price, category, image, availability
 - *(Open question: is stock/inventory tracking required, or are products just a sellable catalog for POS?)*
 
-## 12. Categories
+## 13. Categories
 - List of product categories
 - Add / edit / delete category
 - Assign products to categories (used for filtering in POS, Products, and Income reports)
 
-## 13. User Management
+## 14. User Management
 - List of all dashboard users (Admin, Manager, Employee)
 - Add new user
 - Assign role
 - Configure granular permissions — which modules/actions each user can access (view/create/edit/delete per module)
 - Edit / deactivate / delete user
 
-## 14. Settings
+## 15. Settings
 - Restaurant name, address, logo
 - Other business info: contact number, tax/GST info, business hours, etc. (*to be confirmed*; currency hardcoded to BDT)
 - General application settings
 
-## 15. User Activity Log
+## 16. User Activity Log
 - Chronological log of all actions taken in the dashboard (e.g., "Order #123 completed by Employee X", "New user created by Admin", "Product deleted")
 - Read-only audit trail
 - Filter by user, date range, or action type
 
-## 16. Income Section
+## 17. Income Section
 - Product-based income breakdown (e.g., total income from Tea, Chicken Fry, etc.)
 - Filterable by date range (Today / This Week / This Month / Custom)
 - Likely sourced from completed Orders data
 
-## 17. Customers
+## 18. Customers
 - List of customers
 - Customer details: name, phone number, and other contact info (*fields to be confirmed*)
 - Add / edit / delete customer
 - *(Open question: should customers be linked to their order history?)*
 
-## 18. Reports
+## 19. Reports
 - Generate reports: total sales, income, expenses
 - Time scope: monthly, annual, and **custom date range filter**
 - Export/print report as **PDF**

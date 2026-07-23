@@ -31,6 +31,8 @@ These are locked by `ARCHITECTURE.md` §2. Do not introduce an alternative libra
 
 Follow `ARCHITECTURE.md` §3 (frontend) and §4 (backend) exactly. Every new module's files land in the same shape as existing modules — no exceptions, no "just this once" flat files.
 
+`features/tables/` and `modules/tables/` follow this same shape — no exception.
+
 **Frontend, per module:**
 ```
 features/<module>/
@@ -63,8 +65,8 @@ modules/<module>/
 
 - **Base path** `/api/v1` on every route.
 - **Envelopes are non-negotiable:** success responses are `{ data: ... }` (+ `meta` for lists); errors are `{ error: { code, message, details? } }`. Never return a bare array, a bare object, or a different error shape "for this one endpoint."
-- **Error codes** come from `API.md` §23. If a new failure mode needs a new code, add it to that table in the same PR — don't invent an ad hoc string inline in a controller.
-- **Permission module keys** are the fixed list in `API.md` §24 (`dashboard`, `pos`, `orders`, `coupons`, `tasks`, `attendance`, `expenses`, `vendors`, `products`, `categories`, `customers`, `users`, `settings`, `reports`, `activity-log`). Every protected route's `authorize(module, action)` call must use one of these strings — no typos, no new module keys invented without updating API.md §24 first.
+- **Error codes** come from `API.md` §26. If a new failure mode needs a new code, add it to that table in the same PR — don't invent an ad hoc string inline in a controller.
+- **Permission module keys** are the fixed list in `API.md` §27 (`dashboard`, `pos`, `orders`, `tables`, `coupons`, `tasks`, `attendance`, `expenses`, `vendors`, `products`, `categories`, `customers`, `users`, `settings`, `reports`, `activity-log`). Every protected route's `authorize(module, action)` call must use one of these strings — no typos, no new module keys invented without updating API.md §27 first.
 - **Pagination** defaults (`page=1`, `limit=20`, capped `100`) and the date-range filter shape (`?range=today|week|month|custom&from=&to=`) are shared utilities, not reimplemented per module. Put them in one shared middleware/hook and reuse.
 - **Never trust client-submitted totals.** Per `API.md` §9.3, `subtotal`, `discountAmount`, `taxAmount`, and `grandTotal` are always recalculated server-side from `items` + `couponCode` + `Settings.taxConfig`. Any new money-calculating endpoint follows the same rule: server is the source of truth, client input is advisory.
 - **Snapshot, don't re-derive.** Anything stored as a snapshot (`OrderItem.nameSnapshot`, `priceSnapshot`) is never recomputed from the live `Product` document on read. This is the single rule most likely to be silently violated by a "helpful" refactor — don't add a populate/join that pulls live price data into a historical Order view.
@@ -98,14 +100,17 @@ modules/<module>/
 - Any new write to `Order` financial fields (`subtotal`, `discountAmount`, `taxAmount`, `grandTotal`, `items[].priceSnapshot`) outside of order creation is a bug. These fields are write-once.
 - Order creation (Counter increment, Order insert, Coupon `usageCount` `$inc`, ActivityLog write) is one Mongo transaction. Any new step added to this flow (e.g. a future stock decrement) joins the same transaction — never a separate, sequential write that could leave a partial state on failure.
 - All revenue-aggregating queries (Dashboard, Income, Reports) must exclude `status: 'cancelled'`. Use the shared aggregation helper described in `API.md` §7/§19 — do not write a second inline `$match` that could drift from it.
+- Table booking/unbooking (`API.md` §11.1) is a service-layer side-effect of order creation (`POS`), payment capture, and order cancellation (`Orders`). It runs **inside** the same order-creation transaction or status-transition write — never as a separate frontend-triggered API call that could race with or diverge from the order's own transaction.
+- A table must never end up with mismatched status and `currentOrderId` — i.e., `status: booked` with `currentOrderId: null`, or `status: available` with a non-null `currentOrderId` — except during an explicit manual override (`bookedBy: manual`). This invariant mirrors the snapshot-pricing warning: a "helpful" refactor that updates `status` and `currentOrderId` in two separate writes instead of one `findByIdAndUpdate` could silently corrupt floor status across all terminals.
 
 ---
 
 ## 7. Real-Time Events
 
-- Every event name, payload shape, and trigger condition must match `API.md` §22 exactly. If a new mutation needs to notify clients, check §22 first for an existing event before adding a new one.
+- Every event name, payload shape, and trigger condition must match `API.md` §25 exactly. If a new mutation needs to notify clients, check §25 first for an existing event before adding a new one.
 - Socket emits happen from the service layer, after a successful DB write/transaction commit — never optimistically before the write is confirmed.
 - `dashboard:metricsInvalidate` is a signal-only event (no payload). Don't attach data to it "to save a round trip" — the contract is that consumers re-fetch via React Query, not that they read pushed data off the socket.
+- `table:statusChanged` follows the same "emit after commit, never optimistic" rule as every other event (`API.md` §25).
 
 ---
 
@@ -115,7 +120,8 @@ modules/<module>/
 - Status/priority badges (Order status, Coupon status, Task priority/status, soft-delete `isActive` states) use the exact color mapping in `theme.md` §6. Don't invent a badge color per module.
 - Server data (anything from the API) lives in React Query. UI/global state lives in Zustand. Form state lives in React Hook Form. Don't mix — e.g., don't cache a products list in Zustand "for convenience" when it should be a `useQuery` hook.
 - The POS cart is the canonical example of why this split exists (`ARCHITECTURE.md` §8): it must survive background refetches, so it stays in Zustand, never in React Query's cache.
-- Every dashboard page wraps its content in `<PermissionGate module="..." action="...">` using the exact module key from `API.md` §24. This is UX convenience, not the real security boundary (the API enforces that) — but it must still be present on every page, not just the obviously sensitive ones.
+- The Tables floor-plan grid uses the badge/color system from `theme.md` §6: green for available, red for booked. No one-off color values — the status-to-color mapping must be a token reference, not a hardcoded Tailwind class like `bg-green-500`.
+- Every dashboard page wraps its content in `<PermissionGate module="..." action="...">` using the exact module key from `API.md` §27. This is UX convenience, not the real security boundary (the API enforces that) — but it must still be present on every page, not just the obviously sensitive ones.
 - Real-time updates land via Socket.io listeners calling `queryClient.invalidateQueries([...])` — never by manually mutating React Query cache state from a socket payload, to avoid cache shape drift from the REST responses.
 - Date-range filters across Dashboard/Income/Reports/Attendance/Orders/Expenses use the one shared `useDateRangeFilter` hook and the one shared `?range=&from=&to=` query shape. Don't build a module-specific date picker that emits a different param shape.
 
@@ -125,7 +131,7 @@ modules/<module>/
 
 - Every async route handler's errors flow to the central `errorHandler` middleware — no ad hoc `try/catch` that sends a custom-shaped error response from inside a controller.
 - Client-facing error messages never leak stack traces, raw Mongo error text, or internal file paths. Unhandled errors collapse to `500 INTERNAL_ERROR` with a generic message.
-- Every new error condition gets a `code` added to `API.md` §23 in the same change — "magic string" error codes that exist only in one controller are not allowed.
+- Every new error condition gets a `code` added to `API.md` §26 in the same change — "magic string" error codes that exist only in one controller are not allowed.
 
 ---
 

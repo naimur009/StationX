@@ -37,6 +37,7 @@ export const updateSettingsSchema = z
     businessHours: z.array(businessHoursSchema).optional(),
     vatInfo: vatInfoSchema.optional(),
     loyaltyOrderThreshold: z.number().int().min(0).optional(),
+    tableCount: z.number().int().min(0).max(100).optional(),
   })
   .strict();
 

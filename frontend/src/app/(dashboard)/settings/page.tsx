@@ -6,6 +6,7 @@ import TaxSection from '@/features/settings/components/TaxSection';
 import BusinessHoursSection from '@/features/settings/components/BusinessHoursSection';
 import LogoSettingsSection from '@/features/settings/components/LogoSettingsSection';
 import LoyaltyDiscountSection from '@/features/settings/components/LoyaltyDiscountSection';
+import TableSettingsSection from '@/features/settings/components/TableSettingsSection';
 import DataManagementSection from '@/features/settings/components/DataManagementSection';
 
 export default function SettingsPage() {
@@ -21,6 +22,7 @@ export default function SettingsPage() {
         <TaxSection />
         <BusinessHoursSection />
         <LoyaltyDiscountSection />
+        <TableSettingsSection />
         <LogoSettingsSection />
         <DataManagementSection />
       </div>

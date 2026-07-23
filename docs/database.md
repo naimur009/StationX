@@ -49,10 +49,13 @@ Employee ──┬─< Attendance (employee)
            ├─< SalaryAdjustment (employeeId)
            └─< SalarySummary (employeeId)
 
+Table ── currentOrderId → Order (optional, set when booked via an order)
+
 Order ── embeds OrderItem[]
 Order ── customerId → Customer (optional, walk-ins omit it)
 Order ── createdBy → User
 Order ── couponId → Coupon (optional)
+Order ── tableId → Table (optional, dine-in only)
 
 Settings — singleton, no relationships
 Counter — internal helper, no relationships
@@ -95,6 +98,31 @@ Authentication identity + embedded permission grants (per `ARCHITECTURE.md` §6,
 **Indexes:** `name` (unique).
 
 > **Hard delete:** Categories are permanently removed from the database via `DELETE /categories/:id`. Products that reference a deleted category will retain the `categoryId` reference but `populate` will return `null` — historically ordered products are safe because orders store a `categorySnapshot` at creation time.
+
+---
+
+### 3.3 Table
+
+Tracks restaurant tables for live floor status. A table is either **available** or **booked**; when booked, it optionally points to the active order occupying it.
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| `tableNumber` | String | ✓ | unique human-readable label, e.g. `"1"`, `"12"`, `"VIP-2"` |
+| `capacity` | Number | — | seat count, optional |
+| `status` | String enum `available \| booked` | ✓ (default `available`) | live floor status |
+| `currentOrderId` | ObjectId → Order | — | set when booked via a dine-in order; null when manually booked or available |
+| `bookedBy` | String enum `order \| manual` | — | null when available; explains *why* the table is booked |
+| `bookedAt` | Date | — | timestamp of the most recent status → booked transition |
+| `notes` | String | — | e.g. `"reserved for 7pm"`, `"blocked for cleaning"` |
+
+**Indexes:** `tableNumber` (unique), `status`.
+
+> **Hard delete:** Tables are hard-deleted, not soft-deleted. Deletion is blocked at the service layer if `currentOrderId` is non-null (i.e., an active unpaid order still references the table). This mirrors the "can't delete an in-use entity" pattern used elsewhere (see §5 rules for Vendor/Product referential protection).
+>
+> **Status derivations:**
+> - `status: booked, bookedBy: order, currentOrderId: <id>` — table occupied by an active dine-in order.
+> - `status: booked, bookedBy: manual, currentOrderId: null` — manually blocked (cleaning, reserved for VIP, stuck-state fix).
+> - `status: available` — `bookedBy` and `currentOrderId` are both null.
 
 ---
 
@@ -182,7 +210,8 @@ The highest-traffic, highest-stakes collection — embeds line items per the rea
 |---|---|---|---|
 | `orderNumber` | String | ✓ | human-readable sequential number (e.g. `ORD-000482`), generated via the `Counter` helper (3.9) — never re-derived from `_id` |
 | `orderType` | String enum `dine-in \| takeaway \| delivery` | ✓ | |
-| `tableNumber` | String | — | only meaningful for `dine-in`; left generic per §13 (future Table/Reservation module) |
+| `tableId` | ObjectId → Table | — | **Breaking rename from the previous `tableNumber` (free-text String).** Now a proper reference to the `Table` collection. Only meaningful for `orderType: 'dine-in'`. |
+| `tableLabelSnapshot` | String | — | frozen copy of `Table.tableNumber` at order creation time (see §8 open item 6 — included per recommendation, confirm before API.md) |
 | `customerId` | ObjectId → Customer | — | optional; walk-ins omit it |
 | `items` | Array of `OrderItem` (embedded, see below) | ✓ (min 1) | |
 | `couponId` | ObjectId → Coupon | — | |
@@ -214,6 +243,7 @@ The highest-traffic, highest-stakes collection — embeds line items per the rea
 - `customerId`
 - `createdBy`
 - `items.productId` (multikey — supports "top 10 best-selling items" aggregation)
+- `tableId` — lookup the active order on a given table (used by the booking guard, rule 9)
 
 > **Why snapshot product name/price instead of just `productId`:** if a Product's price changes next week, every past Order referencing it must still show what the customer actually paid and what the bill actually said — re-deriving historical totals from a live Product document would silently corrupt past financial reports. This is the single most important data-integrity rule in the schema.
 
@@ -402,6 +432,7 @@ Singleton — exactly one document for the whole restaurant (single-tenant per `
 | `contactNumber` | String | — | |
 | `businessHours` | `[{ day: String, open: String, close: String }]` | — | |
 | `vatInfo` | `{ bin: String, mushak: String }` | — | VAT registration details — BIN (Business Identification Number) and Mushak number |
+| `tableCount` | Number (default `0`, min `0`, max `100`) | — | Total number of tables in the restaurant. When changed, tables are auto-created (sequential labels "1", "2", ...) or excess tables without active orders are removed. |
 
 **Enforcing singleton:** fixed, well-known `_id` (e.g. the string `'restaurant-settings'`) so `upsert` always targets the same document — simpler and more explicit than an app-level "only one document" check.
 
@@ -419,6 +450,7 @@ Singleton — exactly one document for the whole restaurant (single-tenant per `
 | Coupon | `code` (unique), `{isEnabled, validUntil}` | redemption lookup |
 | Customer | `phone`, text(`name`) | POS lookup, search |
 | Vendor | `name` | list/search |
+| Table | `tableNumber` (unique), `status` | lookup by label, filter floor grid by status |
 | Order | `orderNumber` (unique), `{status, createdAt}`, `customerId`, `createdBy`, `items.productId` | listing, date-range reports, top-sellers |
 | Task | `{assignedTo, status}`, `priority`, `deadline` | assignee views, filters |
 | Attendance | `{employee, date}` (unique) | one record/day per employee |
@@ -441,6 +473,10 @@ All `isActive`-bearing collections additionally get an index on `isActive` where
 4. **Cancelled orders excluded from revenue:** every aggregation pipeline (Dashboard metrics, Income, Sales Report) must filter `status: { $ne: 'cancelled' }` — this is a query-discipline rule, not a schema constraint, and should be centralized in one shared aggregation helper rather than repeated per endpoint to avoid one module forgetting it.
 5. **Referential soft-delete:** Product/Customer soft-deletes never cascade-delete or null-out the foreign key on existing Orders/Expenses — old documents keep pointing at the (now-inactive) referenced document so historical detail views and reports remain fully reconstructable. Vendor and Category hard-deletes naturally null-populate references (Mongoose `.populate()` returns `null` for deleted refs); existing Order data remains intact via snapshot fields.
 6. **Attendance uniqueness:** the `{employee, date}` unique index is the actual guard against duplicate check-ins (not just service-layer logic), so it holds even under a retried/duplicated request.
+7. **Table booking is part of the order-creation transaction:** when a dine-in POS order is created with a `tableId`, the Mongo multi-document transaction (rule 1) gains an additional step — `Table.findByIdAndUpdate(tableId, { status: 'booked', currentOrderId, bookedBy: 'order', bookedAt: now })`. This is not a separate sequential write; per AI_rules.md §6, new steps join the existing transaction atomically alongside the Counter increment, Order insert, Coupon `$inc`, and ActivityLog write.
+8. **Table unbooking on payment capture or cancellation:** when `Order.paymentStatus` transitions to `paid` (payment captured) or `Order.status` transitions to `cancelled` (order cancelled before payment), the table is unbooked as a side-effect of those existing code paths — `Table.findByIdAndUpdate(order.tableId, { status: 'available', currentOrderId: null, bookedBy: null, bookedAt: null })`. No new transaction is needed; the unbooking runs in the same write operation as the status transition.
+9. **A `booked` table cannot be assigned to a different new order:** if a dine-in POS order targets a `Table` whose `status` is `booked`, the service layer must reject the request with a dedicated error code (to be defined in `API.md`, e.g. `TABLE_ALREADY_BOOKED`) rather than silently overwriting `currentOrderId`. The check happens inside the order-creation transaction *before* the table-update step, so two concurrent orders racing for the same table cannot both succeed.
+10. **Table deletion guard:** hard-deleting a `Table` with a non-null `currentOrderId` is blocked at the service layer. This mirrors the existing pattern in rule 5 (referential integrity for in-use entities) and is consistent with how Salary deletion is blocked when advances exist (§3.12 guards).
 
 ---
 
@@ -463,7 +499,7 @@ Mirrors `ARCHITECTURE.md` §13 — listed here only where it has a *specific* sc
 | Product inventory/stock | Add `Product.stock: Number`; Order-creation transaction (§5) would gain a stock-decrement step |
 | Vendor↔Product linkage | Add `Product.vendorId` or a join collection `ProductVendor` |
 | Online payment gateway | New `Payment` collection (gateway transaction id, status, webhook events) referenced from `Order.payment` instead of the current record-keeping-only object |
-| Table/reservation management | New `Table`/`Reservation` collections; `Order.tableNumber` (already a generic string field) becomes a proper `tableId` reference |
+| Reservation scheduling (future time slots) | New `Reservation` collection linked to `Table` via `tableId`; extends the floor-status Table module (v1) |
 | QR self-ordering | `Order` gains a `source: enum(staff\|qr)` field; no other structural change |
 
 ---
@@ -474,5 +510,7 @@ Mirrors `ARCHITECTURE.md` §13 — listed here only where it has a *specific* sc
 2. ~~**Settings.taxConfig mode** — confirm whether v1 needs `itemized` (per-category tax rates) or whether a single flat `rate` covers all current requirements; affects POS tax-calculation logic and `Order.taxAmount` derivation.~~ **RESOLVED:** The system uses a per-category VAT model (`Category.vatRate`). The old `taxConfig` has been removed. VAT is calculated per line item and is informational (does not inflate `grandTotal`).
 3. ~~**Expense.category values** — confirm whether this should be a fixed enum (cleaner filtering, matches "Filter expenses by category" in PRD Feature 9) or free text (more flexible, harder to filter cleanly). Leaning enum; needs sign-off before `API.md` defines the validation schema.~~ **RESOLVED:** free text, not enum. Both `DATABASE.md` §3.12 (field definition) and the §6 normalization note already describe `category` as free-text; confirmed during Expense implementation planning. See `tasks/implementation_plan.md`.
 4. **Coupon `usageLimit` scope** — confirm whether the limit is global (current schema: total redemptions across all customers) or per-customer; the latter would require a `CouponRedemption` join collection instead of a single `usageCount` field.
+5. **One or multiple simultaneous orders per table?** The PRD implies one-to-one (a table → `booked` when a dine-in order targets it, → `available` when that order is paid/cancelled). However, a large table could theoretically host two separate parties on separate bills. **Assumption: one active order per table at a time.** The `currentOrderId` field and booking guard (rule 9) enforce this. Flag this assumption if split-bill-per-table is required — it would need a different model (e.g. a `TableSession` collection).
+6. **Should `Order` snapshot the table label for historical display?** Currently `Order.tableId` is a live reference — if a table is later renumbered or renamed, historical orders and bills would silently show the new label. **Recommendation: add `tableLabelSnapshot: String` to the Order schema** (similar to `OrderItem.nameSnapshot`), populated at order creation time from `Table.tableNumber`. This keeps historical bills accurate. `database.md` should adopt this; `API.md` should populate it. Flag if you prefer the simpler live-reference approach (no snapshot, accept the rename risk).
 
 ---

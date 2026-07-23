@@ -23,7 +23,8 @@ export interface IPreviousPayment {
 export interface IOrder extends Document {
   orderNumber: string;
   orderType: 'dine-in' | 'takeaway' | 'delivery';
-  tableNumber?: string;
+  tableId?: mongoose.Types.ObjectId | null;
+  tableLabelSnapshot?: string;
   customerId?: mongoose.Types.ObjectId | null;
   customerName?: string;
   customerPhone?: string;
@@ -89,7 +90,8 @@ const orderSchema = new Schema<IOrder>(
       required: true,
       enum: ['dine-in', 'takeaway', 'delivery'],
     },
-    tableNumber: { type: String, required: false },
+    tableId: { type: Schema.Types.ObjectId, ref: 'Table', required: false, default: null },
+    tableLabelSnapshot: { type: String, required: false },
     customerId: { type: Schema.Types.ObjectId, ref: 'Customer', required: false, default: null },
     customerName: { type: String, required: false },
     customerPhone: { type: String, required: false },
@@ -125,6 +127,7 @@ orderSchema.index({ createdBy: 1 });
 orderSchema.index({ 'items.productId': 1 });
 orderSchema.index({ paymentStatus: 1 });
 orderSchema.index({ status: 1, paymentStatus: 1, createdAt: -1 });
+orderSchema.index({ tableId: 1 });
 
 const Order = mongoose.model<IOrder>('Order', orderSchema);
 

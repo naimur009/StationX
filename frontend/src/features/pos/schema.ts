@@ -24,7 +24,7 @@ export interface PosState {
   customer: CustomerInfo | null;
   customerName: string;
   customerPhone: string;
-  tableNumber: string;
+  tableId: string;
   servedBy: string;
   couponCode: string;
   couponDiscount: number;

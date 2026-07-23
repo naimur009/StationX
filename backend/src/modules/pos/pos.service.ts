@@ -4,6 +4,7 @@ import Coupon from '../../models/Coupon';
 import Customer from '../../models/Customer';
 import Employee from '../../models/Employee';
 import Order from '../../models/Order';
+import Table from '../../models/Table';
 import ActivityLog from '../../models/ActivityLog';
 import { withTransaction } from '../../lib/transaction';
 import { getNextSequence } from '../../lib/counter';
@@ -238,6 +239,21 @@ export async function createOrder(dto: CreateOrderDto, userId: string) {
     changeAmount = round2(Math.max(0, cashTendered - grandTotal));
   }
 
+  let tableLabelSnapshot: string | undefined;
+  if (rest.tableId) {
+    const table = await Table.findById(rest.tableId);
+    if (!table) {
+      throw createError(400, 'TABLE_NOT_FOUND', 'Referenced table not found');
+    }
+    if (table.status === 'booked' && table.currentOrderId) {
+      const activeOrder = await Order.findById(table.currentOrderId).select('status');
+      if (activeOrder && activeOrder.status !== 'cancelled' && activeOrder.status !== 'completed') {
+        throw createError(409, 'TABLE_ALREADY_BOOKED', 'This table is already booked by another active order');
+      }
+    }
+    tableLabelSnapshot = table.tableNumber;
+  }
+
   const orderResult = await withTransaction(async (session) => {
     const seq = await getNextSequence('orderNumber', session);
 
@@ -248,7 +264,8 @@ export async function createOrder(dto: CreateOrderDto, userId: string) {
       [{
         orderNumber: on,
         orderType: rest.orderType || 'dine-in',
-        tableNumber: rest.tableNumber,
+        tableId: rest.tableId || undefined,
+        tableLabelSnapshot,
         customerId: resolvedCustomerId,
         customerName: rest.customerName,
         customerPhone: rest.customerPhone,
@@ -288,6 +305,14 @@ export async function createOrder(dto: CreateOrderDto, userId: string) {
       { session }
     );
 
+    if (rest.tableId) {
+      await Table.findByIdAndUpdate(
+        rest.tableId,
+        { status: 'booked', currentOrderId: order[0]._id, bookedBy: 'order', bookedAt: new Date() },
+        { session }
+      );
+    }
+
     return {
       orderNumber: on,
       orderId: order[0]._id.toString(),
@@ -309,6 +334,16 @@ export async function createOrder(dto: CreateOrderDto, userId: string) {
     io.emit('pos:order_created', payload);
     io.emit('order:created', payload);
     io.emit('dashboard:metricsInvalidate');
+
+    if (rest.tableId) {
+      io.emit('table:statusChanged', {
+        tableId: rest.tableId,
+        tableNumber: tableLabelSnapshot,
+        status: 'booked',
+        orderId: orderResult.orderId,
+        source: 'order',
+      });
+    }
   } catch {
     // socket not available
   }

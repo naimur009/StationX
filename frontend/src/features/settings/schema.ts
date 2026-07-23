@@ -64,3 +64,9 @@ export const loyaltyDiscountSchema = z.object({
 });
 
 export type LoyaltyDiscountFormData = z.input<typeof loyaltyDiscountSchema>;
+
+export const tableSettingsSchema = z.object({
+  tableCount: z.coerce.number().int().min(0).max(100),
+});
+
+export type TableSettingsFormData = z.input<typeof tableSettingsSchema>;

@@ -27,6 +27,7 @@ import dashboardRoutes from './modules/dashboard/dashboard.routes';
 import salariesRoutes from './modules/salaries/salaries.routes';
 import employeesRoutes from './modules/employees/employees.routes';
 import incomesRoutes from './modules/incomes/incomes.routes';
+import tablesRoutes from './modules/tables/tables.routes';
 
 const app = express();
 
@@ -183,6 +184,14 @@ app.use('/api/v1/incomes', (req, res, next) => {
   next();
 });
 app.use('/api/v1', incomesRoutes);
+const tablesMutationLimiter = makeRateLimiter(env.RATE_LIMIT_MAX);
+app.use('/api/v1/tables', (req, res, next) => {
+  if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method)) {
+    return tablesMutationLimiter(req, res, next);
+  }
+  next();
+});
+app.use('/api/v1', tablesRoutes);
 
 app.use(errorHandler);
 

@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
 import Order from '../../models/Order';
+import Table from '../../models/Table';
 import Product from '../../models/Product';
 import Category from '../../models/Category';
 import Coupon from '../../models/Coupon';
@@ -25,7 +26,8 @@ const VALID_TRANSITIONS: Record<string, string[]> = {
 interface OrderListItem {
   id: string;
   orderNumber: string;
-  tableNumber?: string;
+  tableId?: string | null;
+  tableLabelSnapshot?: string;
   customerId: string | null;
   customerName?: string;
   customerPhone?: string;
@@ -40,7 +42,8 @@ interface OrderListItem {
 interface OrderDetailItem {
   id: string;
   orderNumber: string;
-  tableNumber?: string;
+  tableId?: string | null;
+  tableLabelSnapshot?: string;
   customerId: unknown;
   customerName?: string;
   customerPhone?: string;
@@ -88,7 +91,8 @@ function toListItem(order: Record<string, unknown>): OrderListItem {
   return {
     id: order._id as string,
     orderNumber: order.orderNumber as string,
-    tableNumber: order.tableNumber as string | undefined,
+    tableId: (order.tableId as { _id?: string } | null | undefined)?._id?.toString() ?? (order.tableId as string | null | undefined) ?? null,
+    tableLabelSnapshot: order.tableLabelSnapshot as string | undefined,
     customerId: customerRaw?._id?.toString() ?? null,
     customerName: customerRaw?.name ?? (order.customerName as string | undefined),
     customerPhone: order.customerPhone as string | undefined,
@@ -102,10 +106,12 @@ function toListItem(order: Record<string, unknown>): OrderListItem {
 }
 
 function toDetail(order: Record<string, unknown>): OrderDetailItem {
+  const tableRaw = order.tableId as { _id?: string; tableNumber?: string } | undefined | null;
   return {
     id: String(order._id),
     orderNumber: order.orderNumber as string,
-    tableNumber: order.tableNumber as string | undefined,
+    tableId: tableRaw?._id?.toString() ?? (order.tableId as string | null | undefined) ?? null,
+    tableLabelSnapshot: order.tableLabelSnapshot as string | undefined,
     customerId: order.customerId ?? null,
     customerName: order.customerName as string | undefined,
     customerPhone: order.customerPhone as string | undefined,
@@ -263,7 +269,7 @@ export function renderBillHtml(order: Record<string, unknown>, settings?: BillSe
 </div>
 
 <div class="meta">
-  ${order.tableNumber ? `<div class="info-row"><span>Table</span><span>${escapeHtml(order.tableNumber as string)}</span></div>` : ''}
+  ${order.tableLabelSnapshot ? `<div class="info-row"><span>Table</span><span>${escapeHtml(order.tableLabelSnapshot as string)}</span></div>` : ''}
   ${servedBy?.name ? `<div class="info-row"><span>Served By</span><span>${escapeHtml(servedBy.name)}</span></div>` : createdBy?.name ? `<div class="info-row"><span>Served By</span><span>${escapeHtml(createdBy.name)}</span></div>` : ''}
   <div class="info-row"><span>Date</span><span>${dateStr}</span></div>
   <div class="info-row"><span>Time</span><span>${timeStr}</span></div>
@@ -323,7 +329,7 @@ ${paymentStatus !== 'paid' ? `
 
 <div class="kitchen-meta">
   <div class="info-row"><span>Invoice</span><span>${orderNumber}</span></div>
-  ${order.tableNumber ? `<div class="info-row"><span>Table</span><span>${escapeHtml(order.tableNumber as string)}</span></div>` : ''}
+  ${order.tableLabelSnapshot ? `<div class="info-row"><span>Table</span><span>${escapeHtml(order.tableLabelSnapshot as string)}</span></div>` : ''}
   ${servedBy?.name ? `<div class="info-row"><span>Served By</span><span>${escapeHtml(servedBy.name)}</span></div>` : createdBy?.name ? `<div class="info-row"><span>Served By</span><span>${escapeHtml(createdBy.name)}</span></div>` : ''}
   <div class="info-row"><span>Date</span><span>${dateStr}</span></div>
   <div class="info-row"><span>Time</span><span>${timeStr}</span></div>
@@ -390,7 +396,8 @@ export async function listOrders(query: ListOrdersQuery) {
   const projection = {
     _id: 1,
     orderNumber: 1,
-    tableNumber: 1,
+    tableId: 1,
+    tableLabelSnapshot: 1,
     customerName: 1,
     customerPhone: 1,
     grandTotal: 1,
@@ -445,7 +452,7 @@ export async function updateOrder(id: string, dto: UpdateOrderDto) {
   }
 
   const updates: Record<string, unknown> = {};
-  if (dto.tableNumber !== undefined) updates.tableNumber = dto.tableNumber;
+  if (dto.tableId !== undefined) updates.tableId = dto.tableId;
   if (dto.customerId !== undefined) updates.customerId = dto.customerId;
 
   if (dto.items) {
@@ -689,6 +696,17 @@ export async function updateOrderStatus(id: string, dto: UpdateOrderStatusDto) {
         targetType: 'Order',
         description: `Payment captured for ${order.orderNumber} — ${dto.payment!.method.toUpperCase()}, BDT ${grandTotal.toFixed(2)}`,
       }], { session });
+
+      if (order.tableId) {
+        const table = await Table.findOne({ _id: order.tableId, currentOrderId: order._id }, null, { session });
+        if (table) {
+          await Table.findByIdAndUpdate(
+            order.tableId,
+            { status: 'available', currentOrderId: null, bookedBy: null, bookedAt: null },
+            { session }
+          );
+        }
+      }
     });
 
     try {
@@ -699,6 +717,16 @@ export async function updateOrderStatus(id: string, dto: UpdateOrderStatusDto) {
         paymentStatus: 'paid',
       });
       io.emit('dashboard:metricsInvalidate');
+
+      if (order.tableId) {
+        io.emit('table:statusChanged', {
+          tableId: order.tableId.toString(),
+          tableNumber: order.tableLabelSnapshot || null,
+          status: 'available',
+          orderId: null,
+          source: 'order',
+        });
+      }
     } catch {
       // socket not available
     }
@@ -759,12 +787,31 @@ export async function updateOrderStatus(id: string, dto: UpdateOrderStatusDto) {
     throw createError(404, 'NOT_FOUND', 'Order not found');
   }
 
+  if (targetStatus === 'cancelled' && order.tableId) {
+    const table = await Table.findOne({ _id: order.tableId, currentOrderId: order._id });
+    if (table) {
+      await Table.findByIdAndUpdate(order.tableId, {
+        status: 'available', currentOrderId: null, bookedBy: null, bookedAt: null,
+      });
+    }
+  }
+
   try {
     getIO().emit('order:statusChanged', {
       orderId: updated._id.toString(),
       status: updated.status,
       orderNumber: updated.orderNumber,
     });
+
+    if (targetStatus === 'cancelled' && order.tableId) {
+      getIO().emit('table:statusChanged', {
+        tableId: order.tableId.toString(),
+        tableNumber: order.tableLabelSnapshot || null,
+        status: 'available',
+        orderId: null,
+        source: 'order',
+      });
+    }
   } catch {
     // socket not available
   }

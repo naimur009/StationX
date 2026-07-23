@@ -23,6 +23,7 @@ export const MODULE_ACTIONS: Record<string, readonly string[]> = {
   employees: ['view', 'create', 'edit', 'delete'],
   settings: ['view', 'edit'],
   reports: ['view', 'create'],
+  tables: ['view', 'create', 'edit', 'delete'],
   salary: ['view', 'create', 'edit', 'delete'],
   ['activity-log']: ['view', 'delete'],
   uploads: ['create'],
@@ -49,6 +50,7 @@ export function getModuleLabel(module: string): string {
     settings: 'Settings',
     reports: 'Reports',
     salary: 'Salary',
+    tables: 'Tables',
     'activity-log': 'Activity Log',
     uploads: 'Uploads',
   };

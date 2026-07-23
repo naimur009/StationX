@@ -71,6 +71,7 @@ frontend/
 │   │   │   └── [orderId]/page.tsx
 │   │   ├── coupons/page.tsx
 │   │   ├── tasks/page.tsx
+│   │   ├── tables/page.tsx
 │   │   ├── attendance/page.tsx
 │   │   ├── expenses/page.tsx
 │   │   ├── vendors/page.tsx
@@ -95,6 +96,7 @@ frontend/
 │   ├── orders/
 │   ├── coupons/
 │   ├── tasks/
+│   ├── tables/
 │   ├── attendance/
 │   ├── expenses/
 │   ├── vendors/
@@ -158,6 +160,7 @@ backend/
 │   │   ├── orders/
 │   │   ├── coupons/
 │   │   ├── tasks/
+│   │   ├── tables/
 │   │   ├── attendance/
 │   │   ├── expenses/
 │   │   ├── vendors/
@@ -209,6 +212,9 @@ Coupon ──< Order (applied coupon, by reference)
 Order ──< OrderItem (embedded)
 Order ── createdBy → User
 Order ── customerId → Customer (optional)
+Order ── tableId → Table (optional, dine-in only)
+
+Table ── status updated automatically on Order paid/cancelled, or by manual toggle
 
 Task ── assignedTo → User
 Task ── assignedBy → User
@@ -279,7 +285,7 @@ Full endpoint list belongs in `API.md`. Conventions established here so that doc
 | Global client/UI state | **Zustand** | Auth/session state, current POS cart, active sidebar/filters |
 | Local component state | **React `useState`** | Form field focus, modal open/close |
 | Form state | **React Hook Form** | All create/edit forms, validated against shared Zod schemas |
-| Real-time pushed state | **Socket.io → React Query cache invalidation** | New order placed on another terminal triggers `queryClient.invalidateQueries(['orders'])` and a live Dashboard metric refresh |
+| Real-time pushed state | **Socket.io → React Query cache invalidation** | New order placed on another terminal triggers `queryClient.invalidateQueries(['orders'])` and a live Dashboard metric refresh. Table status changes (auto on order paid/cancelled, or manual toggle) follow the same pattern — no separate real-time mechanism needed |
 
 **Why this split:** POS in particular needs cart state to survive across product browsing without being tied to the server-state cache (you don't want a background refetch to wipe an in-progress cart), so it's deliberately kept in Zustand rather than React Query.
 
@@ -295,6 +301,7 @@ This table places each of the 18 PRD features into the skeleton — it is a **st
 | Auth & Access Control | `features/auth` | `modules/auth`, `modules/users` (permissions) | JWT + permission middleware |
 | Dashboard | `features/dashboard` | `modules/dashboard` | Read-only aggregation endpoints, cached short-TTL |
 | POS | `features/pos` | `modules/pos` | Writes to `orders`, reads `products`/`coupons` |
+| Table Management | `features/tables` | `modules/tables` | CRUD for tables, manual status toggle; automations triggered by Order events (paid/cancelled) |
 | Orders | `features/orders` | `modules/orders` | CRUD + status transitions |
 | Coupons | `features/coupons` | `modules/coupons` | Validity-window logic shared with POS service |
 | Task Management | `features/tasks` | `modules/tasks` | Assignment requires `users` lookup |
@@ -395,7 +402,7 @@ These are deliberately **excluded from v1** to keep the initial build simple, bu
 | Scheduled/automated report generation & delivery | Cron-based job in `modules/reports`, email delivery of generated PDFs | v1 Reports are on-demand only (see §14, open item 3) |
 | Offline-capable POS (local order queue + auto-sync) | Service worker, local IndexedDB queue on the POS terminal. If the network drops mid-shift, new orders are written locally first (not lost) and queued; once connectivity returns, the queue auto-syncs to the backend in order, with conflict/duplicate-order resolution (e.g. idempotency key per order created offline) | Real-world need depends on venue's connectivity reliability — assess after v1 launch |
 | Kitchen Display System (KDS) | New real-time consumer of the existing Socket.io order events, possibly a dedicated `kds` route/device view | Natural extension of the existing Socket.io order-broadcast — no new data model needed, just a new client |
-| Table & reservation management | New `Table`/`Reservation` collections, linkage from `Order.tableNumber` (already reserved as a field) | Out of scope per PRD; the `tableNumber` field on Order is intentionally kept generic so this slots in later without a breaking change |
+| Reservation scheduling (future time slots) | New `Reservation` collection linked to `Table` via `tableId`; extends the floor-status Table module added in v1 | Live floor status (Available / Booked) is in v1; reserving a table for a specific future time slot is not |
 | QR-code customer self-ordering | New public (no-login) menu route, e.g. `app/(public)/menu/[tableId]`, reading from existing `products`/`categories`; a customer-facing order-submission endpoint that creates an `Order` with `orderType: 'dine-in'` and `source: 'qr'` instead of going through POS; routes into the same Orders/Kitchen flow as staff-created orders | Out of scope per PRD, which scopes ordering to staff via POS; would extend the public Home Page area and the Orders module rather than replace either |
 | Mobile native apps (React Native) | Reuses the existing REST/Socket.io API as-is | Backend is already client-agnostic; this is a frontend-only addition |
 | Multi-language / i18n | `next-intl` or similar on frontend, localized Settings | No requirement in PRD; Tailwind/shadcn setup doesn't preclude adding it |
@@ -413,5 +420,6 @@ These don't block ARCHITECTURE.md but should be resolved before `DATABASE.md`:
 1. Confirm the assumption table in §1 — especially **multi-location** (it's the one assumption with real schema consequences if wrong).
 2. Confirm required Settings fields (tax/GST format varies by country — affects tax calculation logic in POS).
 3. Confirm whether Reports need scheduled/automated generation (e.g., emailed daily) or are strictly on-demand for v1.
+4. **`Order.tableNumber` → `Order.tableId` (ObjectId → Table):** PRD Feature 5 (Table Management) now makes `tables` a first-class collection. `Order.tableNumber` is currently a free-text String (set when the feature was future-scope). The v1 schema needs to change this to an `ObjectId` reference to the `Table` collection. `database.md` must resolve the exact field name (`tableId` or `table`), whether it is required for dine-in orders, and whether a migration script is needed for any existing seed data. **This is not a breaking concern** — no production data yet — but it must be decided before `database.md` defines the Order schema.
 
 ---

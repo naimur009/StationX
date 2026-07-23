@@ -15,7 +15,7 @@ const orderItemSchema = z.object({
 
 export const createOrderSchema = z.object({
   orderType: z.enum(ORDER_TYPES).optional(),
-  tableNumber: z.string().max(20).optional(),
+  tableId: z.string().optional(),
   customerId: z.string().nullable().optional(),
   customerName: z.string().max(100).optional(),
   customerPhone: z.string().max(20).optional(),

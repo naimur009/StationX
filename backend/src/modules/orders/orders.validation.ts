@@ -31,7 +31,7 @@ const updatePaymentSchema = z.object({
 }).optional();
 
 export const updateOrderSchema = z.object({
-  tableNumber: z.string().max(20).trim().optional(),
+  tableId: z.string().regex(objectIdPattern, 'Invalid table ID format').nullable().optional(),
   customerId: z.string().regex(objectIdPattern, 'Invalid customer ID format').nullable().optional(),
   items: z.array(updateOrderItemSchema).min(1, 'Order must have at least one item').optional(),
   payment: updatePaymentSchema,

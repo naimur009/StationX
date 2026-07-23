@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { usePosStore } from '@/features/pos/store';
 import { useEmployees, useCreateOrder } from '@/features/pos/api';
+import { useTableList } from '@/features/tables/api';
 import { usePublicSettings } from '@/features/settings/api';
 import { apiClient } from '@/lib/api-client';
 import ProductGrid from '@/features/pos/components/ProductGrid';
@@ -19,7 +20,7 @@ export default function PosPage() {
   const items = usePosStore((s) => s.items);
   const customerName = usePosStore((s) => s.customerName);
   const customerPhone = usePosStore((s) => s.customerPhone);
-  const tableNumber = usePosStore((s) => s.tableNumber);
+  const tableId = usePosStore((s) => s.tableId);
   const servedBy = usePosStore((s) => s.servedBy);
   const couponCode = usePosStore((s) => s.couponCode);
   const couponDiscount = usePosStore((s) => s.couponDiscount);
@@ -28,7 +29,7 @@ export default function PosPage() {
   const submitting = usePosStore((s) => s.submitting);
   const setCustomerName = usePosStore((s) => s.setCustomerName);
   const setCustomerPhone = usePosStore((s) => s.setCustomerPhone);
-  const setTableNumber = usePosStore((s) => s.setTableNumber);
+  const setTableId = usePosStore((s) => s.setTableId);
   const setServedBy = usePosStore((s) => s.setServedBy);
   const setDiscountPercent = usePosStore((s) => s.setDiscountPercent);
   const setSubmitting = usePosStore((s) => s.setSubmitting);
@@ -40,6 +41,8 @@ export default function PosPage() {
   const [orderNumber, setOrderNumber] = useState('');
   const [error, setError] = useState('');
   const createOrder = useCreateOrder();
+  const { data: tablesData } = useTableList({ status: 'available' });
+  const availableTables = tablesData?.data ?? [];
   const { data: employeesData } = useEmployees();
   const employees = employeesData?.data ?? [];
   const { data: settingsData } = usePublicSettings();
@@ -115,8 +118,8 @@ export default function PosPage() {
         items: items.map((i) => ({ productId: i.productId, quantity: i.quantity })),
       };
 
-      if (tableNumber) {
-        payload.tableNumber = tableNumber;
+      if (tableId) {
+        payload.tableId = tableId;
       }
 
       if (customerName || customerPhone) {
@@ -202,13 +205,20 @@ export default function PosPage() {
 
             <div className="flex flex-1 flex-col gap-3 overflow-y-auto p-4">
               <div className="relative">
-                <Table className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                <Input
-                  placeholder="Table number"
-                  value={tableNumber}
-                  onChange={(e) => setTableNumber(e.target.value)}
-                  className="pl-9 text-sm"
-                />
+                <Table className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 z-10" />
+                <select
+                  value={tableId}
+                  onChange={(e) => setTableId(e.target.value)}
+                  className="flex h-10 w-full rounded-xl border border-input bg-white px-9 text-sm text-slate-800 shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-ring appearance-none cursor-pointer"
+                >
+                  <option value="">No table</option>
+                  {availableTables.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.tableNumber}{t.capacity ? ` (Seats ${t.capacity})` : ''}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 pointer-events-none" />
               </div>
 
               {/* Server/Employee */}
@@ -417,12 +427,15 @@ export default function PosPage() {
           </div>
 
           <div className="rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-600">
-            {tableNumber && (
-              <div className="flex justify-between">
-                <span>Table</span>
-                <span className="font-medium text-slate-800">{tableNumber}</span>
-              </div>
-            )}
+            {tableId && (() => {
+              const t = availableTables.find((t) => t.id === tableId);
+              return (
+                <div className="flex justify-between">
+                  <span>Table</span>
+                  <span className="font-medium text-slate-800">{t?.tableNumber ?? tableId}</span>
+                </div>
+              );
+            })()}
             {servedBy && (() => {
               const emp = employees.find((e) => e.id === servedBy);
               return (

@@ -615,7 +615,46 @@ These apply to **every** module below; listed once here and referenced by ID rat
 
 ---
 
-## 24. Shared Uploads
+## 24. Tables
+
+| ID | Type | Case | Expected |
+|---|---|---|---|
+| TBL-H-01 | Happy | `POST /tables` with label, capacity, area | `201`, Table created with `status: available`, `bookedBy: null`, `orderId: null` |
+| TBL-H-02 | Happy | `POST /tables` with label only (minimal) | `201`, Table created; `capacity` and `area` are `undefined`/omitted |
+| TBL-H-03 | Happy | `GET /tables` default list | `200`, paginated list of all tables, each with `label`, `capacity`, `area`, `status`, `bookedBy`, `orderId` |
+| TBL-H-04 | Happy | `GET /tables?status=available` filtered | `200`, list contains only `available` tables |
+| TBL-H-05 | Happy | `GET /tables/:id` single | `200`, full table document |
+| TBL-H-06 | Happy | `PUT /tables/:id` updating label, capacity, area | `200`, fields updated; `status`/`bookedBy`/`orderId` unchanged |
+| TBL-H-07 | Happy | `PUT /tables/:id` label only (partial update) | `200`, only label changed, other fields preserved |
+| TBL-H-08 | Happy | `DELETE /tables/:id` where table has no active order | `200`, table document removed |
+| TBL-V-01 | Validation | `POST /tables` missing `label` | `400 VALIDATION_ERROR` |
+| TBL-V-02 | Validation | `POST /tables` label empty string | `400 VALIDATION_ERROR` |
+| TBL-V-03 | Validation | `POST /tables` label exceeds max length | `400 VALIDATION_ERROR` |
+| TBL-V-04 | Validation | `POST /tables` capacity negative or non-integer | `400 VALIDATION_ERROR` |
+| TBL-V-05 | Validation | `POST /tables` duplicate label | `409 TABLE_NUMBER_IN_USE` |
+| TBL-V-06 | Validation | `PUT /tables/:id` setting `status` or `bookedBy` directly via body (these are system-managed or use a dedicated endpoint) | `400 VALIDATION_ERROR` — fields stripped/rejected by schema; table status is only changeable via the dedicated status endpoint |
+| TBL-E-01 | Error | `DELETE /tables/:id` where table has an active (non-completed, non-cancelled) order | `409 TABLE_HAS_ACTIVE_ORDER`; table document unchanged |
+| TBL-E-02 | Error | `GET /tables/:id` nonexistent ID | `404 NOT_FOUND` |
+| TBL-E-03 | Error | `PUT /tables/:id` nonexistent ID | `404 NOT_FOUND` |
+| TBL-E-04 | Error | `DELETE /tables/:id` nonexistent ID | `404 NOT_FOUND` |
+| TBL-CROSS-01 | Integration | POS order created with `tableId` pointing to an `available` table | `201`, Order has `tableId` populated; Table transitions to `status: booked`, `bookedBy: order`, `orderId: <newOrderId>` |
+| TBL-CROSS-02 | Integration | POS order created with `tableId` pointing to a `booked` table (different active order) | `409 TABLE_ALREADY_BOOKED`; Order not created; Table unchanged |
+| TBL-CROSS-03 | Integration | Payment captured on an order that has a `tableId` (paymentStatus → `paid`) | Order marked `paid`; linked Table transitions to `status: available`, `bookedBy: null`, `orderId: null` |
+| TBL-CROSS-04 | Integration | Order cancelled before payment (`status → cancelled`, `paymentStatus` unchanged from `unpaid`) | Order cancelled; linked Table transitions to `status: available`, `bookedBy: null`, `orderId: null` |
+| TBL-CROSS-05 | Edge | Order cancelled *after* staff manually freed its table via `PATCH /tables/:id/status → available` (table already has `status: available`, `orderId: null` at the moment the cancel hook runs) | Cancel succeeds, no double-processing error; the hook is a no-op for the table (already free). The `tableLabelSnapshot` on the Order preserves the label for the historical bill. |
+| TBL-CROSS-06 | Edge | `PATCH /tables/:id/status` with `{ status: available, reason: "moving party" }` while the table has `bookedBy: order` and a live `orderId` | **Allowed** — table is decoupled from the order: `status → available`, `bookedBy → null`, `orderId → null`. The Order retains its `tableId` reference (now pointing to an available table) and `tableLabelSnapshot` for billing. A `table:statusChanged` event fires. The response includes a warning body field `/warn` signalling the decoupling occurred. |
+| TBL-CROSS-07 | Concurrency | Two POS terminals submit orders targeting the same `available` table simultaneously | Exactly one order succeeds (Table goes `booked`); the second gets `409 TABLE_ALREADY_BOOKED` — the booking is guarded by an atomic conditional update (`findOneAndUpdate` with filter `status: available`) or equivalent locking, never checked-then-written in two operations |
+| TBL-RT-01 | Real-time | Table status transitions via POS order (create → cancel) | `table:statusChanged` fired: `{ tableId, status: 'booked' }` on create, `{ tableId, status: 'available' }` on cancel. Exactly one event per transition. |
+| TBL-RT-02 | Real-time | Table status transitions via manual override (`PATCH /tables/:id/status`) | `table:statusChanged` fired once with the new `status` and `source: 'manual'` distinguisher. Event is emitted **after** the DB write commits, never optimistically before the write. |
+| TBL-RT-03 | Real-time | Table created via `POST /tables` | No `table:statusChanged` event — the create action is not a status *transition*. A separate `table:created` event may be used for live grid refresh; if so, document and add one case. (Per current docs: not emitted — grid relies on manual refresh or the next list poll.) |
+| TBL-AUTH-01 | Security | User lacks `tables:view` | `403 FORBIDDEN` on `GET /tables`, `GET /tables/:id` |
+| TBL-AUTH-02 | Security | User lacks `tables:create` | `403 FORBIDDEN` on `POST /tables` |
+| TBL-AUTH-03 | Security | User lacks `tables:edit` | `403 FORBIDDEN` on `PUT /tables/:id`, `PATCH /tables/:id/status` |
+| TBL-AUTH-04 | Security | User lacks `tables:delete` | `403 FORBIDDEN` on `DELETE /tables/:id` |
+
+---
+
+## 25. Shared Uploads
 
 ### `POST /uploads/image`
 
@@ -630,7 +669,7 @@ These apply to **every** module below; listed once here and referenced by ID rat
 
 ---
 
-## 25. Cross-Module Data Integrity Tests
+## 26. Cross-Module Data Integrity Tests
 
 These verify rules that span multiple collections/modules and are easy to silently break during iterative feature development.
 
@@ -648,7 +687,7 @@ These verify rules that span multiple collections/modules and are easy to silent
 
 ---
 
-## 26. Open Items Requiring Sign-Off Before Full Coverage
+## 27. Open Items Requiring Sign-Off Before Full Coverage
 
 These test areas can't be fully specified yet because the underlying behavior is itself an open item in `API.md`/`DATABASE.md`. Listed here so they aren't silently skipped — each should convert into real test cases once the linked decision is made.
 
