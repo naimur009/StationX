@@ -38,19 +38,10 @@
     --info: 244 75% 59%;
     --info-foreground: 0 0% 100%;
 
-    --accent: 47 99% 49%;
-    --accent-foreground: 0 0% 100%;
-
     --border: 214 32% 91%;
     --input: 213 27% 84%;
     --ring: 47 99% 49%;
     --radius: 0.75rem;
-
-    --chart-1: 356 78% 48%;
-    --chart-2: 47 99% 49%;
-    --chart-3: 142 76% 36%;
-    --chart-4: 244 75% 59%;
-    --chart-5: 0 72% 51%;
   }
 
   * {

@@ -25,9 +25,14 @@ Then read these docs relevant to the feature being modified:
 
 ## Feature to Modify
 
-**Module:** <theme>
+**Module:** <Table>
 **What to change:**
 
+table should be already shown on the list, like 20 table shown in the table section, then which table is free and which is booked showd by color. like booked = red, empty = green. 
+
+and the number of table is set from seeting menu bar. 
+
+if any question ask freely...
 
 
 

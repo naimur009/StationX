@@ -1,6 +1,7 @@
 import Attendance, { IAttendance } from '../../models/Attendance';
 import Employee from '../../models/Employee';
 import { createError } from '../../middleware/errorHandler';
+import { escapeRegex } from '../../lib/escapeRegex';
 import type {
   CreateAttendanceDto,
   BatchAttendanceDto,
@@ -292,7 +293,7 @@ export async function listAttendance(query: ListAttendanceQueryDto) {
 
   if (query.search) {
     const matchedEmployees = await Employee.find({
-      name: { $regex: query.search, $options: 'i' },
+      name: { $regex: escapeRegex(query.search), $options: 'i' },
     })
       .select('_id')
       .lean();

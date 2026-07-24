@@ -14,25 +14,20 @@
 
 ## 1. Design Direction
 
-A clean, blue-led admin dashboard, not a themed/decorated one: white `rounded-2xl` cards with soft shadows on a near-white `slate-50` canvas; a dark `slate-900 → slate-800` gradient sidebar; status conveyed through small pill badges with light tinted backgrounds (never solid-color text-on-color); primary actions get a tinted colored shadow under a solid-fill button. The one place color gets expressive is the Home Page hero (gradient headline, gradient avatar/logo) — everywhere behind the login wall stays restrained, dense, and fast to scan, consistent with this being a working tool used under time pressure (POS at a counter, attendance at shift start) rather than a marketing surface.
+A clean, red-led admin dashboard, not a themed/decorated one: white `rounded-2xl` cards with soft shadows on a near-white `slate-50` canvas; a dark `slate-900 → slate-800` gradient sidebar; status conveyed through small pill badges with light tinted backgrounds (never solid-color text-on-color); primary actions get a tinted colored shadow under a solid-fill button. The one place color gets expressive is the Home Page hero (gradient headline, gradient avatar/logo) — everywhere behind the login wall stays restrained, dense, and fast to scan, consistent with this being a working tool used under time pressure (POS at a counter, attendance at shift start) rather than a marketing surface.
 
 ---
 
 ## 2. Color Tokens
 
-No invented token names this revision — colors are referenced by their actual role (Primary/Success/Warning/Danger/Neutral) and, wherever shadcn needs a CSS variable, that variable's value is set to the exact Tailwind shade the reference uses for that role. Hex values below **are** Tailwind's default palette (not custom), so `bg-blue-600` and `bg-[hsl(var(--primary))]` resolve to the same color.
+No invented token names this revision — colors are referenced by their actual role (Primary/Success/Warning/Danger/Neutral) and, wherever shadcn needs a CSS variable, that variable's value is set using HSL.
 
-### Primary — Blue (Brand Color)
+### Primary — Red (Brand Color)
 
 | Token | Hex | Typical Usage |
 |-------|-----|---------------|
-| `blue-50` | `#eff6ff` | Light backgrounds, badges |
-| `blue-100` | `#dbeafe` | Hover states, light elements |
-| `blue-200` | `#bfdbfe` | Borders, light accents |
-| `blue-500` | `#3b82f6` | Focus rings, secondary brand, active link text |
-| `blue-600` | `#2563eb` | Primary buttons, active nav, brand elements — `--primary` |
-| `blue-700` | `#1d4ed8` | Primary button hover |
-| `blue-900` | `#1e3a8a` | Gradient dark end, hero text |
+| `--primary` | `#D81B26` | Primary buttons, active nav, brand elements |
+| `--primary-hover` | `#AD0E19` | Primary button hover |
 
 ### Success — Green
 
@@ -43,14 +38,12 @@ No invented token names this revision — colors are referenced by their actual 
 | `green-600` | `#16a34a` | Success button bg — `--success` |
 | `green-700` | `#15803d` | Success button hover |
 
-### Warning — Amber
+### Warning — Amber/Gold
 
 | Token | Hex | Typical Usage |
 |-------|-----|---------------|
-| `amber-50` | `#fffbeb` | Offline/warning banner backgrounds |
-| `amber-100` | `#fef3c7` | Amber backgrounds |
-| `amber-500` | `#f59e0b` | Warning button bg, amber status — `--warning` |
-| `amber-600` | `#d97706` | Warning button hover |
+| `--warning` | `#F8C301` | Warning button bg, amber status, focus rings — `--warning`, `--ring` |
+| `--warning-hover` | `#CC9200` | Warning button hover |
 
 ### Danger — Red
 
@@ -95,8 +88,8 @@ Indigo, Purple, Teal, Orange, Pink, Cyan, Rose, Sky — used as `from-{color}-50
     --popover: 0 0% 100%;
     --popover-foreground: 222 47% 11%;
 
-    --primary: 221 83% 53%;             /* blue-600 */
-    --primary-hover: 224 76% 48%;       /* blue-700 */
+    --primary: 356 78% 48%;             /* red — #D81B26 */
+    --primary-hover: 356 78% 38%;       /* darker red — #AD0E19 */
     --primary-foreground: 0 0% 100%;
 
     --secondary: 210 40% 96%;           /* slate-100 */
@@ -110,8 +103,8 @@ Indigo, Purple, Teal, Orange, Pink, Cyan, Rose, Sky — used as `from-{color}-50
     --success-hover: 142 72% 29%;       /* green-700 */
     --success-foreground: 0 0% 100%;
 
-    --warning: 38 92% 50%;              /* amber-500 */
-    --warning-hover: 32 95% 44%;        /* amber-600 */
+    --warning: 47 99% 49%;              /* amber/gold — #F8C301 */
+    --warning-hover: 47 99% 40%;        /* darker gold — #CC9200 */
     --warning-foreground: 0 0% 100%;
 
     --destructive: 0 72% 51%;           /* red-600 */
@@ -123,7 +116,7 @@ Indigo, Purple, Teal, Orange, Pink, Cyan, Rose, Sky — used as `from-{color}-50
 
     --border: 214 32% 91%;              /* slate-200 */
     --input: 213 27% 84%;               /* slate-300 */
-    --ring: 217 91% 60%;                /* blue-500, focus rings */
+    --ring: 47 99% 49%;                 /* amber/gold — #F8C301, matches --warning */
     --radius: 0.75rem;                  /* see §5 — base is rounded-xl, not rounded-lg */
   }
 
@@ -191,9 +184,9 @@ Note the shift from the old theme.md: data tables are `rounded-xl` with a visibl
 
 | Class | Used for |
 |-------|----------|
-| `shadow-blue-500/25` | Primary buttons |
-| `shadow-blue-500/30` | Active nav item, submit buttons |
-| `shadow-blue-200/50` | Logo icon |
+| `shadow-red-500/25` | Primary buttons |
+| `shadow-amber-500/30` | Active nav item, submit buttons |
+| `shadow-amber-200/50` | Logo icon |
 | `shadow-green-500/25` | Success buttons |
 | `shadow-red-500/25` | Destructive buttons |
 | `shadow-amber-500/25` | Warning buttons |
@@ -330,7 +323,7 @@ Mapped onto **shadcn/ui primitives** per the conflict resolution above — same 
 
 | Variant | BG | Hover | Text | Shadow |
 |---|---|---|---|---|
-| `primary` | `--primary` | `--primary-hover` | white | `shadow-blue-500/25` |
+| `primary` | `--primary` | `--primary-hover` | white | `shadow-red-500/25` |
 | `secondary` | `--secondary` | `--secondary-hover` | `--secondary-foreground` | — |
 | `success` | `--success` | `--success-hover` | white | `shadow-green-500/25` |
 | `destructive` | `--destructive` | `--destructive-hover` | white | `shadow-red-500/25` |
@@ -338,11 +331,11 @@ Mapped onto **shadcn/ui primitives** per the conflict resolution above — same 
 | `ghost` | transparent | `slate-100` | `slate-600` | — |
 | `outline` | transparent | `slate-50` | `slate-700`, border `slate-300` | — |
 
-**Sizes:** `xs` (`py-1 px-2.5 text-xs`), `sm` (`py-1.5 px-3 text-sm`), `md` (`py-2 px-4 text-sm`), `lg` (`py-2.5 px-5 text-base`). Radius `rounded-xl`. Focus: `ring-ring ring-offset-2` (resolves to blue-500 via `--ring`, §2 — same color as before, just referenced through the token instead of hardcoded so it stays in sync if `--ring` ever changes). Disabled: `opacity-50 cursor-not-allowed`.
+**Sizes:** `xs` (`py-1 px-2.5 text-xs`), `sm` (`py-1.5 px-3 text-sm`), `md` (`py-2 px-4 text-sm`), `lg` (`py-2.5 px-5 text-base`). Radius `rounded-xl`. Focus: `ring-ring ring-offset-2` (resolves to amber/gold via `--ring`, §2). Disabled: `opacity-50 cursor-not-allowed`.
 
 **Shadcn source edits needed (no visual change vs. the rest of this document — just how to get there):**
 1. shadcn's stock `buttonVariants` map is `default | destructive | outline | secondary | ghost | link`. Rename `default` → `primary`, drop `link` (unused here), add `success` and `warning` to the `cva()` map.
-2. Stock hover is `hover:bg-primary/90` (an opacity trick). That can't reproduce a genuinely different shade (`blue-600`→`blue-700` isn't "blue-600 at 90% opacity"), so every variant's hover class becomes `hover:bg-[hsl(var(--*-hover))]` using the `-hover` tokens defined in §2.
+2. Stock hover is `hover:bg-primary/90` (an opacity trick). That can't reproduce a genuinely different shade (`primary`→`primary-hover` isn't "primary at 90% opacity"), so every variant's hover class becomes `hover:bg-[hsl(var(--*-hover))]` using the `-hover` tokens defined in §2.
 3. Stock radius is `rounded-md`. Change the hardcoded class to `rounded-xl` directly — setting `--radius` alone won't do this, since `rounded-md` resolves from `calc(var(--radius) - 2px)` in shadcn's default Tailwind config, not from the full `--radius` value.
 
 ### Card (shadcn `Card`)
@@ -351,7 +344,7 @@ Mapped onto **shadcn/ui primitives** per the conflict resolution above — same 
 
 ### Input / Select (shadcn `Input` / `Select`)
 
-`rounded-xl bg-white text-slate-800 py-2.5 px-3.5 text-sm border border-slate-300`. Placeholder `slate-400`. Focus: `ring-ring focus:border-blue-500`. Error: `border-red-400 focus:ring-red-400`. Label: `text-sm font-medium text-slate-700`. Error message: `text-xs text-red-500`. Hint text: `text-xs text-slate-400`.
+`rounded-xl bg-white text-slate-800 py-2.5 px-3.5 text-sm border border-slate-300`. Placeholder `slate-400`. Focus: `ring-2 ring-ring focus:border-ring`. Error: `border-red-400 focus:ring-red-400`. Label: `text-sm font-medium text-slate-700`. Error message: `text-xs text-red-500`. Hint text: `text-xs text-slate-400`.
 
 **Shadcn source edit needed:** same as Button point 3 — `Input` and `Select`'s trigger both ship `rounded-md` by default; change to `rounded-xl` directly in `input.tsx` / the select trigger. `SelectContent` (the dropdown popover) isn't covered by the reference and can stay on shadcn's stock `bg-popover` styling — only the trigger needs to match Input's look.
 
@@ -376,7 +369,7 @@ Mapped onto **shadcn/ui primitives** per the conflict resolution above — same 
 
 | Color | Icon BG | Value text |
 |---|---|---|
-| blue | `blue-600` | `blue-600` |
+| red | `--primary` | `--primary` |
 | indigo | `indigo-600` | `indigo-600` |
 | green | `green-600` | `green-600` |
 | red | `red-600` | `red-600` |
@@ -412,10 +405,10 @@ Container: `bg-white rounded-2xl border border-slate-200 p-5 shadow-sm`. Icon wr
 | Transition | `.sidebar-transition` (§10) |
 | Z-index | `z-50` |
 | Mobile overlay | `fixed inset-0 bg-black/50 z-40` |
-| Logo block | `p-4 border-b border-white/10 min-h-[64px]`; icon `w-9 h-9 rounded-xl bg-blue-600 shadow-lg` |
+| Logo block | `p-4 border-b border-white/10 min-h-[64px]`; icon `w-9 h-9 rounded-xl bg-[hsl(var(--primary))] shadow-lg` |
 | Brand name | `text-white font-bold text-sm` |
 | Subtitle | `text-slate-400 text-xs` |
-| Active nav item | `bg-blue-600 text-white shadow-lg shadow-blue-500/30 rounded-xl` |
+| Active nav item | `bg-[hsl(var(--primary))] text-white shadow-lg shadow-amber-500/30 rounded-xl` |
 | Inactive nav item | `text-slate-400 hover:text-white hover:bg-white/10 rounded-xl` |
 | Logout item | `text-slate-400 hover:text-red-400 hover:bg-red-500/10` |
 
@@ -428,7 +421,7 @@ Container: `bg-white rounded-2xl border border-slate-200 p-5 shadow-sm`. Icon wr
 | Height / position | `h-16`, `fixed top-0 right-0 left-0 z-30` |
 | Left offset | `lg:left-16` (sidebar collapsed) / `lg:left-64` (expanded) |
 | Search input | `bg-slate-100 rounded-xl` |
-| User avatar | `w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-blue-700 shadow-md` |
+| User avatar | `w-8 h-8 rounded-full bg-gradient-to-br from-[hsl(var(--primary))] to-[hsl(var(--primary-hover))] shadow-md` |
 | User name / role | `text-sm font-semibold text-slate-700` / `text-xs text-slate-400 capitalize` |
 
 ### Main content area
@@ -446,13 +439,9 @@ Container: `bg-white rounded-2xl border border-slate-200 p-5 shadow-sm`. Icon wr
 ## 15. Gradient Definitions
 
 | Name | Gradient | Used in |
-|---|---|---|
+|---|---|---|---|
 | Sidebar | `from-slate-900 to-slate-800` | Sidebar background |
-| Hero text | `from-blue-800 via-blue-600 to-indigo-700` (clipped to text) | Home Page hero headline |
-| Avatar | `from-blue-500 to-blue-700` | Navbar user avatar |
-| Primary button bg | `from-blue-600 to-blue-700` | Login submit, logo icon |
-| Header banner | `from-blue-600 to-blue-700` | Dashboard page header band |
-| Brand gradient | `135deg, #1e3a8a 0%, #2563eb 50%, #1d4ed8 100%` | `.gradient-bg` utility |
+| Brand gradient | `135deg, #D81B26 0%, #F8C301 50%, #D81B26 100%` | `.gradient-bg` utility |
 | Visual-grouping cards | `from-{accent}-500 to-{accent}-700` across the 8 accent hues (§2) | Category/Vendor color-coded cards |
 
 ---
@@ -492,7 +481,7 @@ Directly applicable to this project's own Attendance module (`PRD.md` Feature 8)
 | Present day circle | `bg-green-500 text-white shadow-md` |
 | Absent day circle | `bg-red-500 text-white shadow-md` |
 | Unmarked day circle | `text-yellow-700 bg-yellow-100` |
-| Today indicator | `ring-2 ring-ring ring-offset-2` (same blue-500 value as `--ring`, §2) |
+| Today indicator | `ring-2 ring-ring ring-offset-2` (same amber/gold value as `--ring`, §2) |
 
 ---
 
@@ -519,8 +508,8 @@ The Tables floor-plan grid (`PRD.md` Feature 5) is the one place the app display
 
 ## 18. Loading States & Print Styles
 
-**Spinner:** `w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin`.
-**Loading dots:** three `w-3 h-3 rounded-full` dots in `blue-500`/`blue-600`/`blue-500`, staggered `animate-bounce` (delays 0/150/300ms).
+**Spinner:** uses `.spinner-smooth` class — `border-color: hsl(var(--primary) / 0.15)` with `border-top-color: hsl(var(--warning))` (amber/gold top border on a faint red base).
+**Loading dots:** three `w-3 h-3 rounded-full` dots in `--primary`/`--warning`/`--primary`, staggered `animate-bounce` (delays 0/150/300ms).
 
 **Print (Reports export, Order bill print):**
 - `@page { size: landscape; margin: 12mm; }`
@@ -532,7 +521,7 @@ The Tables floor-plan grid (`PRD.md` Feature 5) is the one place the app display
 
 ## 19. Accessibility & Writing Conventions
 
-- Focus rings (`ring-2 ring-ring ring-offset-2` — the `--ring` token, §2, set to blue-500) on every interactive element, never `outline: none` without that replacement.
+- Focus rings (`ring-2 ring-ring ring-offset-2` — the `--ring` token, §2, set to amber/gold) on every interactive element, never `outline: none` without that replacement.
 - Every badge in §12 pairs color with a text label (and a dot) — never color alone.
 - **Active voice, action-named controls:** "Save changes," "Cancel order," "Deactivate user" — never "Submit" or "OK." Toasts echo the same verb ("Order cancelled," not "Success").
 - **Consistent vocabulary:** "Deactivate" for the five soft-delete collections (User, Customer, Vendor, Category, Product); "Disable" reserved for Coupon's toggle action only.
