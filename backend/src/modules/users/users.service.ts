@@ -68,12 +68,12 @@ export async function listUsers(query: ListUsersDto) {
   const skip = (query.page - 1) * query.limit;
 
   const [users, total] = await Promise.all([
-    User.find(filter).sort({ createdAt: -1 }).skip(skip).limit(query.limit),
+    User.find(filter).sort({ createdAt: -1 }).skip(skip).limit(query.limit).lean(),
     User.countDocuments(filter),
   ]);
 
   return {
-    data: users.map(toUserResponse),
+    data: (users as unknown as IUser[]).map(toUserResponse),
     meta: { total, page: query.page, limit: query.limit },
   };
 }
@@ -110,13 +110,13 @@ export async function createUser(dto: CreateUserDto, actorId: string) {
 }
 
 export async function getUserById(id: string) {
-  const user = await User.findById(id);
+  const user = await User.findById(id).lean();
 
   if (!user) {
     throw createError(404, 'NOT_FOUND', 'User not found');
   }
 
-  return toUserResponse(user);
+  return toUserResponse(user as unknown as IUser);
 }
 
 export async function updateUser(id: string, dto: UpdateUserDto, actorId: string) {

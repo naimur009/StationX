@@ -2,6 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api-client';
+import toast from 'react-hot-toast';
 export interface EmployeeResponse {
   id: string;
   name: string;
@@ -35,6 +36,7 @@ export function useEmployeesList(params: EmployeesListParams) {
     queryKey: ['employees', 'list', qs],
     queryFn: () => apiClient<EmployeesListResponse>(`/employees${qs ? `?${qs}` : ''}`),
     placeholderData: keepPreviousData,
+    staleTime: 30_000,
   });
 }
 
@@ -43,6 +45,7 @@ export function useEmployee(id: string) {
     queryKey: ['employees', 'detail', id],
     queryFn: () => apiClient<{ data: EmployeeResponse }>(`/employees/${id}`),
     enabled: !!id,
+    staleTime: 60_000,
   });
 }
 
@@ -62,6 +65,9 @@ export function useCreateEmployee() {
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['employees'] });
+    },
+    onError: (error: unknown) => {
+      toast.error(error instanceof Error ? error.message : 'Failed to create employee');
     },
   });
 }
@@ -84,6 +90,9 @@ export function useUpdateEmployee() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['employees'] });
     },
+    onError: (error: unknown) => {
+      toast.error(error instanceof Error ? error.message : 'Failed to update employee');
+    },
   });
 }
 
@@ -97,6 +106,9 @@ export function useDeleteEmployee() {
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['employees'] });
+    },
+    onError: (error: unknown) => {
+      toast.error(error instanceof Error ? error.message : 'Failed to delete employee');
     },
   });
 }

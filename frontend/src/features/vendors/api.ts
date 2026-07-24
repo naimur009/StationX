@@ -2,6 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api-client';
+import toast from 'react-hot-toast';
 export interface VendorResponse {
   id: string;
   name: string;
@@ -37,6 +38,7 @@ export function useVendorsList(params: VendorsListParams) {
     queryKey: ['vendors', 'list', qs],
     queryFn: () => apiClient<VendorsListResponse>(`/vendors${qs ? `?${qs}` : ''}`),
     placeholderData: keepPreviousData,
+    staleTime: 30_000,
   });
 }
 
@@ -45,6 +47,7 @@ export function useVendor(id: string) {
     queryKey: ['vendors', 'detail', id],
     queryFn: () => apiClient<{ data: VendorResponse }>(`/vendors/${id}`),
     enabled: !!id,
+    staleTime: 60_000,
   });
 }
 
@@ -66,6 +69,9 @@ export function useCreateVendor() {
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['vendors'] });
+    },
+    onError: (error: unknown) => {
+      toast.error(error instanceof Error ? error.message : 'Failed to create vendor');
     },
   });
 }
@@ -92,6 +98,9 @@ export function useUpdateVendor() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['vendors'] });
     },
+    onError: (error: unknown) => {
+      toast.error(error instanceof Error ? error.message : 'Failed to update vendor');
+    },
   });
 }
 
@@ -105,6 +114,9 @@ export function useDeleteVendor() {
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['vendors'] });
+    },
+    onError: (error: unknown) => {
+      toast.error(error instanceof Error ? error.message : 'Failed to delete vendor');
     },
   });
 }

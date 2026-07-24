@@ -2,6 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api-client';
+import toast from 'react-hot-toast';
 
 export interface EmployeeInfo {
   id: string;
@@ -58,6 +59,9 @@ export function useCheckCoupon() {
         method: 'POST',
         body: JSON.stringify(data),
       }),
+    onError: (error: unknown) => {
+      toast.error(error instanceof Error ? error.message : 'Failed to validate coupon');
+    },
   });
 }
 
@@ -71,6 +75,9 @@ export function useSaveOrFindCustomer() {
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['customers'] });
+    },
+    onError: (error: unknown) => {
+      toast.error(error instanceof Error ? error.message : 'Failed to save or find customer');
     },
   });
 }
@@ -89,6 +96,9 @@ export function useCreateOrder() {
       queryClient.invalidateQueries({ queryKey: ['dashboard'] });
       queryClient.invalidateQueries({ queryKey: ['tables'] });
       queryClient.invalidateQueries({ queryKey: ['products'] });
+    },
+    onError: (error: unknown) => {
+      toast.error(error instanceof Error ? error.message : 'Failed to create order');
     },
   });
 }

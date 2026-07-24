@@ -72,11 +72,11 @@ export async function listCoupons(query: ListCouponsDto) {
   const skip = (query.page - 1) * query.limit;
 
   const [coupons, total] = await Promise.all([
-    Coupon.find(filter).sort({ createdAt: -1 }).skip(skip).limit(query.limit),
+    Coupon.find(filter).sort({ createdAt: -1 }).skip(skip).limit(query.limit).lean(),
     Coupon.countDocuments(filter),
   ]);
 
-  const data = coupons.map(toResponse);
+  const data = (coupons as unknown as ICoupon[]).map(toResponse);
 
   return {
     data,
@@ -85,13 +85,13 @@ export async function listCoupons(query: ListCouponsDto) {
 }
 
 export async function getCouponById(id: string) {
-  const coupon = await Coupon.findById(id);
+  const coupon = await Coupon.findById(id).lean();
 
   if (!coupon) {
     throw createError(404, 'NOT_FOUND', 'Coupon not found');
   }
 
-  return { data: toResponse(coupon) };
+  return { data: toResponse(coupon as unknown as ICoupon) };
 }
 
 export async function createCoupon(dto: CreateCouponDto) {

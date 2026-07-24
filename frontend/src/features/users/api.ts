@@ -2,6 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api-client';
+import toast from 'react-hot-toast';
 export interface UserResponse {
   id: string;
   name: string;
@@ -41,6 +42,7 @@ export function useUsersList(params: UsersListParams) {
     queryKey: ['users', 'list', qs],
     queryFn: () => apiClient<UsersListResponse>(`/users${qs ? `?${qs}` : ''}`),
     placeholderData: keepPreviousData,
+    staleTime: 30_000,
   });
 }
 
@@ -49,6 +51,7 @@ export function useUser(id: string) {
     queryKey: ['users', 'detail', id],
     queryFn: () => apiClient<{ data: UserResponse }>(`/users/${id}`),
     enabled: !!id,
+    staleTime: 60_000,
   });
 }
 
@@ -69,6 +72,9 @@ export function useCreateUser() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['users'] });
       queryClient.invalidateQueries({ queryKey: ['users', 'detail'] });
+    },
+    onError: (error: unknown) => {
+      toast.error(error instanceof Error ? error.message : 'Failed to create user');
     },
   });
 }
@@ -95,6 +101,9 @@ export function useUpdateUser() {
       queryClient.invalidateQueries({ queryKey: ['users'] });
       queryClient.invalidateQueries({ queryKey: ['users', 'detail'] });
     },
+    onError: (error: unknown) => {
+      toast.error(error instanceof Error ? error.message : 'Failed to update user');
+    },
   });
 }
 
@@ -114,6 +123,9 @@ export function useUpdatePermissions() {
       queryClient.invalidateQueries({ queryKey: ['users'] });
       queryClient.invalidateQueries({ queryKey: ['users', 'detail'] });
     },
+    onError: (error: unknown) => {
+      toast.error(error instanceof Error ? error.message : 'Failed to update permissions');
+    },
   });
 }
 
@@ -128,6 +140,9 @@ export function useDeactivateUser() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['users'] });
       queryClient.invalidateQueries({ queryKey: ['users', 'detail'] });
+    },
+    onError: (error: unknown) => {
+      toast.error(error instanceof Error ? error.message : 'Failed to deactivate user');
     },
   });
 }
@@ -144,6 +159,9 @@ export function useReactivateUser() {
       queryClient.invalidateQueries({ queryKey: ['users'] });
       queryClient.invalidateQueries({ queryKey: ['users', 'detail'] });
     },
+    onError: (error: unknown) => {
+      toast.error(error instanceof Error ? error.message : 'Failed to reactivate user');
+    },
   });
 }
 
@@ -158,6 +176,9 @@ export function usePermanentDeleteUser() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['users'] });
       queryClient.invalidateQueries({ queryKey: ['users', 'detail'] });
+    },
+    onError: (error: unknown) => {
+      toast.error(error instanceof Error ? error.message : 'Failed to permanently delete user');
     },
   });
 }
@@ -175,6 +196,9 @@ export function useChangePassword() {
       queryClient.invalidateQueries({ queryKey: ['users'] });
       queryClient.invalidateQueries({ queryKey: ['users', 'detail'] });
     },
+    onError: (error: unknown) => {
+      toast.error(error instanceof Error ? error.message : 'Failed to change password');
+    },
   });
 }
 
@@ -190,6 +214,9 @@ export function useAdminResetPassword() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['users'] });
       queryClient.invalidateQueries({ queryKey: ['users', 'detail'] });
+    },
+    onError: (error: unknown) => {
+      toast.error(error instanceof Error ? error.message : 'Failed to reset password');
     },
   });
 }

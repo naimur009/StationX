@@ -9,7 +9,8 @@ export async function handleGetEmployees(
   next: NextFunction
 ): Promise<void> {
   try {
-    const employees = await posService.getEmployees();
+    const { limit } = req.query as { limit?: string };
+    const employees = await posService.getEmployees(limit ? Number(limit) : undefined);
     res.status(200).json({ data: employees });
   } catch (error) {
     next(error);
@@ -22,7 +23,8 @@ export async function handleGetCatalog(
   next: NextFunction
 ): Promise<void> {
   try {
-    const products = await posService.getCatalog();
+    const { limit } = req.query as { limit?: string };
+    const products = await posService.getCatalog(limit ? Number(limit) : undefined);
     res.status(200).json({ data: products });
   } catch (error) {
     next(error);
@@ -50,10 +52,6 @@ export async function handleLookupCustomer(
 ): Promise<void> {
   try {
     const { phone } = req.query as { phone: string };
-    if (!phone) {
-      res.status(400).json({ error: { code: 'VALIDATION_ERROR', message: 'Phone is required' } });
-      return;
-    }
     const result = await posService.lookupByPhone(phone);
     res.status(200).json({ data: result });
   } catch (error) {

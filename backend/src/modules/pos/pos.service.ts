@@ -29,10 +29,12 @@ function getDiscountInfo(coupon: ICoupon, subtotal: number): { discountAmount: n
   return { discountAmount, couponId: coupon._id.toString() };
 }
 
-export async function getEmployees() {
+export async function getEmployees(limit?: number) {
   const employees = await Employee.find()
     .select('name')
-    .sort({ name: 1 });
+    .sort({ name: 1 })
+    .limit(limit ?? 500)
+    .lean();
 
   return employees.map((e) => ({
     id: e._id.toString(),
@@ -40,13 +42,21 @@ export async function getEmployees() {
   }));
 }
 
-export async function getCatalog() {
+export async function getCatalog(limit?: number) {
   const products = await Product.find({ isActive: true })
     .select('name price image categoryId')
     .populate('categoryId', 'name')
-    .sort({ name: 1 });
+    .sort({ name: 1 })
+    .limit(limit ?? 1000)
+    .lean();
 
-  return products.map((p) => {
+  return (products as unknown as Array<{
+    _id: { toString(): string };
+    name: string;
+    price: number;
+    image?: { url: string } | null;
+    categoryId: { _id: string; name: string } | string | null;
+  }>).map((p) => {
     const cat = p.categoryId as { _id: string; name: string } | null;
     return {
       id: p._id.toString(),

@@ -2,6 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api-client';
+import toast from 'react-hot-toast';
 
 export interface CategoryResponse {
   id: string;
@@ -35,6 +36,7 @@ export function useCategoriesList(params: CategoriesListParams) {
     queryKey: ['categories', 'list', qs],
     queryFn: () => apiClient<CategoriesListResponse>(`/categories${qs ? `?${qs}` : ''}`),
     placeholderData: keepPreviousData,
+    staleTime: 30_000,
   });
 }
 
@@ -43,6 +45,7 @@ export function useCategory(id: string) {
     queryKey: ['categories', 'detail', id],
     queryFn: () => apiClient<{ data: CategoryResponse }>(`/categories/${id}`),
     enabled: !!id,
+    staleTime: 60_000,
   });
 }
 
@@ -57,6 +60,9 @@ export function useCreateCategory() {
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['categories'] });
+    },
+    onError: (error: unknown) => {
+      toast.error(error instanceof Error ? error.message : 'Failed to create category');
     },
   });
 }
@@ -75,6 +81,9 @@ export function useUpdateCategory() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['categories'] });
     },
+    onError: (error: unknown) => {
+      toast.error(error instanceof Error ? error.message : 'Failed to update category');
+    },
   });
 }
 
@@ -88,6 +97,9 @@ export function useDeleteCategory() {
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['categories'] });
+    },
+    onError: (error: unknown) => {
+      toast.error(error instanceof Error ? error.message : 'Failed to delete category');
     },
   });
 }

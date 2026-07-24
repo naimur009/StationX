@@ -41,6 +41,14 @@ export const validateCouponSchema = z.object({
   customerId: z.string().optional(),
 }).strict();
 
+export const listQuerySchema = z.object({
+  limit: z.coerce.number().int().positive().max(10000).optional(),
+}).strict();
+
+export const lookupQuerySchema = z.object({
+  phone: z.string().min(1, 'Phone is required').max(20, 'Phone is too long').regex(/^\+?[\d\s-]{7,20}$/, 'Invalid phone format'),
+}).strict();
+
 export type CreateOrderDto = z.infer<typeof createOrderSchema>;
 export type CreateCustomerDto = z.infer<typeof createCustomerSchema>;
 export type ValidateCouponDto = z.infer<typeof validateCouponSchema>;

@@ -208,42 +208,72 @@ export async function batchMarkAttendance(dto: BatchAttendanceDto, authenticated
 
   const result: BatchResult = { created: 0, skipped: 0, errors: [] };
 
+  const employeeIds = [...new Set(dto.records.map((r) => r.employeeId))];
+  const existingEmployees = await Employee.find({ _id: { $in: employeeIds } })
+    .select('_id')
+    .lean();
+  const validEmployeeIds = new Set(existingEmployees.map((e) => e._id.toString()));
+
+  const attendanceRecords: Array<{
+    employee: string;
+    date: Date;
+    status: string;
+    checkInAt?: Date;
+    checkOutAt?: Date;
+    notes?: string;
+    markedBy: string;
+  }> = [];
+
   for (const record of dto.records) {
-    try {
-      const employee = await Employee.findById(record.employeeId);
-      if (!employee) {
-        result.skipped++;
-        result.errors.push({
-          employeeId: record.employeeId,
-          code: 'EMPLOYEE_NOT_FOUND',
-          message: 'Employee not found',
-        });
-        continue;
-      }
-
-      await Attendance.create({
-        employee: record.employeeId,
-        date,
-        status: record.status,
-        checkInAt: record.checkInAt || undefined,
-        checkOutAt: record.checkOutAt || undefined,
-        notes: record.notes || undefined,
-        markedBy: authenticatedUserId,
-      });
-
-      result.created++;
-    } catch (error) {
-      const mongoError = error as { code?: number };
-      const code = mongoError.code === 11000 ? 'ALREADY_CHECKED_IN' : 'INTERNAL_ERROR';
-      const message = mongoError.code === 11000
-        ? 'Attendance already marked for this date'
-        : 'Failed to process record';
+    if (!validEmployeeIds.has(record.employeeId)) {
       result.skipped++;
       result.errors.push({
         employeeId: record.employeeId,
-        code,
-        message,
+        code: 'EMPLOYEE_NOT_FOUND',
+        message: 'Employee not found',
       });
+      continue;
+    }
+
+    attendanceRecords.push({
+      employee: record.employeeId,
+      date,
+      status: record.status,
+      checkInAt: record.checkInAt || undefined,
+      checkOutAt: record.checkOutAt || undefined,
+      notes: record.notes || undefined,
+      markedBy: authenticatedUserId,
+    });
+  }
+
+  if (attendanceRecords.length > 0) {
+    try {
+      await Attendance.insertMany(attendanceRecords, { ordered: false });
+      result.created = attendanceRecords.length;
+    } catch (error) {
+      const bulkError = error as { writeErrors?: Array<{ err: { code?: number }; op: Record<string, unknown> }>; insertedCount?: number };
+      if (bulkError.writeErrors) {
+        result.created = bulkError.insertedCount ?? 0;
+        for (const writeError of bulkError.writeErrors) {
+          const code = writeError.err?.code === 11000 ? 'ALREADY_CHECKED_IN' : 'INTERNAL_ERROR';
+          const message = writeError.err?.code === 11000
+            ? 'Attendance already marked for this date'
+            : 'Failed to process record';
+          result.skipped++;
+          result.errors.push({
+            employeeId: (writeError.op?.employee as string) || 'unknown',
+            code,
+            message,
+          });
+        }
+      } else {
+        result.skipped = attendanceRecords.length;
+        result.errors.push({
+          employeeId: 'batch',
+          code: 'BULK_INSERT_ERROR',
+          message: 'Failed to insert attendance records',
+        });
+      }
     }
   }
 

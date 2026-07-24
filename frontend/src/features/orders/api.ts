@@ -2,6 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api-client';
+import toast from 'react-hot-toast';
 
 export interface OrderListItem {
   id: string;
@@ -132,6 +133,9 @@ export function useUpdateOrder() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['orders'] });
     },
+    onError: (error: unknown) => {
+      toast.error(error instanceof Error ? error.message : 'Failed to update order');
+    },
   });
 }
 
@@ -143,6 +147,9 @@ export function useDeleteOrder() {
       apiClient<{ data: { success: boolean } }>(`/orders/${id}`, { method: 'DELETE' }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['orders'] });
+    },
+    onError: (error: unknown) => {
+      toast.error(error instanceof Error ? error.message : 'Failed to delete order');
     },
   });
 }
@@ -168,6 +175,9 @@ export function useUpdateOrderStatus() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['orders'] });
+    },
+    onError: (error: unknown) => {
+      toast.error(error instanceof Error ? error.message : 'Failed to update order status');
     },
   });
 }

@@ -2,11 +2,13 @@
 
 import { useMutation, useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api-client';
+import toast from 'react-hot-toast';
 
 export function useAssignableEmployees() {
   return useQuery({
     queryKey: ['tasks', 'assignable-employees'],
     queryFn: () => apiClient<{ data: { id: string; name: string }[] }>('/tasks/assignable-employees'),
+    staleTime: 60_000,
   });
 }
 
@@ -53,6 +55,7 @@ export function useTasksList(params: TasksListParams) {
     queryKey: ['tasks', 'list', qs],
     queryFn: () => apiClient<TasksListResponse>(`/tasks${qs ? `?${qs}` : ''}`),
     placeholderData: keepPreviousData,
+    staleTime: 30_000,
   });
 }
 
@@ -61,6 +64,7 @@ export function useTask(id: string) {
     queryKey: ['tasks', 'detail', id],
     queryFn: () => apiClient<{ data: TaskResponse }>(`/tasks/${id}`),
     enabled: !!id,
+    staleTime: 60_000,
   });
 }
 
@@ -81,6 +85,9 @@ export function useCreateTask() {
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
+    },
+    onError: (error: unknown) => {
+      toast.error(error instanceof Error ? error.message : 'Failed to create task');
     },
   });
 }
@@ -106,6 +113,9 @@ export function useUpdateTask() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
     },
+    onError: (error: unknown) => {
+      toast.error(error instanceof Error ? error.message : 'Failed to update task');
+    },
   });
 }
 
@@ -121,6 +131,9 @@ export function useUpdateTaskStatus() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
     },
+    onError: (error: unknown) => {
+      toast.error(error instanceof Error ? error.message : 'Failed to update task status');
+    },
   });
 }
 
@@ -134,6 +147,9 @@ export function useDeleteTask() {
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
+    },
+    onError: (error: unknown) => {
+      toast.error(error instanceof Error ? error.message : 'Failed to delete task');
     },
   });
 }

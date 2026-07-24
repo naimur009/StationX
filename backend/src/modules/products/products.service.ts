@@ -64,24 +64,25 @@ export async function listProducts(query: ListProductsDto) {
       .populate('categoryId', 'name')
       .sort({ createdAt: -1 })
       .skip(skip)
-      .limit(query.limit),
+      .limit(query.limit)
+      .lean(),
     Product.countDocuments(filter),
   ]);
 
   return {
-    data: products.map(toProductResponse),
+    data: (products as unknown as IProduct[]).map(toProductResponse),
     meta: { total, page: query.page, limit: query.limit },
   };
 }
 
 export async function getProductById(id: string) {
-  const product = await Product.findById(id).populate('categoryId', 'name');
+  const product = await Product.findById(id).populate('categoryId', 'name').lean();
 
   if (!product) {
     throw createError(404, 'NOT_FOUND', 'Product not found');
   }
 
-  return toProductResponse(product);
+  return toProductResponse(product as unknown as IProduct);
 }
 
 export async function createProduct(dto: CreateProductDto) {

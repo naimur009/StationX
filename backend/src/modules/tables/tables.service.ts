@@ -29,7 +29,7 @@ export async function listTables(query: ListTablesDto) {
   }
 
   const page = query.page ?? 1;
-  const limit = query.limit ?? 0;
+  const limit = query.limit ?? 50;
   const skip = limit > 0 ? (page - 1) * limit : 0;
 
   const [tables, total] = await Promise.all([

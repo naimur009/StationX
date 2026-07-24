@@ -44,12 +44,12 @@ export async function listEmployees(query: ListEmployeesDto) {
   const skip = (query.page - 1) * query.limit;
 
   const [employees, total] = await Promise.all([
-    Employee.find(filter).sort({ createdAt: -1 }).skip(skip).limit(query.limit),
+    Employee.find(filter).sort({ createdAt: -1 }).skip(skip).limit(query.limit).lean(),
     Employee.countDocuments(filter),
   ]);
 
   return {
-    data: employees.map(toEmployeeResponse),
+    data: (employees as unknown as IEmployee[]).map(toEmployeeResponse),
     meta: { total, page: query.page, limit: query.limit },
   };
 }
@@ -66,13 +66,13 @@ export async function createEmployee(dto: CreateEmployeeDto) {
 }
 
 export async function getEmployeeById(id: string) {
-  const employee = await Employee.findById(id);
+  const employee = await Employee.findById(id).lean();
 
   if (!employee) {
     throw createError(404, 'NOT_FOUND', 'Employee not found');
   }
 
-  return toEmployeeResponse(employee);
+  return toEmployeeResponse(employee as unknown as IEmployee);
 }
 
 export async function updateEmployee(id: string, dto: UpdateEmployeeDto) {

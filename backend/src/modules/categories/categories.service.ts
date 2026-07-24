@@ -50,7 +50,7 @@ export async function listCategories(query: ListCategoriesDto) {
   const skip = (query.page - 1) * query.limit;
 
   const [categories, total, counts] = await Promise.all([
-    Category.find(filter).sort({ createdAt: -1 }).skip(skip).limit(query.limit),
+    Category.find(filter).sort({ createdAt: -1 }).skip(skip).limit(query.limit).lean(),
     Category.countDocuments(filter),
     Product.aggregate([
       { $group: { _id: '$categoryId', count: { $sum: 1 } } },
@@ -61,7 +61,7 @@ export async function listCategories(query: ListCategoriesDto) {
     counts.map((c: { _id: string; count: number }) => [c._id.toString(), c.count])
   );
 
-  const data: CategoryResponse[] = categories.map((cat) => ({
+  const data: CategoryResponse[] = (categories as unknown as ICategory[]).map((cat) => ({
     id: cat._id.toString(),
     name: cat.name,
     vatRate: cat.vatRate,
@@ -77,13 +77,13 @@ export async function listCategories(query: ListCategoriesDto) {
 }
 
 export async function getCategoryById(id: string) {
-  const category = await Category.findById(id);
+  const category = await Category.findById(id).lean();
 
   if (!category) {
     throw createError(404, 'NOT_FOUND', 'Category not found');
   }
 
-  return await categoryResponse(category);
+  return await categoryResponse(category as unknown as ICategory);
 }
 
 export async function createCategory(dto: CreateCategoryDto) {

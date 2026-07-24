@@ -8,6 +8,7 @@ import PermissionGate from '@/components/shared/PermissionGate';
 import OrderFilters from '@/features/orders/components/OrderFilters';
 import OrderList from '@/features/orders/components/OrderList';
 import { useOrderList, useDeleteOrder } from '@/features/orders/api';
+import toast from 'react-hot-toast';
 import { getSocket } from '@/lib/socket';
 import type { OrdersFilterFormData } from '@/features/orders/schema';
 import type { OrderListItem } from '@/features/orders/api';
@@ -68,6 +69,9 @@ export default function OrdersPage() {
     if (!deleteTarget) return;
     deleteMutation.mutate(deleteTarget.id, {
       onSuccess: () => setDeleteTarget(null),
+      onError: (error: unknown) => {
+        toast.error(error instanceof Error ? error.message : 'Failed to delete order');
+      },
     });
   };
 

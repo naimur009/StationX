@@ -55,11 +55,11 @@ export async function listCustomers(query: ListCustomersDto) {
   const skip = (query.page - 1) * query.limit;
 
   const [customers, total] = await Promise.all([
-    Customer.find(filter).sort({ createdAt: -1 }).skip(skip).limit(query.limit),
+    Customer.find(filter).sort({ createdAt: -1 }).skip(skip).limit(query.limit).lean(),
     Customer.countDocuments(filter),
   ]);
 
-  const data = customers.map(toCustomerResponse);
+  const data = (customers as unknown as ICustomer[]).map(toCustomerResponse);
 
   return {
     data,
@@ -68,13 +68,13 @@ export async function listCustomers(query: ListCustomersDto) {
 }
 
 export async function getCustomerById(id: string, includeOrders = false) {
-  const customer = await Customer.findById(id);
+  const customer = await Customer.findById(id).lean();
 
   if (!customer) {
     throw createError(404, 'NOT_FOUND', 'Customer not found');
   }
 
-  const response = toCustomerResponse(customer);
+  const response = toCustomerResponse(customer as unknown as ICustomer);
 
   if (includeOrders) {
     const orders = await Order.find({ customerId: id })

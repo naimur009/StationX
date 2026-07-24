@@ -2,6 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api-client';
+import toast from 'react-hot-toast';
 
 export interface StaffEmployee {
   _id: string;
@@ -90,6 +91,7 @@ export function useTodayStaff(date?: string) {
   return useQuery({
     queryKey: ['attendance', 'today', date],
     queryFn: () => apiClient<TodayResponse>(`/attendance/today${qs}`),
+    staleTime: 30_000,
   });
 }
 
@@ -103,6 +105,7 @@ export function useEmployeeAttendanceMonth(employeeId: string, year: number, mon
     queryKey: ['attendance', 'month', employeeId, year, month],
     queryFn: () => apiClient<AttendanceListResponse>(`/attendance${qs}`),
     enabled: !!employeeId,
+    staleTime: 60_000,
   });
 }
 
@@ -121,6 +124,7 @@ export function useAttendanceList(params: AttendanceListParams) {
     queryKey: ['attendance', 'list', qs],
     queryFn: () => apiClient<AttendanceListResponse>(`/attendance${qs ? `?${qs}` : ''}`),
     placeholderData: keepPreviousData,
+    staleTime: 30_000,
   });
 }
 
@@ -129,6 +133,7 @@ export function useAttendanceDetail(id: string) {
     queryKey: ['attendance', 'detail', id],
     queryFn: () => apiClient<{ data: AttendanceRecord }>(`/attendance/${id}`),
     enabled: !!id,
+    staleTime: 60_000,
   });
 }
 
@@ -144,6 +149,9 @@ export function useMarkAttendance() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['attendance'] });
     },
+    onError: (error: unknown) => {
+      toast.error(error instanceof Error ? error.message : 'Failed to mark attendance');
+    },
   });
 }
 
@@ -158,6 +166,9 @@ export function useBatchMarkAttendance() {
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['attendance'] });
+    },
+    onError: (error: unknown) => {
+      toast.error(error instanceof Error ? error.message : 'Failed to batch mark attendance');
     },
   });
 }
@@ -175,6 +186,9 @@ export function useUpdateAttendance() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['attendance'] });
+    },
+    onError: (error: unknown) => {
+      toast.error(error instanceof Error ? error.message : 'Failed to update attendance');
     },
   });
 }

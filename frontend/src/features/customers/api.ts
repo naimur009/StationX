@@ -2,6 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api-client';
+import toast from 'react-hot-toast';
 
 export interface CustomerResponse {
   id: string;
@@ -39,6 +40,7 @@ export function useCustomersList(params: CustomersListParams) {
     queryKey: ['customers', 'list', qs],
     queryFn: () => apiClient<CustomersListResponse>(`/customers${qs ? `?${qs}` : ''}`),
     placeholderData: keepPreviousData,
+    staleTime: 30_000,
   });
 }
 
@@ -47,6 +49,7 @@ export function useCustomer(id: string) {
     queryKey: ['customers', 'detail', id],
     queryFn: () => apiClient<{ data: CustomerResponse }>(`/customers/${id}`),
     enabled: !!id,
+    staleTime: 60_000,
   });
 }
 
@@ -62,6 +65,9 @@ export function useCreateCustomer() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['customers'] });
     },
+    onError: (error: unknown) => {
+      toast.error(error instanceof Error ? error.message : 'Failed to create customer');
+    },
   });
 }
 
@@ -76,6 +82,9 @@ export function useSaveOrFindCustomer() {
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['customers'] });
+    },
+    onError: (error: unknown) => {
+      toast.error(error instanceof Error ? error.message : 'Failed to save or find customer');
     },
   });
 }
@@ -94,6 +103,9 @@ export function useUpdateCustomer() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['customers'] });
     },
+    onError: (error: unknown) => {
+      toast.error(error instanceof Error ? error.message : 'Failed to update customer');
+    },
   });
 }
 
@@ -107,6 +119,9 @@ export function useDeleteCustomer() {
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['customers'] });
+    },
+    onError: (error: unknown) => {
+      toast.error(error instanceof Error ? error.message : 'Failed to delete customer');
     },
   });
 }
