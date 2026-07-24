@@ -126,19 +126,20 @@ export async function getReport(type: string, query: ReportQueryDto) {
           monthYearFilter.push({ month: m, year: y });
         }
       }
-      const salaryRecords = await Salary.find({
-        $or: monthYearFilter,
-        status: { $ne: 'cancelled' },
-      }).populate('employeeId', 'name');
+      const salaryData = await Salary.aggregate([
+        { $match: { $or: monthYearFilter, status: { $ne: 'cancelled' } } },
+        { $lookup: { from: 'employees', localField: 'employeeId', foreignField: '_id', as: '_employee' } },
+        { $unwind: { path: '$_employee', preserveNullAndEmptyArrays: true } },
+        { $addFields: { employeeName: { $ifNull: ['$_employee.name', 'Unknown'] } } },
+        { $sort: { employeeName: 1 } },
+      ]);
 
-      const totalSalary = salaryRecords.reduce((sum, r) => sum + (r.baseSalary || 0), 0);
-      const byEmployee = salaryRecords
-        .map((r) => ({
-          employeeName: (r.employeeId as { name?: string })?.name || 'Unknown',
-          baseSalary: r.baseSalary || 0,
-          status: r.status,
-        }))
-        .sort((a, b) => a.employeeName.localeCompare(b.employeeName));
+      const totalSalary = salaryData.reduce((sum, r) => sum + (r.baseSalary || 0), 0);
+      const byEmployee = salaryData.map((r) => ({
+        employeeName: r.employeeName,
+        baseSalary: r.baseSalary || 0,
+        status: r.status,
+      }));
 
       const profit = totalRevenue + totalMiscIncome - totalExpenses - totalSalary;
 

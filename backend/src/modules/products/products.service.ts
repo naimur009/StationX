@@ -119,10 +119,10 @@ export async function updateProduct(id: string, dto: UpdateProductDto) {
   }
 
   if (dto.image === null && product.image?.publicId) {
-    deleteFromCloudinary(product.image.publicId).catch(() => {});
+    deleteFromCloudinary(product.image.publicId).catch((err: unknown) => console.error('[Cloudinary] Failed to delete image:', err));
   } else if (dto.image && dto.image.publicId !== product.image?.publicId) {
     if (product.image?.publicId) {
-      deleteFromCloudinary(product.image.publicId).catch(() => {});
+      deleteFromCloudinary(product.image.publicId).catch((err: unknown) => console.error('[Cloudinary] Failed to delete image:', err));
     }
   }
 
@@ -163,7 +163,7 @@ export async function deleteProduct(id: string) {
   }
 
   if (product.image?.publicId) {
-    deleteFromCloudinary(product.image.publicId).catch(() => {});
+    deleteFromCloudinary(product.image.publicId).catch((err: unknown) => console.error('[Cloudinary] Failed to delete image:', err));
   }
 
   await Product.findByIdAndDelete(id);

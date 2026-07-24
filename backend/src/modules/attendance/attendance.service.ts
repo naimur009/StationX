@@ -165,7 +165,6 @@ export async function getTodayStaff(queryDate?: string): Promise<TodayResponse> 
 export async function markAttendance(dto: CreateAttendanceDto, authenticatedUserId: string) {
   const date = dto.date ? normalizeDate(dto.date) : normalizeDate();
 
-  console.log('[markAttendance] Request employeeId:', dto.employeeId, 'date:', date.toISOString());
 
   const employee = await Employee.findById(dto.employeeId);
   if (!employee) {

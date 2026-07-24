@@ -49,11 +49,9 @@ export default function SalaryList({ onAddAdvance, onViewDetail, onDelete, onPay
   };
 
   const { data, isLoading, isError } = useSalariesList(queryParams);
-
   const { data: adjustmentsData } = useAdjustmentsList({
     month: monthFilter,
     year: yearFilter,
-    limit: 500,
   });
 
   const adjustmentTotals = useMemo(() => {

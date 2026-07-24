@@ -13,7 +13,8 @@
     "migrate:add-paymentstatus-to-orders": "tsx src/migrations/add-paymentstatus-to-orders.ts",
     "lint": "eslint src/ --ext .ts",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:ci": "vitest run"
   },
   "dependencies": {
     "bcrypt": "^6.0.0",

@@ -22,3 +22,16 @@ export function usePublicSettings() {
     staleTime: 300000,
   });
 }
+
+interface HealthStatus {
+  connected: boolean;
+}
+
+export function useHealthCheck() {
+  return useQuery<HealthStatus>({
+    queryKey: ['health'],
+    queryFn: () => apiClient<HealthStatus>('/health', { skipAuth: true }),
+    refetchInterval: 30000,
+    retry: false,
+  });
+}

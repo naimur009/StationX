@@ -1,40 +1,19 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
-import { usePublicSettings } from '@/features/homepage/api';
+import { usePublicSettings, useHealthCheck } from '@/features/homepage/api';
 import { useAuthStore } from '@/stores/auth-store';
 
-interface HealthStatus {
-  connected: boolean;
-}
-
 function HealthIndicator() {
-  const [status, setStatus] = useState<HealthStatus>({ connected: false });
-
-  useEffect(() => {
-    async function checkHealth() {
-      try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/health`);
-        if (res.ok) {
-          setStatus({ connected: true });
-        }
-      } catch {
-        setStatus({ connected: false });
-      }
-    }
-
-    checkHealth();
-    const interval = setInterval(checkHealth, 30000);
-    return () => clearInterval(interval);
-  }, []);
+  const { data, isSuccess } = useHealthCheck();
+  const connected = isSuccess && data?.connected !== false;
 
   return (
     <div className="flex items-center gap-2 text-xs font-medium text-slate-400">
       <span
-        className={`inline-block h-2 w-2 rounded-full ${status.connected ? 'bg-green-500' : 'bg-red-500'}`}
+        className={`inline-block h-2 w-2 rounded-full ${connected ? 'bg-green-500' : 'bg-red-500'}`}
       />
-      <span>{status.connected ? 'Connected' : 'Disconnected'}</span>
+      <span>{connected ? 'Connected' : 'Disconnected'}</span>
     </div>
   );
 }

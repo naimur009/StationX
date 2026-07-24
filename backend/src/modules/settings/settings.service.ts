@@ -51,7 +51,7 @@ export async function updateSettings(dto: UpdateSettingsDto) {
     const newPublicId = dto.logo?.publicId;
 
     if (oldPublicId && oldPublicId !== newPublicId) {
-      deleteFromCloudinary(oldPublicId).catch(() => {});
+      deleteFromCloudinary(oldPublicId).catch((err: unknown) => console.error('[Cloudinary] Failed to delete old logo:', err));
     }
   }
 
