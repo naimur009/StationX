@@ -16,11 +16,11 @@ const buttonVariants = cva(
         destructive:
           "bg-destructive text-destructive-foreground shadow-red-500/25 hover:bg-[hsl(var(--destructive-hover))]",
         warning:
-          "bg-warning text-warning-foreground shadow-[#F8C301]/40 hover:bg-[hsl(var(--warning-hover))]",
+          "bg-warning text-warning-foreground shadow-warning/40 hover:bg-[hsl(var(--warning-hover))]",
         ghost:
-          "text-slate-600 hover:bg-slate-100",
+          "text-muted-foreground hover:bg-secondary",
         outline:
-          "border border-slate-300 bg-transparent text-slate-700 hover:bg-slate-50",
+          "border border-input bg-transparent text-foreground hover:bg-muted",
       },
       size: {
         xs: "py-1 px-2.5 text-xs",

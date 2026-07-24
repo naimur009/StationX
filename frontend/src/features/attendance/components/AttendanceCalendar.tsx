@@ -107,7 +107,7 @@ export default function AttendanceCalendar() {
       <CardHeader className="border-b border-border/50 bg-gradient-to-r from-slate-50 to-white">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-purple-500 to-purple-600 text-white shadow-md shadow-purple-500/20">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-primary text-white shadow-md shadow-primary/20">
               <CalendarDays className="h-5 w-5" />
             </div>
             <div>

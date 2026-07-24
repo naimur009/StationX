@@ -1,8 +1,6 @@
 import { Response, NextFunction } from 'express';
 import { AuthenticatedRequest } from '../../middleware/authenticate';
-import { createError } from '../../middleware/errorHandler';
 import * as reportsService from './reports.service';
-import { REPORT_TYPES } from './reports.helper';
 import type { ReportQueryDto, ExportQueryDto } from './reports.validation';
 
 export async function handleGetReport(
@@ -12,10 +10,6 @@ export async function handleGetReport(
 ): Promise<void> {
   try {
     const { type } = req.params;
-
-    if (!type || !REPORT_TYPES.includes(type as typeof REPORT_TYPES[number])) {
-      return next(createError(400, 'INVALID_REPORT_TYPE', `Unknown report type: ${type}. Valid types: ${REPORT_TYPES.join(', ')}`));
-    }
 
     const query = req.query as unknown as ReportQueryDto;
     const result = await reportsService.getReport(type, query);
@@ -32,10 +26,6 @@ export async function handleExportReport(
 ): Promise<void> {
   try {
     const { type } = req.params;
-
-    if (!type || !REPORT_TYPES.includes(type as typeof REPORT_TYPES[number])) {
-      return next(createError(400, 'INVALID_REPORT_TYPE', `Unknown report type: ${type}. Valid types: ${REPORT_TYPES.join(', ')}`));
-    }
 
     const query = req.query as unknown as ExportQueryDto;
     const pdfBuffer = await reportsService.exportReport(type, query);

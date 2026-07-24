@@ -29,7 +29,7 @@ export default function NavItemLink({ item, collapsed, onClick }: NavItemLinkPro
   );
 
   return (
-    <div className={cn('relative', isActive && !collapsed && 'before:absolute before:left-0 before:top-1/2 before:-translate-y-1/2 before:h-5 before:w-[3px] before:rounded-r-full before:bg-[#F8C301]')}>
+    <div className={cn('relative', isActive && !collapsed && 'before:absolute before:left-0 before:top-1/2 before:-translate-y-1/2 before:h-5 before:w-[3px] before:rounded-r-full before:bg-warning')}>
       <Link
         href={item.href}
         onClick={onClick}

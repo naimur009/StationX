@@ -167,14 +167,14 @@ export default function DashboardLayout({
 
   if (!isAuthenticated) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-50">
+      <div className="flex min-h-screen items-center justify-center bg-background">
         <div className="h-10 w-10 animate-spin rounded-full border-4 spinner-smooth" />
       </div>
     );
   }
 
   return (
-    <div className="flex min-h-screen bg-slate-50">
+    <div className="flex min-h-screen bg-background">
       <TopBar onLogout={handleLogout} />
 
       <div className="hidden md:block">
@@ -188,8 +188,8 @@ export default function DashboardLayout({
       />
 
       {navigating && (
-        <div className="fixed top-0 left-0 right-0 z-50 h-0.5 bg-gradient-to-r from-[#D81B26]/20 via-[#F8C301]/20 to-[#D81B26]/20">
-          <div className="h-full bg-gradient-to-r from-[#D81B26] via-[#F8C301] to-[#D81B26] animate-[nav-bar_0.6s_ease-in-out_forwards]" />
+        <div className="fixed top-0 left-0 right-0 z-50 h-0.5 bg-gradient-to-r from-primary/20 via-warning/20 to-primary/20">
+          <div className="h-full bg-gradient-to-r from-primary via-warning to-primary animate-[nav-bar_0.6s_ease-in-out_forwards]" />
         </div>
       )}
 

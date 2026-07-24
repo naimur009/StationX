@@ -9,7 +9,8 @@ import { apiClient } from '@/lib/api-client';
 import ProductGrid from '@/features/pos/components/ProductGrid';
 import Cart from '@/features/pos/components/Cart';
 import CouponInput from '@/features/pos/components/CouponInput';
-import { Dialog } from '@/components/ui/dialog';
+import OrderConfirmationDialog from '@/features/pos/components/OrderConfirmationDialog';
+import OrderResultDialog from '@/features/pos/components/OrderResultDialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { AppError } from '@/lib/utils';
@@ -366,116 +367,30 @@ export default function PosPage() {
         </div>
       </div>
 
-      <Dialog
+      <OrderConfirmationDialog
         open={confirmOpen}
         onClose={() => setConfirmOpen(false)}
-        title="Bill Summary"
-        size="md"
-        footer={
-          <>
-            <Button variant="secondary" onClick={() => setConfirmOpen(false)}>
-              Cancel
-            </Button>
-            <PermissionGate module="pos" action="create">
-              <Button onClick={handleConfirm}>
-                Place Order
-              </Button>
-            </PermissionGate>
-          </>
-        }
-      >
-        <div className="space-y-4">
-          <div className="max-h-48 space-y-2 overflow-y-auto">
-            {items.map((item) => (
-              <div key={item.productId} className="flex items-center justify-between py-1">
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium text-slate-800">{item.name}</p>
-                  <p className="text-xs text-slate-500">BDT {item.price.toFixed(2)} x {item.quantity}</p>
-                </div>
-                <p className="ml-4 text-sm font-semibold text-slate-800">BDT {item.lineTotal.toFixed(2)}</p>
-              </div>
-            ))}
-          </div>
+        items={items}
+        subtotal={subtotal}
+        taxAmount={taxAmount}
+        totalWithVat={totalWithVat}
+        totalDiscount={totalDiscount}
+        grandTotal={grandTotal}
+        discountPercent={discountPercent}
+        availableTables={availableTables}
+        tableId={tableId}
+        employees={employees}
+        servedBy={servedBy}
+        customerName={customerName}
+        customerPhone={customerPhone}
+        onConfirm={handleConfirm}
+      />
 
-          <div className="border-t border-border pt-3">
-            <div className="space-y-1 text-sm">
-              <div className="flex justify-between text-slate-600">
-                <span>Subtotal</span>
-                <span>BDT {subtotal.toFixed(2)}</span>
-              </div>
-              {taxAmount > 0 && (
-                <div className="flex justify-between text-slate-600">
-                  <span>VAT</span>
-                  <span>BDT {taxAmount.toFixed(2)}</span>
-                </div>
-              )}
-              <div className="flex justify-between text-slate-800 font-bold">
-                <span>Subtotal + VAT</span>
-                <span>BDT {totalWithVat.toFixed(2)}</span>
-              </div>
-              {totalDiscount > 0 && (
-                <div className="flex justify-between text-green-600 font-bold">
-                  <span>Discount {discountPercent > 0 ? `(${discountPercent}%)` : ''}</span>
-                  <span>-BDT {totalDiscount.toFixed(2)}</span>
-                </div>
-              )}
-            </div>
-            <div className="mt-2 flex justify-between border-t border-border pt-2 text-base font-bold text-slate-800">
-              <span>Total</span>
-              <span>BDT {grandTotal.toFixed(2)}</span>
-            </div>
-          </div>
-
-          <div className="rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-600">
-            {tableId && (() => {
-              const t = availableTables.find((t) => t.id === tableId);
-              return (
-                <div className="flex justify-between">
-                  <span>Table</span>
-                  <span className="font-medium text-slate-800">{t?.tableNumber ?? tableId}</span>
-                </div>
-              );
-            })()}
-            {servedBy && (() => {
-              const emp = employees.find((e) => e.id === servedBy);
-              return (
-                <div className="mt-1 flex justify-between">
-                  <span>Served by</span>
-                  <span className="font-medium text-slate-800">{emp?.name || 'Unknown'}</span>
-                </div>
-              );
-            })()}
-            <div className="mt-1 flex justify-between">
-              <span>Customer</span>
-              <span className="font-medium text-slate-800">
-                {[customerName, customerPhone].filter(Boolean).join(' - ') || '—'}
-              </span>
-            </div>
-          </div>
-        </div>
-      </Dialog>
-
-      <Dialog
+      <OrderResultDialog
         open={resultOpen}
-        onClose={() => {}}
-        title="Order Placed"
-        size="sm"
-        footer={
-          <Button onClick={handleNewOrder}>
-            New Order
-          </Button>
-        }
-      >
-        <div className="space-y-3 text-center">
-          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-green-100">
-            <svg className="h-8 w-8 text-green-600" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-            </svg>
-          </div>
-          <p className="text-sm text-slate-600">Order has been placed successfully</p>
-          <p className="text-lg font-bold text-slate-800">{orderNumber}</p>
-        </div>
-      </Dialog>
+        orderNumber={orderNumber}
+        onNewOrder={handleNewOrder}
+      />
     </PermissionGate>
   );
 }

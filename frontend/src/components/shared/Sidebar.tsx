@@ -80,7 +80,7 @@ export default function Sidebar({ onLogout }: SidebarProps) {
       )}
     >
       <div className="flex min-h-[64px] items-center justify-center border-b border-white/10 px-4">
-        <span className={cn('flex items-center', sidebarCollapsed && 'hidden')}><span className="text-lg font-bold text-[#F8C301]">Station</span><span className="text-2xl font-black italic text-[#D81B26]">X</span></span>
+        <span className={cn('flex items-center', sidebarCollapsed && 'hidden')}><span className="text-lg font-bold text-warning">Station</span><span className="text-2xl font-black italic text-primary">X</span></span>
       </div>
 
       <nav className="flex-1 space-y-1 overflow-y-auto p-3">
@@ -94,7 +94,7 @@ export default function Sidebar({ onLogout }: SidebarProps) {
           type="button"
           onClick={onLogout}
           className={cn(
-            'flex w-full items-center rounded-xl text-sm font-medium text-slate-400 transition-colors hover:bg-red-500/10 hover:text-red-400',
+            'flex w-full items-center rounded-xl text-sm font-medium text-muted-foreground transition-colors hover:bg-red-500/10 hover:text-red-400',
             sidebarCollapsed
               ? 'justify-center px-0 py-2.5'
               : 'gap-3 px-3 py-2.5'

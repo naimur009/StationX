@@ -26,7 +26,7 @@ export default function TopBar({ onLogout }: TopBarProps) {
         <button
           type="button"
           onClick={openMobileDrawer}
-          className="flex h-9 w-9 items-center justify-center rounded-xl text-slate-600 hover:bg-slate-100 md:hidden"
+          className="flex h-9 w-9 items-center justify-center rounded-xl text-muted-foreground hover:bg-secondary md:hidden"
           aria-label="Open navigation menu"
         >
           <Menu className="h-5 w-5" />
@@ -35,7 +35,7 @@ export default function TopBar({ onLogout }: TopBarProps) {
         <button
           type="button"
           onClick={toggleSidebar}
-          className="hidden h-9 w-9 items-center justify-center rounded-xl text-slate-600 hover:bg-slate-100 md:flex"
+          className="hidden h-9 w-9 items-center justify-center rounded-xl text-muted-foreground hover:bg-secondary md:flex"
           aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
         >
           {sidebarCollapsed ? (
@@ -45,13 +45,13 @@ export default function TopBar({ onLogout }: TopBarProps) {
           )}
         </button>
 
-        <span className="hidden text-sm font-bold text-slate-800 sm:inline">
+        <span className="hidden text-sm font-bold text-foreground sm:inline">
           StationX
         </span>
       </div>
 
       <div className="flex items-center gap-3">
-        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-[#D81B26] to-[#F8C301] shadow-md">
+        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-primary to-warning shadow-md">
           <span className="text-xs font-bold text-white">
             {user?.name?.charAt(0)?.toUpperCase() ?? 'U'}
           </span>
@@ -59,10 +59,10 @@ export default function TopBar({ onLogout }: TopBarProps) {
 
         {user && (
           <div className="hidden md:block">
-            <div className="text-sm font-semibold text-slate-700">
+            <div className="text-sm font-semibold text-foreground">
               {user.name}
             </div>
-            <div className="text-right text-xs capitalize text-slate-400">
+            <div className="text-right text-xs capitalize text-muted-foreground">
               {user.role}
             </div>
           </div>
@@ -72,7 +72,7 @@ export default function TopBar({ onLogout }: TopBarProps) {
           <button
             type="button"
             onClick={onLogout}
-            className="flex h-9 w-9 items-center justify-center rounded-xl text-slate-400 transition-colors hover:bg-red-50 hover:text-red-500"
+            className="flex h-9 w-9 items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-red-50 hover:text-red-500"
             aria-label="Sign out"
           >
             <LogOut className="h-5 w-5" />
