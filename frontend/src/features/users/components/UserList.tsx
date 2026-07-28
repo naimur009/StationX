@@ -5,6 +5,7 @@ import { Search, ChevronLeft, ChevronRight, Edit3 } from 'lucide-react';
 import { useUsersList, useReactivateUser, type UserResponse } from '../api';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import PermissionGate from '@/components/shared/PermissionGate';
 import { AppError } from '@/lib/utils';
 
 interface UserListProps {
@@ -69,7 +70,7 @@ export default function UserList({ onEdit, onDeactivate, onPermanentDelete }: Us
   return (
     <div className="space-y-4">
       {error && (
-        <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700">
+        <div className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
           {error}
           <button className="ml-2 font-medium underline" onClick={() => setError(null)}>
             Dismiss
@@ -80,20 +81,20 @@ export default function UserList({ onEdit, onDeactivate, onPermanentDelete }: Us
       {/* Filters */}
       <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-3">
         <div className="relative flex-1 min-w-[200px]">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <input
             type="text"
             placeholder="Search by name or email..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full rounded-xl border border-slate-300 bg-white py-2.5 pl-10 pr-3.5 text-sm text-slate-800 placeholder-slate-400 ring-ring focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring"
+            className="w-full rounded-xl border border-input bg-background py-2.5 pl-10 pr-3.5 text-sm text-foreground placeholder:text-muted-foreground ring-ring focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring"
           />
         </div>
 
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
-          className="rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-700 ring-ring focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring"
+          className="rounded-xl border border-input bg-background px-3.5 py-2.5 text-sm text-foreground ring-ring focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring"
         >
           <option value="all">All</option>
           <option value="active">Active</option>
@@ -103,15 +104,15 @@ export default function UserList({ onEdit, onDeactivate, onPermanentDelete }: Us
 
       {/* Loading / Error / Empty (shared) */}
       {isLoading ? (
-        <div className="flex items-center justify-center rounded-2xl border border-slate-200 bg-white py-16 shadow-sm">
+        <div className="flex items-center justify-center rounded-2xl border border-border bg-background py-16 shadow-sm">
           <div className="h-10 w-10 animate-spin rounded-full border-4 spinner-smooth" />
         </div>
       ) : isError ? (
-        <div className="rounded-2xl border border-slate-200 bg-white px-4 py-12 text-center text-sm text-red-500 shadow-sm">
+        <div className="rounded-2xl border border-border bg-background px-4 py-12 text-center text-sm text-destructive shadow-sm">
           Failed to load users
         </div>
       ) : data && data.data.length === 0 ? (
-        <div className="rounded-2xl border border-slate-200 bg-white px-4 py-12 text-center text-sm text-slate-400 shadow-sm">
+        <div className="rounded-2xl border border-border bg-background px-4 py-12 text-center text-sm text-muted-foreground shadow-sm">
           No users yet — create one to get started
         </div>
       ) : (
@@ -121,14 +122,14 @@ export default function UserList({ onEdit, onDeactivate, onPermanentDelete }: Us
             {data?.data.map((user) => (
               <div
                 key={user.id}
-                className={`rounded-2xl border border-slate-200 bg-white p-4 shadow-sm ${
+                className={`rounded-2xl border border-border bg-background p-4 shadow-sm ${
                   !user.isActive ? 'opacity-60' : ''
                 }`}
               >
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0 flex-1">
-                    <p className="truncate font-medium text-slate-800">{user.name}</p>
-                    <p className="truncate text-sm text-slate-500">{user.email}</p>
+                    <p className="truncate font-medium text-foreground">{user.name}</p>
+                    <p className="truncate text-sm text-muted-foreground">{user.email}</p>
                   </div>
                   <div className="shrink-0">
                     {user.isActive ? (
@@ -139,13 +140,15 @@ export default function UserList({ onEdit, onDeactivate, onPermanentDelete }: Us
                   </div>
                 </div>
                 <div className="mt-3 flex items-center gap-1.5">
-                  <button
-                    onClick={() => onEdit(user)}
-                    className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-primary"
-                    title="Edit user"
-                  >
-                    <Edit3 className="h-4 w-4" />
-                  </button>
+                  <PermissionGate module="users" action="edit">
+                    <button
+                      onClick={() => onEdit(user)}
+                      className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-primary"
+                      title="Edit user"
+                    >
+                      <Edit3 className="h-4 w-4" />
+                    </button>
+                  </PermissionGate>
                   {user.isActive ? (
                     <Button variant="warning" size="xs" onClick={() => onDeactivate(user)}>
                       Deactivate
@@ -175,28 +178,28 @@ export default function UserList({ onEdit, onDeactivate, onPermanentDelete }: Us
           </div>
 
           {/* Table layout */}
-          <div className="hidden md:block overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
+          <div className="hidden md:block overflow-x-auto rounded-2xl border border-border bg-background shadow-sm">
             <table className="w-full text-left text-sm">
               <thead>
-                <tr className="border-b border-slate-200 bg-slate-50 text-xs font-semibold uppercase text-slate-500">
+                <tr className="border-b border-border bg-muted text-xs font-semibold uppercase text-muted-foreground">
                   <th className="px-4 py-3">Name</th>
                   <th className="hidden lg:table-cell px-4 py-3">Email</th>
                   <th className="px-4 py-3">Status</th>
                   <th className="px-4 py-3 text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-border">
                 {data?.data.map((user) => (
                   <tr
                     key={user.id}
-                    className={`transition-colors hover:bg-slate-50 ${
+                    className={`transition-colors hover:bg-muted ${
                       !user.isActive ? 'opacity-60' : ''
                     }`}
                   >
-                    <td className="max-w-[180px] truncate px-4 py-3 font-medium text-slate-800">
+                    <td className="max-w-[180px] truncate px-4 py-3 font-medium text-foreground">
                       {user.name}
                     </td>
-                    <td className="hidden lg:table-cell max-w-[220px] truncate px-4 py-3 text-slate-600">
+                    <td className="hidden lg:table-cell max-w-[220px] truncate px-4 py-3 text-muted-foreground">
                       {user.email}
                     </td>
                     <td className="px-4 py-3">
@@ -211,13 +214,15 @@ export default function UserList({ onEdit, onDeactivate, onPermanentDelete }: Us
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-end gap-2">
-                        <button
-                          onClick={() => onEdit(user)}
-                          className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-primary"
-                          title="Edit user"
-                        >
-                          <Edit3 className="h-4 w-4" />
-                        </button>
+                        <PermissionGate module="users" action="edit">
+                          <button
+                            onClick={() => onEdit(user)}
+                            className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-primary"
+                            title="Edit user"
+                          >
+                            <Edit3 className="h-4 w-4" />
+                          </button>
+                        </PermissionGate>
                         {user.isActive ? (
                           <Button variant="warning" size="xs" onClick={() => onDeactivate(user)}>
                             Deactivate
@@ -253,7 +258,7 @@ export default function UserList({ onEdit, onDeactivate, onPermanentDelete }: Us
 
       {/* Pagination */}
       {data && data.meta.total > 0 && (
-        <div className="flex items-center justify-between text-sm text-slate-500">
+        <div className="flex items-center justify-between text-sm text-muted-foreground">
           <span>
             Showing {Math.min((page - 1) * data.meta.limit + 1, data.meta.total)}–{Math.min(page * data.meta.limit, data.meta.total)} of{' '}
             {data.meta.total}
@@ -262,17 +267,17 @@ export default function UserList({ onEdit, onDeactivate, onPermanentDelete }: Us
             <button
               onClick={() => handlePageChange(page - 1)}
               disabled={page <= 1}
-              className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 disabled:opacity-30 disabled:cursor-not-allowed"
+              className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-30 disabled:cursor-not-allowed"
             >
               <ChevronLeft className="h-4 w-4" />
             </button>
-            <span className="min-w-[2rem] text-center text-slate-600">
+            <span className="min-w-[2rem] text-center text-muted-foreground">
               {page} / {totalPages}
             </span>
             <button
               onClick={() => handlePageChange(page + 1)}
               disabled={page >= totalPages}
-              className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 disabled:opacity-30 disabled:cursor-not-allowed"
+              className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-30 disabled:cursor-not-allowed"
             >
               <ChevronRight className="h-4 w-4" />
             </button>

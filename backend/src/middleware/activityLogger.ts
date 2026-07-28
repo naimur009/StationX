@@ -18,10 +18,17 @@ const STATE_TRANSITION_RULES: PathActionRule[] = [
   { pattern: /^\/users\/([^/]+)\/deactivate$/, action: 'user.deactivated' },
   { pattern: /^\/users\/([^/]+)\/activate$/, action: 'user.activated' },
   { pattern: /^\/users\/([^/]+)\/permissions$/, action: 'user.permissions_updated' },
+  { pattern: /^\/users\/([^/]+)\/password$/, action: 'user.password_changed' },
+  { pattern: /^\/users\/([^/]+)\/reset-password$/, action: 'user.password_reset' },
   { pattern: /^\/orders\/([^/]+)\/status$/, action: 'order.status_changed' },
   { pattern: /^\/attendance\/([^/]+)\/check-out$/, action: 'attendance.checked_out' },
   { pattern: /^\/tasks\/([^/]+)\/status$/, action: 'task.status_changed' },
   { pattern: /^\/coupons\/([^/]+)\/toggle$/, action: 'coupon.toggled' },
+];
+
+const STATE_DELETE_RULES: PathActionRule[] = [
+  { pattern: /^\/users\/([^/]+)$/, action: 'user.deactivated' },
+  { pattern: /^\/users\/([^/]+)\/permanent$/, action: 'user.hard_deleted' },
 ];
 
 const AUTH_ACTION_MAP: Record<string, string> = {
@@ -42,7 +49,10 @@ const RESOURCE_DESCRIPTION_MAP: Record<string, (req: AuthenticatedRequest) => st
     return `Updated user profile${changed ? ` (${changed})` : ''}`;
   },
   'user.deactivated': () => 'Deactivated user',
+  'user.hard_deleted': () => 'Permanently deleted user',
   'user.activated': () => 'Reactivated user',
+  'user.password_changed': () => 'User changed their password',
+  'user.password_reset': () => 'Admin reset user password',
   'user.permissions_updated': () => 'Updated user permissions',
   'settings.updated': (req) => {
     const keys = Object.keys(req.body as Record<string, unknown>);
@@ -149,6 +159,10 @@ const TARGET_TYPE_MAP: Record<string, string> = {
   reports: 'Report',
   'activity-log': 'ActivityLog',
   dashboard: 'Dashboard',
+  employees: 'Employee',
+  incomes: 'Income',
+  salaries: 'Salary',
+  tables: 'Table',
 };
 
 function extractTargetType(moduleName: string): string {
@@ -221,6 +235,14 @@ function buildAction(req: AuthenticatedRequest): string {
   for (const rule of STATE_TRANSITION_RULES) {
     if (rule.pattern.test(pathKey)) {
       return rule.action;
+    }
+  }
+
+  if (req.method === 'DELETE') {
+    for (const rule of STATE_DELETE_RULES) {
+      if (rule.pattern.test(pathKey)) {
+        return rule.action;
+      }
     }
   }
 

@@ -85,8 +85,8 @@ modules/<module>/
 ## 5. Auth & Permissions
 
 - Every route except those explicitly marked **Auth: none** in `API.md` §5 requires `Authorization: Bearer <accessToken>`, enforced by the `authenticate` middleware.
-- Every protected route also passes through `authorize(module, action)`. `Admin` bypasses this; `manager`/`employee` are evaluated against their `permissions` array with **default-deny** — a module absent from a user's `permissions` array means no access, not partial access.
-- Never hardcode a role check (`if (user.role === 'manager')`) as a substitute for a permission check. The PRD's entire premise is per-user configurable access (`PRD.md` §"Note" under Users) — role is informational, permissions are the actual gate.
+- Every protected route also passes through `authorize(module, action)`. `Admin` bypasses this; `employee` is evaluated against their `permissions` array with **default-deny** — a module absent from a user's `permissions` array means no access, not partial access.
+- Never hardcode a role check as a substitute for a permission check. The PRD's entire premise is per-user configurable access (`PRD.md` §"Note" under Users) — role is informational, permissions are the actual gate.
 - Guard rails from `API.md` §6 (`CANNOT_DEACTIVATE_SELF`, `LAST_ADMIN_PROTECTED`) live in the service layer and must be checked in every code path that can deactivate a user, not just the primary `PATCH /users/:id/deactivate` route.
 - Password hashes are never returned in any API response, ever — not even to an Admin viewing their own user list. Exclude `passwordHash` at the query projection level, not just by deleting the field before `res.json()`.
 

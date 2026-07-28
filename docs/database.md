@@ -70,15 +70,12 @@ Counter — internal helper, no relationships
 Authentication identity + embedded permission grants (per `ARCHITECTURE.md` §6, permission-based not just role-based).
 
 | Field | Type | Required | Notes |
-|---|---|---|---|
+|---|---|---|---|---|
 | `name` | String | ✓ | |
 | `email` | String | ✓ | unique, lowercase, trimmed |
 | `passwordHash` | String | ✓ | bcrypt, cost 12; never returned in API responses |
-| `role` | String enum `admin \| manager \| employee \| chief` | ✓ | Admin bypasses granular permission checks (§6); `chief` is an admin-level operational role with full system access |
-| `phone` | String | — | Contact number, used in employee management |
-| `address` | String | — | Physical address, used in employee management |
-| `baseSalary` | Number | — | Default monthly salary rate for employee records; distinct from per-month `baseSalary` in the Salary collection (§3.12) |
-| `permissions` | Array of `{ module: String, actions: [String enum `view\|create\|edit\|delete`] }` | — | Ignored/ irrelevant for `admin` role; default-deny if a module is absent for manager/employee |
+| `role` | String enum `admin \| employee` | ✓ | Admin bypasses granular permission checks (§6) |
+| `permissions` | Array of `{ module: String, actions: [String enum `view\|create\|edit\|delete`] }` | — | Ignored/ irrelevant for `admin` role; default-deny if a module is absent for employee |
 | `isActive` | Boolean | ✓ (default `true`) | soft-delete / deactivate |
 | `lastLoginAt` | Date | — | updated on successful login |
 

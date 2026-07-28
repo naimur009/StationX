@@ -1,32 +1,30 @@
 import { z } from 'zod';
 import { MODULE_ACTIONS } from '../../shared/constants';
-import { emailField } from '../../shared/validation';
+import { emailField, passwordSchema } from '../../shared/validation';
 
 const moduleKeys = Object.keys(MODULE_ACTIONS) as [string, ...string[]];
 
+const validActionsRefine = (permissions: { module: string; actions: string[] }[]) =>
+  permissions.every((p) => {
+    const validActions = MODULE_ACTIONS[p.module];
+    return validActions && p.actions.every((a) => (validActions as readonly string[]).includes(a));
+  });
+
+const permissionEntrySchema = z.object({
+  module: z.enum(moduleKeys),
+  actions: z.array(z.string()),
+});
+
 export const createUserSchema = z.object({
-  name: z.string().min(1).max(100).optional(),
+  name: z.string().min(1).max(100),
   email: emailField,
-  password: z.string().min(8, 'Password must be at least 8 characters'),
+  password: passwordSchema,
   role: z.enum(['admin', 'employee']),
   permissions: z
-    .array(
-      z.object({
-        module: z.string(),
-        actions: z.array(z.string()),
-      })
-    )
+    .array(permissionEntrySchema)
     .default([])
-    .refine(
-      (permissions) =>
-        permissions.every(
-          (p) =>
-            moduleKeys.includes(p.module) &&
-            p.actions.every((a) => (MODULE_ACTIONS[p.module] as readonly string[]).includes(a))
-        ),
-      { message: 'Invalid module or action in permissions' }
-    ),
-});
+    .refine(validActionsRefine, { message: 'Invalid action in permissions' }),
+}).strict();
 
 export const updateUserSchema = z.object({
   name: z.string().min(1).max(100).optional(),
@@ -40,30 +38,18 @@ export const reactivateUserSchema = z.object({}).strict();
 
 export const updatePermissionsSchema = z.object({
   permissions: z
-    .array(
-      z.object({
-        module: z.string(),
-        actions: z.array(z.string()),
-      })
-    )
+    .array(permissionEntrySchema)
     .min(0)
-    .refine(
-      (permissions) =>
-        permissions.every((p) => {
-          const validActions = MODULE_ACTIONS[p.module];
-          return !validActions || p.actions.every((a) => (validActions as readonly string[]).includes(a));
-        }),
-      { message: 'Invalid action in permissions' }
-    ),
+    .refine(validActionsRefine, { message: 'Invalid action in permissions' }),
 }).strict();
 
 export const changePasswordSchema = z.object({
   prevPassword: z.string().min(1, 'Current password is required'),
-  newPassword: z.string().min(8, 'New password must be at least 8 characters'),
+  newPassword: passwordSchema,
 }).strict();
 
 export const adminResetPasswordSchema = z.object({
-  newPassword: z.string().min(8, 'New password must be at least 8 characters'),
+  newPassword: passwordSchema,
 }).strict();
 
 export const listUsersSchema = z.object({

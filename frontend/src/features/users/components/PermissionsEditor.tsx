@@ -16,7 +16,8 @@ interface PermissionsEditorProps {
 export default function PermissionsEditor({ value, onChange }: PermissionsEditorProps) {
   const getActionsForModule = useCallback(
     (module: string): string[] => {
-      const entry = value.find((p) => p.module === module);
+      const perms = value ?? [];
+      const entry = perms.find((p) => p.module === module);
       return entry?.actions ?? [];
     },
     [value]
@@ -49,10 +50,10 @@ export default function PermissionsEditor({ value, onChange }: PermissionsEditor
   }
 
   return (
-    <div className="overflow-x-auto rounded-xl border border-slate-200">
+    <div className="overflow-x-auto rounded-xl border border-border">
       <table className="w-full text-left text-sm">
         <thead>
-          <tr className="border-b border-slate-200 bg-slate-50 text-xs font-semibold uppercase text-slate-500">
+          <tr className="border-b border-border bg-muted text-xs font-semibold uppercase text-muted-foreground">
             <th className="px-3 py-2.5">Module</th>
             {ALL_ACTIONS.map((action) => (
               <th key={action} className="px-3 py-2.5 text-center">
@@ -62,14 +63,14 @@ export default function PermissionsEditor({ value, onChange }: PermissionsEditor
             <th className="px-3 py-2.5 text-center">All</th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-slate-100">
+        <tbody className="divide-y divide-border">
           {Object.entries(MODULE_ACTIONS).map(([module, validActions]) => {
             const current = getActionsForModule(module);
             const allSelected = validActions.every((a) => current.includes(a));
 
             return (
-              <tr key={module} className="hover:bg-slate-50">
-                <td className="px-3 py-2.5 font-medium text-slate-700">
+              <tr key={module} className="hover:bg-muted">
+                <td className="px-3 py-2.5 font-medium text-foreground">
                   {getModuleLabel(module)}
                 </td>
                 {ALL_ACTIONS.map((action) => {

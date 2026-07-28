@@ -27,7 +27,7 @@ const userPermissionSchema = new Schema<IUserPermission>(
 
 const userSchema = new Schema<IUser>(
   {
-    name: { type: String },
+    name: { type: String, required: true },
     email: {
       type: String,
       required: true,

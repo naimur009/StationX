@@ -60,10 +60,11 @@ export function useCreateUser() {
 
   return useMutation({
     mutationFn: (data: {
+      name: string;
       email: string;
       password: string;
       role: string;
-      permissions: { module: string; actions: string[] }[];
+      permissions?: { module: string; actions: string[] }[];
     }) =>
       apiClient<{ data: UserResponse }>('/users', {
         method: 'POST',
@@ -86,14 +87,14 @@ export function useUpdateUser() {
     mutationFn: (data: {
       id: string;
       name?: string;
-      email: string;
+      email?: string;
       role?: string;
     }) =>
       apiClient<{ data: UserResponse }>(`/users/${data.id}`, {
         method: 'PUT',
         body: JSON.stringify({
           ...(data.name !== undefined ? { name: data.name } : {}),
-          email: data.email,
+          ...(data.email !== undefined ? { email: data.email } : {}),
           ...(data.role ? { role: data.role } : {}),
         }),
       }),

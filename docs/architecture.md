@@ -241,7 +241,7 @@ Settings (singleton document — one row for the whole restaurant)
 3. **Token refresh:** when the access token expires, the frontend's API client transparently calls `POST /api/auth/refresh` using the refresh cookie to obtain a new access token, retrying the original request once.
 4. **Authorization (permission-based, not just role-based):** each request to a protected route passes through `authorize(module, action)`. This checks the user's `permissions` array (e.g., `{ module: 'expenses', actions: ['view','create'] }`) rather than a hardcoded role check — satisfying the PRD's requirement that Admin can configure custom per-user access.
    - **Admin** bypasses granular checks (implicit full access).
-   - **Manager/Employee** permissions are evaluated explicitly; default-deny if a module isn't in their permission set.
+   - **Employee** permissions are evaluated explicitly; default-deny if a module isn't in their permission set.
 5. **Logout:** clears the refresh cookie; access tokens simply expire (stateless) — optionally denylisted in Redis if immediate revocation is required (Phase 2+).
 
 ```text

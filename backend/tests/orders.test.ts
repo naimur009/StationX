@@ -109,8 +109,8 @@ describe('orderIdParamSchema', () => {
 });
 
 describe('updateOrderSchema', () => {
-  it('accepts valid tableNumber update', () => {
-    const result = updateOrderSchema.safeParse({ tableNumber: '12' });
+  it('accepts valid tableId update', () => {
+    const result = updateOrderSchema.safeParse({ tableId: '507f1f77bcf86cd799439011' });
     expect(result.success).toBe(true);
   });
 
@@ -316,7 +316,7 @@ describe('renderBillHtml', () => {
   const sampleOrder = {
     _id: '507f1f77bcf86cd799439011',
     orderNumber: 'ORD-000001',
-    tableNumber: '5',
+    tableLabelSnapshot: '5',
     items: [
       { nameSnapshot: 'Pasta', priceSnapshot: 12.5, quantity: 2, lineTotal: 25, productId: 'id' },
       { nameSnapshot: 'Juice', priceSnapshot: 3, quantity: 1, lineTotal: 3, productId: 'id2' },
@@ -588,22 +588,22 @@ describe('updateOrder', () => {
     vi.clearAllMocks();
   });
 
-  it('updates table number', async () => {
+  it('updates tableId', async () => {
     vi.mocked(Order.findById).mockResolvedValueOnce({ ...mockExistingOrder } as never);
     vi.mocked(Order.findByIdAndUpdate).mockResolvedValueOnce({
       ...mockExistingOrder,
-      tableNumber: '12',
+      tableId: '507f1f77bcf86cd799439012',
     } as never);
     vi.mocked(Order.findById).mockReturnValue({
       populate: vi.fn().mockReturnThis(),
-      lean: vi.fn().mockResolvedValue({ ...mockExistingOrder, tableNumber: '12' }),
+      lean: vi.fn().mockResolvedValue({ ...mockExistingOrder, tableId: '507f1f77bcf86cd799439012' }),
     } as never);
 
-    const result = await updateOrder('507f1f77bcf86cd799439011', { tableNumber: '12' });
+    const result = await updateOrder('507f1f77bcf86cd799439011', { tableId: '507f1f77bcf86cd799439012' });
 
     expect(Order.findByIdAndUpdate).toHaveBeenCalledWith(
       '507f1f77bcf86cd799439011',
-      { $set: expect.objectContaining({ tableNumber: '12' }) },
+      { $set: expect.objectContaining({ tableId: '507f1f77bcf86cd799439012' }) },
       expect.objectContaining({ new: true, runValidators: true })
     );
     expect(result.data).toBeDefined();

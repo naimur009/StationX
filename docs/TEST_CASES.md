@@ -469,16 +469,16 @@ These apply to **every** module below; listed once here and referenced by ID rat
 
 | ID | Type | Case | Expected |
 |---|---|---|---|
-| USR-H-01 | Happy | `POST /users` valid (admin creating a manager account) | `201`, account created **without** a usable password, `PasswordResetToken` issued, "set your password" email sent |
-| USR-V-01 | Validation | Duplicate `email` | `400 VALIDATION_ERROR` or `409` (unique index) |
-| USR-V-02 | Validation | `role` outside `admin|manager|employee` | `400 VALIDATION_ERROR` |
+| USR-H-01 | Happy | `POST /users` valid (admin creating a user) | `201`, account created **with** a password (admin set directly per `API.md` §6), no email round-trip, user can log in immediately |
+| USR-V-01 | Validation | Duplicate `email` | `409 EMAIL_EXISTS` |
+| USR-V-02 | Validation | `role` outside `admin|employee` | `400 VALIDATION_ERROR` |
 | USR-H-02 | Happy | `GET /users` default | Excludes deactivated accounts |
 | USR-H-03 | Happy | `GET /users?includeInactive=true` | Includes deactivated accounts |
 | USR-H-04 | Happy | `PUT /users/:id` editing name/email/role | Succeeds |
 | USR-S-01 | Security | `PUT /users/:id` attempts to also set `permissions` or `password` in the same request | Ignored/stripped — those fields are **not** editable via this route per `API.md` §6 |
 | USR-H-05 | Happy | `PATCH /users/:id/permissions` replacing the array | Succeeds, logged as `user.permissions_updated` (distinct from `user.updated`) |
 | USR-V-03 | Validation | `permissions` array references an invalid module key (not in `API.md` §24 list) | `400 VALIDATION_ERROR` |
-| USR-V-04 | Validation | `permissions[].actions` includes an action not valid for that module (e.g. `pos: ["delete"]`, but `pos` has no `delete`) | Confirm whether this is rejected at validation time or silently a no-op — **flag**, since `API.md` §24's per-module action list isn't explicitly cross-validated in the schema shown |
+| USR-V-04 | Validation | `permissions[].actions` includes an action not valid for that module (e.g. `pos: ["delete"]`, but `pos` has no `delete`) | `400 INVALID_ACTION` — rejected by Zod `.refine()` in `createUserSchema`/`updatePermissionsSchema` |
 | USR-H-06 | Happy | `PATCH /users/:id/deactivate` | `isActive: false`, soft delete |
 | USR-E-01 | Error | A user attempts to deactivate their own account | `409 CANNOT_DEACTIVATE_SELF` |
 | USR-E-02 | Error | Attempt to deactivate the last remaining active `admin` | `409 LAST_ADMIN_PROTECTED` |
@@ -487,7 +487,8 @@ These apply to **every** module below; listed once here and referenced by ID rat
 | USR-H-09 | Happy | `DELETE /users/:id` | Same effect as `PATCH /users/:id/deactivate`, same guard rails apply (alias, not a true hard delete) |
 | USR-E-03 | Error | `DELETE /users/:id` on self | `409 CANNOT_DEACTIVATE_SELF` (alias must inherit the same guard) |
 | USR-E-04 | Error | `DELETE /users/:id` on last admin | `409 LAST_ADMIN_PROTECTED` (alias must inherit the same guard) |
-| USR-AUTH-01 | Security | Non-admin attempts `PATCH /users/:id/permissions` even with `users:edit` granted | Succeeds if explicitly granted — confirm this is intentional (permission-based, not role-hardcoded, per the PRD's core design principle) even though it's "realistically admin-only" |
+| USR-AUTH-01 | Security | Non-admin attempts `PATCH /users/:id/permissions` with `users:edit` but lacks the modules they are trying to grant | `403 FORBIDDEN` — grantor must possess each module+action they assign per AI_rules.md §5 ("Users cannot assign permissions they do not possess") |
+| USR-AUTH-02 | Security | Non-admin with `users:edit` grants permissions for modules they DO possess | Succeeds — permission-based access, not role-hardcoded |
 | USR-LOG-01 | Integration | Permission update and profile update each produce distinct `ActivityLog` entries | `user.updated` vs `user.permissions_updated` — verifiable by querying `/activity-log?module=users` |
 
 ---
@@ -694,5 +695,5 @@ These test areas can't be fully specified yet because the underlying behavior is
 1. **Order hard-delete future state** (`API.md` §25.1) — if `Order.isActive`/`deletedAt` is added later, ORD-DEL-01–05 need to be rewritten for the new soft-delete behavior instead of the current narrow restriction.
 2. **Income as its own permission module** (`API.md` §25.2) — if changed, INC-AUTH-01/02 need rewriting to test a dedicated `income` permission key instead of `dashboard`.
 3. **`completed → cancelled` approval gating** (`API.md` §25.3) — if a stricter action/role check is added, ORD-H-08 needs a new negative case for "edit-only, non-approving" users.
-4. **Admin-set-password alternative to reset-token reuse** (`API.md` §25.4) — if added, USR-H-01 needs a parallel happy path for direct password setting without an email round-trip.
+4. **Admin-set-password alternative to reset-token reuse** (`API.md` §25.4) — **RESOLVED:** Admin sets password directly during account creation. USR-H-01 updated to reflect current behavior (no email round-trip).
 5. **`Settings.taxConfig.mode: itemized`** (`DATABASE.md` §8.2) — once implemented, POS order-creation tests (POS-H-05 onward) need new cases for per-category tax rates, not just the current flat-rate assumption.

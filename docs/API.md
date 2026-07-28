@@ -133,14 +133,15 @@ Base path: `/users`. **Permission module key:** `users`.
 | PATCH | `/users/:id/password` | `edit` | Self-service password change — requires `prevPassword` |
 | PATCH | `/users/:id/reset-password` | `edit` | Admin-forced password reset — no `prevPassword` required, takes only `newPassword` |
 | DELETE | `/users/:id` | `delete` | Alias for `deactivate` — kept for REST consistency with other modules; same effect, same guard rails below |
+| DELETE | `/users/:id/permanent` | `delete` | Hard-delete — permanently removes the user document. Same guard rails as deactivation (no self-delete, last admin protected). |
 
 > **Why permissions has its own endpoint:** keeping the permission editor's writes separate from the general profile-edit form means each gets its own `ActivityLog` action (`user.updated` vs `user.permissions_updated`) — an admin auditing "who widened someone's access" shouldn't have to diff a generic edit event to find it.
 
 > **Why admin sets password directly during account creation:** `POST /users` accepts a `password` field. The server hashes it with bcrypt (cost 12) before storing. No `PasswordResetToken` is generated — the new user can log in immediately. This avoids an email-provider dependency for account creation and gives the admin immediate certainty that the account is fully usable. The password field is **not** returned in the response; `passwordHash` is excluded at the query projection level.
 
 **Guard rails (service layer, not schema):**
-- A user cannot deactivate/delete their own account → `409 CANNOT_DEACTIVATE_SELF`.
-- The last remaining active `admin` cannot be deactivated → `409 LAST_ADMIN_PROTECTED`.
+- A user cannot deactivate/delete their own account → `409 CANNOT_DEACTIVATE_SELF` / `409 CANNOT_DELETE_SELF`.
+- The last remaining active `admin` cannot be deactivated or permanently deleted → `409 LAST_ADMIN_PROTECTED`.
 
 ```json
 // PATCH /users/:id/permissions request
@@ -384,7 +385,7 @@ Manages restaurant staff records. Employees are users with role `employee` or `m
 ```json
 // POST /employees request
 { "name": "John Doe", "phone": "+8801712345678", "email": "john@restaurant.com",
-  "address": "123 Main Street, Dhaka", "baseSalary": 10000, "password": "Secret123" }
+  "address": "123 Main Street, Dhaka", "nid": "1234567890", "baseSalary": 10000, "password": "Secret123" }
 ```
 
 ```json
@@ -397,6 +398,7 @@ Manages restaurant staff records. Employees are users with role `employee` or `m
       "phone": "+8801712345678",
       "email": "john@restaurant.com",
       "address": "123 Main Street, Dhaka",
+      "nid": "1234567890",
       "baseSalary": 10000,
       "role": "employee",
       "isActive": true,
@@ -863,6 +865,7 @@ Single namespace, all authenticated dashboard clients join one shared room — n
 | 409 | `COUPON_IN_USE` | (reserved — not currently used; coupons are unconditionally hard-deletable) |
 | 409 | `COUPON_USAGE_LIMIT_REACHED` | Lost a race at order-commit time |
 | 409 | `ALREADY_CHECKED_IN` | Attendance unique-index violation (duplicate mark for same user+date) |
+| 400 | `CANNOT_RESET_SELF` | User attempted to use the admin password-reset endpoint on their own account |
 | 409 | `LAST_ADMIN_PROTECTED` / `CANNOT_DEACTIVATE_SELF` / `CANNOT_DELETE_SELF` | User-deactivation and permanent-deletion guard rails |
 | 409 | `ORDER_NOT_DELETABLE` | See §10 open item |
 | 409 | `PRODUCT_UNAVAILABLE` | A submitted product went inactive mid-checkout |

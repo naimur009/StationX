@@ -1,24 +1,37 @@
 import { z } from 'zod';
-import { emailField } from '@/lib/validation';
+import { emailField, passwordSchema } from '@/lib/validation';
+import { MODULE_ACTIONS } from '@/lib/constants';
+
+const moduleKeys = Object.keys(MODULE_ACTIONS) as [string, ...string[]];
 
 export const createUserSchema = z.object({
   name: z.string().min(1, 'Name is required').max(100),
   email: emailField,
-  password: z.string().min(8, 'Password must be at least 8 characters'),
+  password: passwordSchema,
+  role: z.enum(['admin', 'employee']),
+  permissions: z
+    .array(
+      z.object({
+        module: z.enum(moduleKeys),
+        actions: z.array(z.string()),
+      })
+    )
+    .optional(),
 });
 
 export const updateUserSchema = z.object({
   name: z.string().min(1, 'Name is required').max(100).optional(),
-  email: emailField,
+  email: emailField.optional(),
+  role: z.enum(['admin', 'employee']).optional(),
 });
 
 export const changePasswordSchema = z.object({
   prevPassword: z.string().min(1, 'Current password is required'),
-  newPassword: z.string().min(8, 'New password must be at least 8 characters'),
+  newPassword: passwordSchema,
 });
 
 export const adminResetPasswordSchema = z.object({
-  newPassword: z.string().min(8, 'New password must be at least 8 characters'),
+  newPassword: passwordSchema,
 });
 
 export type CreateUserFormData = z.infer<typeof createUserSchema>;

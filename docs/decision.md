@@ -390,10 +390,10 @@ Profit formula updated from `totalRevenue - totalExpenses - totalSalary` to `tot
 
 **Open item resolved:** New feature — no prior documentation.
 
-**Decision:** A dedicated Employee module is created as a frontend section with its own backend endpoints. Employees are Users with role `employee` or `manager`, managed through employee-specific CRUD that adds `phone`, `address`, and `baseSalary` fields to the User model. A new `employees` permission module key is added to control access separately from the `users` module.
+**Decision:** A dedicated Employee module is created as a frontend section with its own backend endpoints. Employees are Users with role `employee`, managed through employee-specific CRUD that adds `phone`, `address`, and `baseSalary` fields to the User model. A new `employees` permission module key is added to control access separately from the `users` module.ee-specific CRUD that adds `phone`, `address`, and `baseSalary` fields to the User model. A new `employees` permission module key is added to control access separately from the `users` module.
 
 **Doc(s) updated:**
-- `database.md` §3.1 (added phone, address, baseSalary to User model)
+- `database.md` §3.1 (added phone, address, nid, baseSalary to User model)
 - `API.md` §13.5 (new Employees subsection), §24 (added employees permission key)
 - `TEST_CASES.md` §20 (new Employees test cases)
 - `decision.md` (this entry)

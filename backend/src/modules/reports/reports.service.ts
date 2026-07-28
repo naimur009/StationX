@@ -166,7 +166,7 @@ export async function getReport(type: string, query: ReportQueryDto) {
         },
         salaries: {
           totalSalary,
-          totalRecords: salaryRecords.length,
+          totalRecords: salaryData.length,
           byEmployee,
         },
         profit,

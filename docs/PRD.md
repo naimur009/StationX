@@ -9,11 +9,10 @@ A web-based **Restaurant Management Dashboard** that allows a restaurant to run 
 | Role | Description |
 |---|---|
 | **Admin** | Full access to all modules. Manages users, permissions, and restaurant settings. |
-| **Manager** | Operational access (scope to be defined via permissions in the User module). |
-| **Employee / Staff** | Limited access, primarily POS, Orders, Table Management, Tasks, Attendance (scope to be defined via permissions). |
+| **Employee** | Limited access, scope defined via permissions in the User module. |
 | **Customer** | Not a system user — a data record stored for order history and contact purposes. |
 
-> Note: Since Admin can configure "their access, what can he do, their permission, their role" per user, access control is **permission-based**, not just role-based. Each Manager/Employee account can have a custom set of allowed modules/actions.
+> Note: Since Admin can configure "their access, what can he do, their permission, their role" per user, access control is **permission-based**, not just role-based. Each Employee account can have a custom set of allowed modules/actions.
 
 ---
 

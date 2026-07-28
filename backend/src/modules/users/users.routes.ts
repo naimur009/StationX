@@ -39,7 +39,7 @@ router.patch('/users/:id/activate', authenticate, authorize('users', 'edit'), va
 router.patch('/users/:id/permissions', authenticate, authorize('users', 'edit'), validate(updatePermissionsSchema), handleUpdatePermissions);
 router.patch('/users/:id/password', authenticate, authorize('users', 'edit'), validate(changePasswordSchema), handleChangePassword);
 router.patch('/users/:id/reset-password', authenticate, authorize('users', 'edit'), validate(adminResetPasswordSchema), handleAdminResetPassword);
-router.delete('/users/:id', authenticate, authorize('users', 'delete'), validate(deactivateUserSchema), handleDeactivateUser);
+router.delete('/users/:id', authenticate, authorize('users', 'delete'), validate(objectIdParam, 'params'), validate(deactivateUserSchema), handleDeactivateUser);
 router.delete('/users/:id/permanent', authenticate, authorize('users', 'delete'), validate(objectIdParam, 'params'), handlePermanentDeleteUser);
 
 export default router;

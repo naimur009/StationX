@@ -42,7 +42,7 @@ export default function EditUserForm({ user, onClose }: EditUserFormProps) {
         email: user.email,
       };
       reset(formData);
-      setPermissions(user.permissions);
+      setPermissions(Array.isArray(user.permissions) ? user.permissions : []);
       setError(null);
       setShowPasswordInput(false);
       setNewPassword('');
@@ -54,9 +54,9 @@ export default function EditUserForm({ user, onClose }: EditUserFormProps) {
     if (!user) return;
     setError(null);
 
-    const updatePayload: { name?: string; email: string } = {
+    const updatePayload: { name?: string; email?: string } = {
       name: data.name || undefined,
-      email: data.email,
+      email: data.email ?? undefined,
     };
 
     try {
@@ -120,65 +120,63 @@ export default function EditUserForm({ user, onClose }: EditUserFormProps) {
             disabled={updateUser.isPending || updatePermissions.isPending}
             onClick={handleFormSubmit}
           >
-            {updateUser.isPending || updatePermissions.isPending ? 'Saving…' : 'Save Changes'}
+            {updateUser.isPending || updatePermissions.isPending ? 'Saving\u2026' : 'Save Changes'}
           </Button>
         </>
       }
     >
       {error && (
-        <div className="mb-5 rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700">
+        <div className="mb-5 rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
           {error}
         </div>
       )}
 
       <form id="edit-user-form" onSubmit={handleSubmit(onSubmit)} className="space-y-5">
         <div>
-          <label htmlFor="edit-name" className="mb-1.5 block text-sm font-medium text-slate-700">
+          <label htmlFor="edit-name" className="mb-1.5 block text-sm font-medium text-foreground">
             Name
           </label>
           <input
             id="edit-name"
             type="text"
-            className={`w-full rounded-xl border bg-white px-3.5 py-2.5 text-sm text-slate-800 placeholder-slate-400 ring-ring focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring ${
-              errors.name ? 'border-red-400' : 'border-slate-300'
+            className={`w-full rounded-xl border bg-background px-3.5 py-2.5 text-sm text-foreground placeholder:text-muted-foreground ring-ring focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring ${
+              errors.name ? 'border-destructive' : 'border-input'
             }`}
             {...register('name')}
           />
-          {errors.name && <p className="mt-1 text-xs text-red-500">{errors.name.message}</p>}
+          {errors.name && <p className="mt-1 text-xs text-destructive">{errors.name.message}</p>}
         </div>
 
         <div>
-          <label htmlFor="edit-email" className="mb-1.5 block text-sm font-medium text-slate-700">
+          <label htmlFor="edit-email" className="mb-1.5 block text-sm font-medium text-foreground">
             Email
           </label>
           <input
             id="edit-email"
             type="email"
-            className={`w-full rounded-xl border bg-white px-3.5 py-2.5 text-sm text-slate-800 placeholder-slate-400 ring-ring focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring ${
-              errors.email ? 'border-red-400' : 'border-slate-300'
+            className={`w-full rounded-xl border bg-background px-3.5 py-2.5 text-sm text-foreground placeholder:text-muted-foreground ring-ring focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring ${
+              errors.email ? 'border-destructive' : 'border-input'
             }`}
             {...register('email')}
           />
-          {errors.email && <p className="mt-1 text-xs text-red-500">{errors.email.message}</p>}
+          {errors.email && <p className="mt-1 text-xs text-destructive">{errors.email.message}</p>}
         </div>
 
-
-
         <div>
-          <label className="mb-1.5 block text-sm font-medium text-slate-700">
+          <label className="mb-1.5 block text-sm font-medium text-foreground">
             Permissions
           </label>
           <PermissionsEditor value={permissions} onChange={setPermissions} />
-          <p className="mt-1.5 text-xs text-slate-400">
+          <p className="mt-1.5 text-xs text-muted-foreground">
             Grant module-level permissions for this user. Admin accounts bypass all permission checks.
           </p>
         </div>
 
-        <div className="border-t border-slate-200 pt-5">
+        <div className="border-t border-border pt-5">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <KeyRound className="h-4 w-4 text-slate-400" />
-              <span className="text-sm font-medium text-slate-700">Password</span>
+              <KeyRound className="h-4 w-4 text-muted-foreground" />
+              <span className="text-sm font-medium text-foreground">Password</span>
             </div>
             {!showPasswordInput && (
               <Button type="button" variant="ghost" size="xs" onClick={() => setShowPasswordInput(true)}>
@@ -189,7 +187,7 @@ export default function EditUserForm({ user, onClose }: EditUserFormProps) {
           {showPasswordInput && (
             <div className="mt-3">
               {passwordError && (
-                <p className="mb-2 text-xs text-red-500">{passwordError}</p>
+                <p className="mb-2 text-xs text-destructive">{passwordError}</p>
               )}
               <div className="flex items-center gap-3">
                 <input
@@ -200,7 +198,7 @@ export default function EditUserForm({ user, onClose }: EditUserFormProps) {
                     setNewPassword(e.target.value);
                     setPasswordError(null);
                   }}
-                  className="flex-1 rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-800 placeholder-slate-400 ring-ring focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring"
+                  className="flex-1 rounded-xl border border-input bg-background px-3.5 py-2.5 text-sm text-foreground placeholder:text-muted-foreground ring-ring focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring"
                 />
                 <Button
                   type="button"
@@ -217,7 +215,7 @@ export default function EditUserForm({ user, onClose }: EditUserFormProps) {
                   Set
                 </Button>
               </div>
-              <p className="mt-1.5 text-xs text-slate-400">
+              <p className="mt-1.5 text-xs text-muted-foreground">
                 This will immediately change the user's password. No current password confirmation needed.
               </p>
             </div>

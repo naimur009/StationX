@@ -66,7 +66,7 @@ export default function DeactivateConfirmDialog({ user, permanent = false, onClo
             disabled={isPending}
           >
             {isPending
-              ? (permanent ? 'Deleting…' : 'Deactivating…')
+              ? (permanent ? 'Deleting\u2026' : 'Deactivating\u2026')
               : (permanent ? 'Delete Permanently' : 'Deactivate')}
           </Button>
         </>
@@ -74,35 +74,35 @@ export default function DeactivateConfirmDialog({ user, permanent = false, onClo
     >
       <div className="space-y-5">
         {error && (
-          <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700">
+          <div className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
             {error}
           </div>
         )}
 
-        <p className="text-sm text-slate-600">
+        <p className="text-sm text-foreground">
           {permanent
             ? 'Are you sure you want to permanently delete'
             : 'Are you sure you want to deactivate'}{' '}
-          <span className="font-semibold text-slate-800">{user.name}</span>?
+          <span className="font-semibold text-foreground">{user.name}</span>?
         </p>
 
-        <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+        <div className="rounded-xl border border-border bg-muted px-4 py-3 text-sm text-muted-foreground">
           <div className="flex items-center justify-between">
-            <span>{user.name}</span>
+            <span className="text-foreground">{user.name}</span>
             <Badge variant={user.isActive ? 'green' : 'slate'}>
               {user.isActive ? 'Active' : 'Inactive'}
             </Badge>
           </div>
-          <p className="mt-1 text-slate-500">{user.email}</p>
-          <p className="text-xs capitalize text-slate-400">{user.role}</p>
+          <p className="mt-1 text-muted-foreground">{user.email}</p>
+          <p className="text-xs capitalize text-muted-foreground">{user.role}</p>
         </div>
 
         {permanent ? (
-          <p className="text-xs text-red-600">
+          <p className="text-xs text-destructive">
             This action cannot be undone. The user will be permanently removed from the system.
           </p>
         ) : (
-          <p className="text-xs text-slate-400">
+          <p className="text-xs text-muted-foreground">
             Deactivated users will not be able to log in and will be visually distinguished
             in the users list. They can be reactivated at any time.
           </p>
