@@ -111,6 +111,7 @@ export default function CreateUserForm({ open, onClose }: CreateUserFormProps) {
           <input
             id="create-email"
             type="email"
+            autoComplete="off"
             placeholder="user@restaurant.com"
             className={`w-full rounded-xl border bg-background px-3.5 py-2.5 text-sm text-foreground placeholder:text-muted-foreground ring-ring focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring ${
               errors.email ? 'border-destructive' : 'border-input'
@@ -127,6 +128,7 @@ export default function CreateUserForm({ open, onClose }: CreateUserFormProps) {
           <input
             id="create-password"
             type="password"
+            autoComplete="new-password"
             placeholder="At least 8 characters"
             className={`w-full rounded-xl border bg-background px-3.5 py-2.5 text-sm text-foreground placeholder:text-muted-foreground ring-ring focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring ${
               errors.password ? 'border-destructive' : 'border-input'
