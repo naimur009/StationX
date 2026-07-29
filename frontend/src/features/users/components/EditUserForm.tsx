@@ -17,7 +17,8 @@ interface EditUserFormProps {
 }
 
 export default function EditUserForm({ user, onClose }: EditUserFormProps) {
-  const [permissions, setPermissions] = useState<{ module: string; actions: string[] }[]>([]);
+  const [permissions, setPermissions] = useState<{ module: string; actions: string[]; impliedBy?: string }[]>([]);
+  const [impliedPermissions, setImpliedPermissions] = useState<{ module: string; actions: string[]; impliedBy?: string }[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [showPasswordInput, setShowPasswordInput] = useState(false);
   const [newPassword, setNewPassword] = useState('');
@@ -42,7 +43,9 @@ export default function EditUserForm({ user, onClose }: EditUserFormProps) {
         email: user.email,
       };
       reset(formData);
-      setPermissions(Array.isArray(user.permissions) ? user.permissions : []);
+      const allPerms = Array.isArray(user.permissions) ? user.permissions : [];
+      setPermissions(allPerms.filter((p) => p.impliedBy === undefined));
+      setImpliedPermissions(allPerms.filter((p) => p.impliedBy !== undefined));
       setError(null);
       setShowPasswordInput(false);
       setNewPassword('');
@@ -67,8 +70,9 @@ export default function EditUserForm({ user, onClose }: EditUserFormProps) {
       return;
     }
 
+    const explicitPerms = permissions.map(({ module, actions }) => ({ module, actions }));
     try {
-      await updatePermissions.mutateAsync({ id: user.id, permissions });
+      await updatePermissions.mutateAsync({ id: user.id, permissions: explicitPerms });
     } catch (err) {
       const msg = err instanceof AppError ? err.message : 'Permissions save failed. Please try again.';
       console.error('[EditUserForm] Permissions update failed for user:', user.id, err);
@@ -92,6 +96,7 @@ export default function EditUserForm({ user, onClose }: EditUserFormProps) {
   function handleClose() {
     reset();
     setPermissions([]);
+    setImpliedPermissions([]);
     setError(null);
     onClose();
   }
@@ -166,7 +171,7 @@ export default function EditUserForm({ user, onClose }: EditUserFormProps) {
           <label className="mb-1.5 block text-sm font-medium text-foreground">
             Permissions
           </label>
-          <PermissionsEditor value={permissions} onChange={setPermissions} />
+          <PermissionsEditor value={permissions} impliedPermissions={impliedPermissions} onChange={setPermissions} />
           <p className="mt-1.5 text-xs text-muted-foreground">
             Grant module-level permissions for this user. Admin accounts bypass all permission checks.
           </p>
@@ -216,7 +221,7 @@ export default function EditUserForm({ user, onClose }: EditUserFormProps) {
                 </Button>
               </div>
               <p className="mt-1.5 text-xs text-muted-foreground">
-                This will immediately change the user's password. No current password confirmation needed.
+                This will immediately change the user&rsquo;s password. No current password confirmation needed.
               </p>
             </div>
           )}

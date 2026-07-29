@@ -3,6 +3,7 @@ import mongoose, { Schema, Document } from 'mongoose';
 export interface IUserPermission {
   module: string;
   actions: string[];
+  impliedBy?: string;
 }
 
 export interface IUser extends Document {
@@ -21,6 +22,7 @@ const userPermissionSchema = new Schema<IUserPermission>(
   {
     module: { type: String, required: true },
     actions: { type: [String], required: true },
+    impliedBy: { type: String, required: false },
   },
   { _id: false }
 );

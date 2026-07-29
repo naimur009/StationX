@@ -2,6 +2,7 @@ import bcrypt from 'bcrypt';
 import User, { IUser } from '../../models/User';
 import { createError } from '../../middleware/errorHandler';
 import { MODULE_ACTIONS } from '../../shared/constants';
+import { expandPermissions } from '../../shared/permission-dependencies';
 import { withTransaction } from '../../lib/transaction';
 import type {
   CreateUserDto,
@@ -125,6 +126,7 @@ export async function createUser(dto: CreateUserDto, actorId: string, viewerRole
   }
 
   const deduped = deduplicatePermissions(dto.permissions);
+  const expanded = expandPermissions(deduped);
   const passwordHash = await bcrypt.hash(dto.password, SALT_ROUNDS);
 
   let user: IUser;
@@ -134,7 +136,7 @@ export async function createUser(dto: CreateUserDto, actorId: string, viewerRole
       email: dto.email,
       passwordHash,
       role: dto.role,
-      permissions: deduped,
+      permissions: expanded,
       isActive: true,
     });
   } catch (error: unknown) {
@@ -287,10 +289,11 @@ export async function updatePermissions(id: string, dto: UpdatePermissionsDto, a
   }
 
   const deduped = deduplicatePermissions(dto.permissions);
+  const expanded = expandPermissions(deduped);
 
   const user = await User.findByIdAndUpdate(
     id,
-    { $set: { permissions: deduped } },
+    { $set: { permissions: expanded } },
     { new: true, runValidators: true }
   );
 

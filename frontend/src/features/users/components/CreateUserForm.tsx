@@ -16,7 +16,7 @@ interface CreateUserFormProps {
 }
 
 export default function CreateUserForm({ open, onClose }: CreateUserFormProps) {
-  const [permissions, setPermissions] = useState<{ module: string; actions: string[] }[]>([]);
+  const [permissions, setPermissions] = useState<{ module: string; actions: string[]; impliedBy?: string }[]>([]);
   const [error, setError] = useState<string | null>(null);
   const createUser = useCreateUser();
 
@@ -25,7 +25,6 @@ export default function CreateUserForm({ open, onClose }: CreateUserFormProps) {
     handleSubmit,
     formState: { errors },
     reset,
-    watch,
   } = useForm<CreateUserFormData>({
     resolver: zodResolver(createUserSchema),
     defaultValues: { role: 'employee' },

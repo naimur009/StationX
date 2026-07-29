@@ -8,7 +8,7 @@ export interface UserResponse {
   name: string;
   email: string;
   role: 'admin' | 'employee';
-  permissions: { module: string; actions: string[] }[];
+  permissions: { module: string; actions: string[]; impliedBy?: string }[];
   isActive: boolean;
   lastLoginAt: string | null;
   createdAt: string;

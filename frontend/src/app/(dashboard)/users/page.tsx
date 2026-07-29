@@ -39,7 +39,7 @@ export default function UsersPage() {
         />
 
         <CreateUserForm open={createOpen} onClose={() => setCreateOpen(false)} />
-        <EditUserForm user={editUser} onClose={() => setEditUser(null)} />
+        <EditUserForm key={editUser?.id ?? undefined} user={editUser} onClose={() => setEditUser(null)} />
         <DeactivateConfirmDialog user={deactivateUser} onClose={() => setDeactivateUser(null)} />
         <DeactivateConfirmDialog
           user={permanentDeleteUser}
