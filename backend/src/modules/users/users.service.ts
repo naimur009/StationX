@@ -36,7 +36,7 @@ function toUserResponse(user: Pick<IUser, '_id' | 'name' | 'email' | 'role' | 'p
     name: user.name ?? '',
     email: user.email,
     role: user.role,
-    permissions: viewerRole === 'admin' ? user.permissions : [],
+    permissions: viewerRole ? user.permissions : [],
     isActive: user.isActive,
     lastLoginAt: user.lastLoginAt ?? null,
     createdAt: user.createdAt,
