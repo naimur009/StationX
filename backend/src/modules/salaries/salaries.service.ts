@@ -140,6 +140,11 @@ export async function createSalary(dto: CreateSalaryDto, userId: string) {
   }
 
   const baseSalary = employee.baseSalary || 0;
+
+  if (dto.paidAmount > baseSalary) {
+    throw createError(400, 'EXCEEDS_SALARY', 'Paid amount cannot exceed the employee base salary');
+  }
+
   const advances: Array<{ amount: number; date: Date; note?: string; createdBy: mongoose.Types.ObjectId }> = [];
 
   if (dto.paidAmount > 0) {

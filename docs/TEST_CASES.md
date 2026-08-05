@@ -552,6 +552,7 @@ These apply to **every** module below; listed once here and referenced by ID rat
 | SAL-E-01 | Error | Duplicate `{employeeId, month, year}` | `409 SALARY_ALREADY_EXISTS` |
 | SAL-E-02 | Error | `employeeId` references nonexistent user | `404 USER_NOT_FOUND` |
 | SAL-H-01b | Happy | `POST /salaries` with `paidAmount` equal to Employee's baseSalary | `201`, status auto-set to `paid`, one advance created |
+| SAL-E-07 | Error | `POST /salaries` with `paidAmount` above Employee's baseSalary | `400 EXCEEDS_SALARY`, no record created; extra pay must use bonus adjustment |
 | SAL-H-02 | Happy | `PATCH /salaries/:id/advance` within remaining balance | `200`, advance added, `totalPaid` and `remainingBalance` updated |
 | SAL-H-03 | Happy | `PATCH /salaries/:id/advance` that equals remaining balance | `200`, advance added, status auto-set to `paid` |
 | SAL-V-04 | Validation | `PATCH /salaries/:id/advance` with negative amount | `400 VALIDATION_ERROR` |

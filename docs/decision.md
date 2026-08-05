@@ -23,6 +23,24 @@
 
 ## Log
 
+### [—] Salary Over-Payment Guard — 2026-08-05
+
+**Open item resolved:** N/A — closes a validation gap in the Salaries module.
+
+**Decision:** `POST /salaries` now rejects `paidAmount` that exceeds the employee's `baseSalary` with `400 EXCEEDS_SALARY` (same code already used by `PATCH /salaries/:id/advance`). Previously, only the advance endpoint was capped — creating a salary record could silently over-pay (e.g. `paidAmount: 15000` on a 10,000 salary). Extra pay above the base salary remains fully supported through the bonus adjustment (`POST /salary-adjustments`, uncapped), so the base-salary cap applies only to the main salary payment path.
+
+**Doc(s) updated:**
+- `API.md` §17 (note on `paidAmount` cap + bonus path), §26 (`EXCEEDS_SALARY` description now covers both the create and advance paths)
+- `TEST_CASES.md` §20 (new `SAL-E-07` case)
+- `decision.md` (this entry)
+
+**Files changed:**
+- `backend/src/modules/salaries/salaries.service.ts` (cap check in `createSalary`)
+- `frontend/src/features/salaries/components/SalaryForm.tsx` (inline guard with error message, mirroring `AddAdvanceDialog`)
+- `backend/tests/salaries-service.test.ts` (new unit tests)
+
+**Reasoning:** Backend validation is the real boundary (frontend UX is advisory per `AI_rules.md` §4). The existing `EXCEEDS_SALARY` code was reused rather than inventing a new error code, per `AI_rules.md` §9.
+
 ### [—] Income Module — New Dashboard Section for Miscellaneous Income — 2026-07-19
 
 **Open item resolved:** N/A — new feature not previously documented in the project's permission key list.

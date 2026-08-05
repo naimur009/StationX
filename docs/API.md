@@ -497,7 +497,7 @@ Manages employee monthly salary records with advance tracking. `baseSalary` is f
 { "employeeId": "...", "paidAmount": 8000, "month": 6, "year": 2026 }
 ```
 
-> `baseSalary` is no longer accepted in the request body. It is derived from the employee's `baseSalary` field on the Employee record at creation time. The `paidAmount` (default 0) creates the first advance entry automatically. `remainingBalance` = `baseSalary` - sum of advances.
+> `baseSalary` is no longer accepted in the request body. It is derived from the employee's `baseSalary` field on the Employee record at creation time. The `paidAmount` (default 0) creates the first advance entry automatically. `remainingBalance` = `baseSalary` - sum of advances. `paidAmount` cannot exceed the employee's base salary — an over-payment attempt returns `400 EXCEEDS_SALARY`. Amounts above the base salary must be granted via the bonus adjustment (§17.1), which is not capped.
 
 ```json
 // PATCH /salaries/:id/advance request
@@ -875,7 +875,7 @@ Single namespace, all authenticated dashboard clients join one shared room — n
 | 409 | `TABLE_IN_USE` | Attempt to hard-delete a Table whose `currentOrderId` is non-null |
 | 409 | `SALARY_HAS_ADVANCES` | Cannot delete a salary record that has advances |
 | 400 | `INVALID_SALARY_STATUS` | Can only add advances to active salary records |
-| 400 | `EXCEEDS_SALARY` | Advance amount would exceed remaining balance |
+| 400 | `EXCEEDS_SALARY` | Payment exceeds the employee base salary — initial `paidAmount` on `POST /salaries` or an advance on `PATCH /salaries/:id/advance`. Extra pay beyond the base salary must use the bonus adjustment (`POST /salary-adjustments`) |
 | 400 | `ADJUSTMENT_EXCEEDS_SALARY` | Cut amount exceeds base salary |
 | 400 | `HAS_ADVANCES` | Cannot cancel a salary record with advances |
 | 423 | `ACCOUNT_DEACTIVATED` | Login attempt on a deactivated user (`isActive: false`) |

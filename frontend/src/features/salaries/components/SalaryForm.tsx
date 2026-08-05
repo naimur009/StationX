@@ -83,6 +83,11 @@ export default function SalaryForm({ open, onClose, preSelectedEmployeeId }: Sal
   async function onSubmit(data: CreateSalaryFormData) {
     setError(null);
 
+    if (data.paidAmount > baseSalary) {
+      setError(`Paid amount cannot exceed base salary of ${formatCurrency(baseSalary)}. Use the bonus section for extra payments.`);
+      return;
+    }
+
     try {
       await createSalary.mutateAsync({
         employeeId: data.employeeId,
