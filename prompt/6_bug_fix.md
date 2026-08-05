@@ -8,7 +8,7 @@ Fix review findings without changing unrelated code.
 
 # INPUT
 
-user permission which he has access not shown. like i select dashboard permission but after save this i cant see this which permission i give him the permission list is blank. fix this issue
+reduce animation, when first time i load a section a animation is occur, but when the section is already loaded, i dont need an animation. i want a minimal and clean looks.  
 
 # REQUIREMENTS
 

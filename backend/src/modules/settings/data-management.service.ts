@@ -68,7 +68,7 @@ export async function resetAllData(): Promise<void> {
 export async function generateBackup(): Promise<Record<string, unknown[]>> {
   const backup: Record<string, unknown[]> = {};
 
-  backup['User'] = await User.find({}).lean();
+  backup['User'] = await User.find({}).select('+passwordHash').lean();
   backup['Category'] = await Category.find({}).lean();
   backup['Product'] = await Product.find({}).lean();
   backup['Coupon'] = await Coupon.find({}).lean();
@@ -135,7 +135,7 @@ export async function restoreBackup(backupData: Record<string, unknown[]>): Prom
   const writers: CollectionWriter[] = [
     async () => { await Settings.deleteMany({}); if (backupData['Settings']?.length) { await Settings.insertMany(backupData['Settings'] as any, { ordered: false }); } return backupData['Settings']?.length ?? 0; },
     async () => { await Counter.deleteMany({}); if (backupData['Counter']?.length) { await Counter.insertMany(backupData['Counter'] as any, { ordered: false }); } return backupData['Counter']?.length ?? 0; },
-    async () => { await User.deleteMany({ role: { $ne: 'admin' } }); if (backupData['User']?.length) { await User.insertMany(backupData['User'] as any, { ordered: false }); } return backupData['User']?.length ?? 0; },
+    async () => { await User.deleteMany({}); if (backupData['User']?.length) { await User.insertMany(backupData['User'] as any, { ordered: false }); } return backupData['User']?.length ?? 0; },
     async () => { await Category.deleteMany({}); if (backupData['Category']?.length) { await Category.insertMany(backupData['Category'] as any, { ordered: false }); } return backupData['Category']?.length ?? 0; },
     async () => { await Product.deleteMany({}); if (backupData['Product']?.length) { await Product.insertMany(backupData['Product'] as any, { ordered: false }); } return backupData['Product']?.length ?? 0; },
     async () => { await Coupon.deleteMany({}); if (backupData['Coupon']?.length) { await Coupon.insertMany(backupData['Coupon'] as any, { ordered: false }); } return backupData['Coupon']?.length ?? 0; },

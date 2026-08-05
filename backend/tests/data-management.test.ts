@@ -54,6 +54,12 @@ function mockFindLean(returnValue: unknown) {
   return { lean: vi.fn().mockResolvedValue(returnValue) } as never;
 }
 
+function mockFindSelectLean(returnValue: unknown) {
+  return {
+    select: vi.fn().mockReturnValue({ lean: vi.fn().mockResolvedValue(returnValue) }),
+  } as never;
+}
+
 function mockFindByIdLean(returnValue: unknown) {
   return { lean: vi.fn().mockResolvedValue(returnValue) } as never;
 }
@@ -171,13 +177,15 @@ describe('dataManagementService', () => {
   describe('generateBackup', () => {
     it('queries all data collections', async () => {
       const sampleData = { _id: '1', name: 'test' };
-      vi.mocked(User.find).mockReturnValue(mockFindLean([sampleData]));
+      vi.mocked(User.find).mockReturnValue(mockFindSelectLean([sampleData]));
       mockAllCollectionsEmpty();
       vi.mocked(Settings.findById).mockReturnValue(mockFindByIdLean(null));
       vi.mocked(Counter.findById).mockReturnValue(mockFindByIdLean(null));
 
       const backup = await generateBackup();
 
+      expect(User.find).toHaveBeenCalledWith({});
+      expect((User.find as ReturnType<typeof vi.fn>).mock.results[0].value.select).toHaveBeenCalledWith('+passwordHash');
       expect(backup.User).toEqual([sampleData]);
       for (const { name } of COLLECTION_MODELS) {
         expect(backup[name]).toEqual([]);
@@ -188,7 +196,7 @@ describe('dataManagementService', () => {
       const settingsDoc = { _id: 'restaurant-settings', restaurantName: 'Test' };
       const counterDoc = { _id: 'orderNumber', seq: 5 };
 
-      vi.mocked(User.find).mockReturnValue(mockFindLean([]));
+      vi.mocked(User.find).mockReturnValue(mockFindSelectLean([]));
       mockAllCollectionsEmpty();
       vi.mocked(Settings.findById).mockReturnValue(mockFindByIdLean(settingsDoc));
       vi.mocked(Counter.findById).mockReturnValue(mockFindByIdLean(counterDoc));
@@ -200,7 +208,7 @@ describe('dataManagementService', () => {
     });
 
     it('omits Settings and Counter when they do not exist', async () => {
-      vi.mocked(User.find).mockReturnValue(mockFindLean([]));
+      vi.mocked(User.find).mockReturnValue(mockFindSelectLean([]));
       mockAllCollectionsEmpty();
       vi.mocked(Settings.findById).mockReturnValue(mockFindByIdLean(null));
       vi.mocked(Counter.findById).mockReturnValue(mockFindByIdLean(null));
@@ -293,7 +301,7 @@ describe('dataManagementService', () => {
 
       expect(Settings.deleteMany).toHaveBeenCalledWith({});
       expect(Counter.deleteMany).toHaveBeenCalledWith({});
-      expect(User.deleteMany).toHaveBeenCalledWith({ role: { $ne: 'admin' } });
+      expect(User.deleteMany).toHaveBeenCalledWith({});
       expect(Category.deleteMany).toHaveBeenCalledWith({});
 
       expect(Settings.insertMany).toHaveBeenCalledWith(

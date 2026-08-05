@@ -632,3 +632,21 @@ Profit formula updated from `totalRevenue - totalExpenses - totalSalary` to `tot
 
 **Reasoning:**
 Pulling table management into v1 was low-risk because `architecture.md`'s Future Scope had already reserved the concept — the deferred item was always "table *and reservation* management," and we split that: live floor status (now) vs. advanced booking/reservations (still Future Scope). The field on Order was already a string (`tableNumber`), which `architecture.md §12`'s own open-item note flagged as "will become a `tableId` ref when the Tables collection is created." Converting it to a reference (ObjectId) is correct now because the Table document carries a status that is more than just a label — the system needs to enforce booking/unbooking transitions, prevent double-booking, and emit Socket.io events on status changes. A free-text string cannot express that state machine. The breaking rename (`tableNumber` → `tableId`), while not additive, is justified because no external consumers depend on the old field name at this stage of development, and the migration is a one-time script that populates the new Tables collection from existing order data.
+### [—] Backup Includes Users (passwordHash + full restore) — 2026-08-05
+
+**Open item resolved:** Users created via the dashboard were effectively skipped in the backup/restore roundtrip — downloaded backups could not restore usable accounts.
+
+**Decision:**
+1. **Backup now includes `passwordHash` for users.** `generateBackup()` queries `User` with `.select('+passwordHash')` because the schema marks `passwordHash` as `select: false`. Without it, a restored user document fails the `required` validation during restore and the resulting accounts could never log in.
+2. **Restore now replaces all users.** `restoreBackup()` changed the user writer from `User.deleteMany({ role: { $ne: 'admin' } })` to `User.deleteMany({})`. The old logic preserved the current admin and then re-inserted the backup's admin with the same `_id`, causing a duplicate-key bulk-write failure that dropped the entire user batch. The pre-existing validation (backup must contain at least one active admin) already guarantees a replacement admin exists, so deleting all users is safe.
+
+**Doc(s) updated:**
+- `decision.md` (this entry)
+
+**Files changed:**
+- `backend/src/modules/settings/data-management.service.ts` (`generateBackup` includes `passwordHash`; restore user writer uses `deleteMany({})`)
+- `backend/tests/data-management.test.ts` (updated `generateBackup`/`restoreBackup` mocks and assertions)
+
+**Reasoning:**
+- A backup is an admin-only, authenticated download that already contains the entire dataset (orders, financials, activity logs); including bcrypt password hashes is consistent with standard dump-based backup tooling and is required for a functional restore.
+- The admin-preservation rule belongs to the *reset* flow (admin accounts survive a data reset), not the *restore* flow — restore is explicitly a "replace everything with the backup contents" operation per the UI confirmation copy.
