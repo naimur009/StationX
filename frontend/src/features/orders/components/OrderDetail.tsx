@@ -49,7 +49,7 @@ function getCustomerPhone(order: OrderDetailType): string | null {
 }
 
 function getStaffName(createdBy: OrderDetailType['createdBy']): string {
-  if (typeof createdBy === 'object' && 'name' in createdBy) return createdBy.name;
+  if (createdBy && typeof createdBy === 'object' && 'name' in createdBy) return createdBy.name;
   return 'Staff';
 }
 
