@@ -27,6 +27,7 @@ export default function DashboardLayout({
   const [navigating, setNavigating] = useState(false);
   const navigatingRef = useRef(false);
   const initializedRef = useRef(false);
+  const visitedPathsRef = useRef(new Set<string>([pathname]));
   const sidebarCollapsed = useUIStore((state) => state.sidebarCollapsed);
   const setSidebarCollapsed = useUIStore((state) => state.setSidebarCollapsed);
   const mobileDrawerOpen = useUIStore((state) => state.mobileDrawerOpen);
@@ -99,6 +100,16 @@ export default function DashboardLayout({
     setNavigating(true);
   }, []);
 
+  const maybeTriggerNav = useCallback(
+    (nextPathname: string) => {
+      if (navigatingRef.current) return;
+      if (visitedPathsRef.current.has(nextPathname)) return;
+      visitedPathsRef.current.add(nextPathname);
+      triggerNav();
+    },
+    [triggerNav]
+  );
+
   useEffect(() => {
     if (!navigating) return;
     const elapsed = Date.now() - navStartTime.current;
@@ -111,17 +122,21 @@ export default function DashboardLayout({
   }, [pathname, navigating]);
 
   useEffect(() => {
+    visitedPathsRef.current.add(pathname);
+  }, [pathname]);
+
+  useEffect(() => {
     function handleClick(e: MouseEvent) {
       const link = (e.target as HTMLElement).closest('a');
       if (!link || !link.href) return;
       const url = new URL(link.href);
       if (url.origin !== window.location.origin) return;
       if (url.pathname === window.location.pathname) return;
-      triggerNav();
+      maybeTriggerNav(url.pathname);
     }
     document.addEventListener('click', handleClick, true);
     return () => document.removeEventListener('click', handleClick, true);
-  }, [triggerNav]);
+  }, [maybeTriggerNav]);
 
   useEffect(() => {
     const originalPushState = history.pushState.bind(history);
@@ -130,19 +145,25 @@ export default function DashboardLayout({
     history.pushState = (...args) => {
       originalPushState(...args);
       if (!initializedRef.current) return;
-      setTimeout(triggerNav, 0);
+      setTimeout(() => {
+        const next = typeof args[2] === 'string' ? new URL(args[2], window.location.origin).pathname : window.location.pathname;
+        maybeTriggerNav(next);
+      }, 0);
     };
 
     history.replaceState = (...args) => {
       originalReplaceState(...args);
       if (!initializedRef.current) return;
-      setTimeout(triggerNav, 0);
+      setTimeout(() => {
+        const next = typeof args[2] === 'string' ? new URL(args[2], window.location.origin).pathname : window.location.pathname;
+        maybeTriggerNav(next);
+      }, 0);
     };
 
     initializedRef.current = true;
 
     function handlePopState() {
-      triggerNav();
+      maybeTriggerNav(window.location.pathname);
     }
     window.addEventListener('popstate', handlePopState);
 
@@ -151,7 +172,7 @@ export default function DashboardLayout({
       history.replaceState = originalReplaceState;
       window.removeEventListener('popstate', handlePopState);
     };
-  }, [triggerNav]);
+  }, [maybeTriggerNav]);
 
   async function handleLogout() {
     redirectedRef.current = true;
