@@ -429,9 +429,28 @@ Singleton — exactly one document for the whole restaurant (single-tenant per `
 | `contactNumber` | String | — | |
 | `businessHours` | `[{ day: String, open: String, close: String }]` | — | |
 | `vatInfo` | `{ bin: String, mushak: String }` | — | VAT registration details — BIN (Business Identification Number) and Mushak number |
-| `tableCount` | Number (default `0`, min `0`, max `100`) | — | Total number of tables in the restaurant. When changed, tables are auto-created (sequential labels "1", "2", ...) or excess tables without active orders are removed. |
+| `tableCount` | Number (default `0`, min `0`, max `100`) | — | Total number of tables in the restaurant. When changed, tables are re-synced (sequential labels "1", "2", ...) or excess tables without active orders are removed — tables with a non-null `currentOrderId` are always preserved. |
+| `loyaltyOrderThreshold` | Number (default `0`, min `0`) | — | Order-count threshold for the customer loyalty notification shown in POS. `0` disables the notification. |
 
 **Enforcing singleton:** fixed, well-known `_id` (e.g. the string `'restaurant-settings'`) so `upsert` always targets the same document — simpler and more explicit than an app-level "only one document" check.
+
+---
+
+### 3.17 Employee
+
+Staff records managed by the Employees module (`API.md` §14.5). Separate from `User` accounts — an Employee document holds contact and salary-default data, while authentication/permissions live on `User`. Referenced by `Attendance.employee`, `Salary.employeeId`, `SalaryAdjustment.employeeId`, and `SalarySummary.employeeId`.
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| `name` | String | ✓ | |
+| `phone` | String | ✓ | |
+| `nid` | String (default `''`) | — | National ID card number — optional |
+| `address` | String (default `''`) | — | |
+| `baseSalary` | Number (default `0`, min `0`) | — | Per-employee default rate, pre-filled when creating monthly Salary records (§3.12) |
+
+**Indexes:** `{ name: 1 }`.
+
+> **Cascade delete:** hard-deleting an Employee removes all related Attendance, Salary, SalaryAdjustment, and SalarySummary records in one Mongo transaction (`API.md` §14.5, `DATABASE.md` §5).
 
 ---
 
@@ -456,6 +475,7 @@ Singleton — exactly one document for the whole restaurant (single-tenant per `
 | SalarySummary | `{employeeId, month, year}` (unique), `{month, year}` | monthly summary queries |
 | Expense | `date`, `category`, `vendorId` | reports, filters |
 | Income | `date`, `category`, `receivedBy` | reports, filters |
+| Employee | `name` | list/search |
 | ActivityLog | `{actor, createdAt}`, `{module, createdAt}` | audit views |
 
 All `isActive`-bearing collections additionally get an index on `isActive` where it's a common list-filter predicate (Product, Customer) — omitted above where the field is rarely filtered on its own (User already covered by other compound use).
@@ -474,6 +494,7 @@ All `isActive`-bearing collections additionally get an index on `isActive` where
 8. **Table unbooking on payment capture or cancellation:** when `Order.paymentStatus` transitions to `paid` (payment captured) or `Order.status` transitions to `cancelled` (order cancelled before payment), the table is unbooked as a side-effect of those existing code paths — `Table.findByIdAndUpdate(order.tableId, { status: 'available', currentOrderId: null, bookedBy: null, bookedAt: null })`. No new transaction is needed; the unbooking runs in the same write operation as the status transition.
 9. **A `booked` table cannot be assigned to a different new order:** if a dine-in POS order targets a `Table` whose `status` is `booked`, the service layer must reject the request with a dedicated error code (to be defined in `API.md`, e.g. `TABLE_ALREADY_BOOKED`) rather than silently overwriting `currentOrderId`. The check happens inside the order-creation transaction *before* the table-update step, so two concurrent orders racing for the same table cannot both succeed.
 10. **Table deletion guard:** hard-deleting a `Table` with a non-null `currentOrderId` is blocked at the service layer. This mirrors the existing pattern in rule 5 (referential integrity for in-use entities) and is consistent with how Salary deletion is blocked when advances exist (§3.12 guards).
+11. **Settings data-management operations** (`POST /settings/reset`, `POST /settings/restore`, `API.md` §23) are the **sole exceptions** to the never-hard-delete rule for `Order`/`Expense`/`ActivityLog`: reset wipes them by design, and restore replaces them with the backup contents. Both operations are deliberately **non-transactional** (per-collection `deleteMany` + re-insert, `ordered: false` for restore) — a failure partway leaves a partially-wiped database, and re-running the same operation with the same inputs completes the intended end state. `reset` preserves admin accounts; `restore` requires the backup to contain at least one active admin and replaces all users.
 
 ---
 

@@ -759,23 +759,33 @@ Profit is calculated as: `profit = totalRevenue + totalMiscIncome - totalExpense
 
 ## 23. Settings
 
-Base path: `/settings`. **Permission module key:** `settings`. Singleton (fixed `_id`, `DATABASE.md` §3.14).
+Base path: `/settings`. **Permission module key:** `settings`. Singleton (fixed `_id`, `DATABASE.md` §3.15).
 
 | Method | Path | Auth | Action | Description |
-|---|---|---|---|---|---|
-| GET | `/settings/public` | none | none | Public — returns `restaurantName` and `logo` for the homepage (no auth required) |
+|---|---|---|---|---|
+| GET | `/settings/public` | none | none | Public — returns `restaurantName`, `logo`, and `loyaltyOrderThreshold` (no auth required) |
 | GET | `/settings` | required | `view` | Returns the full Settings document |
 | PUT | `/settings` | required | `edit` | Partial-merge update — see below |
+| POST | `/settings/reset` | required | `edit` | **Reset All Data** — hard-deletes all restaurant data (orders, expenses, products, customers, activity logs, salaries, etc.), resets Settings and the order-number Counter to defaults, preserves admin accounts. Returns `{ data: { success: true } }`. |
+| GET | `/settings/backup` | required | `view` | **Download Backup** — returns the complete dataset as a raw JSON dump (no `{ data }` envelope — file-download exception), including `User.passwordHash` (see decision.md "Backup Includes Users") |
+| POST | `/settings/restore` | required | `edit` | **Restore from Backup** — replaces all data with the uploaded backup contents. Body: `{ data: { <CollectionName>: [...] } }`. Returns `{ data: { success: true, stats: { collections, documents } } }`. |
 
-> **`GET /settings/public` is intentionally separate from the authenticated `GET /settings`.** The public endpoint returns only `restaurantName` and `logo` — the two fields the unauthenticated homepage needs. All other Settings fields (`vatInfo`, `businessHours`, `address`, etc.) remain gated behind authentication.
+> **`GET /settings/public` is intentionally separate from the authenticated `GET /settings`.** The public endpoint returns only `restaurantName`, `logo`, and `loyaltyOrderThreshold` — the fields the unauthenticated homepage and the POS page need. All other Settings fields (`vatInfo`, `businessHours`, `address`, etc.) remain gated behind authentication.
 
-**`PUT` here behaves like a merge, not a full replace:** the Settings UI is naturally split into sections (Business Info, VAT Information, Business Hours, Logo), and requiring the frontend to resend the entire document on every section save would be both wasteful and risky (a stale `logo` object in a VAT-tab form could accidentally null it out). The server merges the submitted fields into the singleton document rather than replacing it wholesale. Flagged here as a deliberate departure from strict REST `PUT` semantics, consistent with this document being where such calls get made explicit.
+**`PUT` here behaves like a merge, not a full replace:** the Settings UI is naturally split into sections (Business Info, VAT Information, Business Hours, Logo, Loyalty Threshold, Table Settings), and requiring the frontend to resend the entire document on every section save would be both wasteful and risky (a stale `logo` object in a VAT-tab form could accidentally null it out). The server merges the submitted fields into the singleton document rather than replacing it wholesale. Flagged here as a deliberate departure from strict REST `PUT` semantics, consistent with this document being where such calls get made explicit. Accepted fields: `restaurantName`, `address`, `logo`, `contactNumber`, `businessHours`, `vatInfo`, `loyaltyOrderThreshold`, `tableCount`.
+
+**`PUT /settings` with a changed `tableCount` also re-syncs the Table collection** (`DATABASE.md` §3.15): tables are recreated with sequential labels ("1", "2", ...), **preserving tables with a non-null `currentOrderId`** (active orders), and broadcasts `table:statusChanged` as a signal-only event (§25) so the floor grid re-fetches.
+
+**Data-management endpoints:**
+- `POST /settings/reset` is the **sole generated-code path allowed to hard-delete `Order` and `Expense`** (exception to the never-hard-delete rule, see `AI_rules.md` §6). Admin accounts survive; non-admin users and all other collections are wiped. The operation is non-transactional — if it fails partway, re-run it to complete the wipe.
+- `GET /settings/backup` is gated by `settings:view` and downloads the entire dataset (users *including* `passwordHash`, orders, financials, activity logs) as a raw JSON file — treat the file like a credentials export.
+- `POST /settings/restore` requires a backup containing **all** 17 expected collections and at least one active admin user, otherwise `400 VALIDATION_ERROR`. Restore is a per-collection replace (`deleteMany` + `insertMany`, `ordered: false`), not an atomic transaction — a failure partway leaves some collections restored and others wiped; re-run with the same file to complete.
 
 ---
 
 ## 24. Activity Log
 
-Base path: `/activity-log`. **Permission module key:** `activity-log`. **`view` is the only action that exists** — no `PUT`/`DELETE`/`POST` handler is ever registered for this collection (`DATABASE.md` §3.13's "read-only by omission" rule).
+Base path: `/activity-log`. **Permission module key:** `activity-log`. **`view` and `delete` (clear-all) are the only actions that exist** — no `PUT`/`PATCH`/`POST` handler is ever registered for this collection (`DATABASE.md` §3.13's "read-only by omission" rule; see `decision.md` "Activity Log — Clear All Endpoint").
 
 | Method | Path | Action | Description |
 |---|---|---|---|
@@ -839,7 +849,7 @@ Single namespace, all authenticated dashboard clients join one shared room — n
 | `task:assigned` | Task created/reassigned | `{ taskId, assignedTo }` | Assignee's live task badge |
 | `attendance:marked` | `POST /attendance` or `POST /attendance/batch` succeeds | `{ employeeId, date, status }` | Live attendance view |
 | `attendance:updated` | `PUT /attendance/:id` succeeds | `{ employeeId, date, status }` | Live attendance view |
-| `table:statusChanged` | `POST /pos/orders` (dine-in with `tableId`), `PATCH /orders/:id/status` (paid/cancelled unbook), or `PATCH /tables/:id/status` (manual toggle) — emitted after the transaction/transition commits, never optimistically | `{ tableId, tableNumber, status, orderId? }` | Tables floor-plan grid, POS table picker |
+| `table:statusChanged` | `POST /pos/orders` (dine-in with `tableId`), `PATCH /orders/:id/status` (paid/cancelled unbook), `PATCH /tables/:id/status` (manual toggle), or `PUT /settings` with a changed `tableCount` (settings-driven table re-sync) — emitted after the transaction/transition commits, never optimistically | `{ tableId, tableNumber, status, orderId? }` — except from the settings re-sync, where the whole table set is replaced and the event is broadcast as a **signal only with an empty payload** `{}` (consumers re-fetch the floor grid) | Tables floor-plan grid, POS table picker |
 
 ---
 

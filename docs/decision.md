@@ -650,3 +650,46 @@ Pulling table management into v1 was low-risk because `architecture.md`'s Future
 **Reasoning:**
 - A backup is an admin-only, authenticated download that already contains the entire dataset (orders, financials, activity logs); including bcrypt password hashes is consistent with standard dump-based backup tooling and is required for a functional restore.
 - The admin-preservation rule belongs to the *reset* flow (admin accounts survive a data reset), not the *restore* flow — restore is explicitly a "replace everything with the backup contents" operation per the UI confirmation copy.
+
+### [—] Settings — Docs Reconciled to Code (Data Management, Public Whitelist, Table Sync) — 2026-08-05
+
+**Open item resolved:** Code-review reconciliation — `API.md` §23 documented only GET `/settings/public`, GET `/settings`, PUT `/settings`; the implemented reset/backup/restore endpoints, the public `loyaltyOrderThreshold` field, and the table re-sync event were undocumented contract deviations.
+
+**Decision (docs now match the implemented code):**
+1. **Data-management endpoints are official:** `POST /settings/reset` (Reset All Data), `GET /settings/backup` (Download Backup), `POST /settings/restore` (Restore from Backup) are added to `API.md` §23 with their documented auth/action gates — `settings:edit` for reset/restore, **`settings:view` for backup** (the download gate is the view permission, not edit). Backup returns a raw JSON dump with no `{ data }` envelope (file-download exception).
+2. **Reset is the never-hard-delete exception:** `POST /settings/reset` hard-deletes `Order`, `Expense`, and `ActivityLog` by design. Codified as the sole exception in `AI_rules.md` §6 and `DATABASE.md` §5.11. Both reset and restore are deliberately non-transactional (per-collection replace); a partial failure is recovered by re-running the same operation.
+3. **Public whitelist extended:** `GET /settings/public` returns `restaurantName`, `logo`, **and** `loyaltyOrderThreshold` — the POS page (loyalty notification banner) consumes the threshold without authentication. Supersedes decision [20]'s "only restaurantName and logo" wording.
+4. **`loyaltyOrderThreshold` is a documented Settings field:** added to `DATABASE.md` §3.15 (Number, default 0, min 0 — order-count threshold for the POS loyalty notification).
+5. **Settings-driven table re-sync:** `PUT /settings` with a changed `tableCount` preserves tables with a non-null `currentOrderId`, recreates the rest with sequential labels, and broadcasts `table:statusChanged` with an **empty payload as a signal-only event** (`API.md` §25) so the floor grid re-fetches.
+
+**Doc(s) updated:**
+- `API.md` §23 (route table + data-management notes + accepted PUT fields), §25 (`table:statusChanged` settings trigger + signal-only payload)
+- `database.md` §3.15 (`loyaltyOrderThreshold`, tableCount re-sync semantics), §5.11 (reset/restore integrity rules)
+- `AI_rules.md` §6 (sole exception to the never-hard-delete rule)
+- `TEST_CASES.md` §17 (SET-PUB-01/02, SET-LOY-01, SET-TAB-01, SET-RESET-01/02, SET-BAK-01/02, SET-RST-01–04)
+- `decision.md` (this entry)
+
+**Files changed:** docs only — no code changes.
+
+**Reasoning:** The Settings data-management feature (reset/backup/restore), the loyalty threshold, and the table re-sync shipped ahead of their contract documentation. Per the review discipline, the docs are the binding contract for future work — so rather than reshaping the code, the docs were amended to state exactly what the implemented behavior is (including its intentional exceptions and limitations), making the contract honest and reviewable going forward.
+
+### [—] Employees — Optional NID Field — 2026-08-05
+
+**Open item resolved:** N/A — small field addition to the existing Employees module.
+
+**Decision:** Added an optional `nid` field to the Employee collection and the create/update endpoints (`POST /employees`, `PUT /employees/:id`). The create employee form gains an optional "NID No." input. Validation caps the value at 30 characters (`400 VALIDATION_ERROR` beyond that); omitted values are stored as `''`. The field is optional and informational — no uniqueness constraint, not used for lookup or auth.
+
+**Doc(s) updated:**
+- `database.md` §3.17 (new Employee collection schema section — previously undocumented — including `nid`), §4 (Employee index row)
+- `TEST_CASES.md` §23 (added EMP-H-09/EMP-H-10/EMP-V-05; corrected stale rows that referenced `email`/`password` fields and User-document semantics)
+- `decision.md` (this entry)
+
+**Files changed:**
+- `backend/src/models/Employee.ts` (added `nid`)
+- `backend/src/modules/employees/employees.validation.ts` (added `nid` to create/update schemas)
+- `backend/src/modules/employees/employees.service.ts` (added `nid` to response shape, create, and update)
+- `frontend/src/features/employees/schema.ts` (added `nid`)
+- `frontend/src/features/employees/api.ts` (added `nid` to types)
+- `frontend/src/features/employees/components/EmployeeForm.tsx` (NID No. input in create/edit form)
+
+**Reasoning:** API.md §14.5 already documented `nid` in its request/response examples, so the contract anticipated the field — the schema, model, and form were the gap. Adding it as a plain optional string keeps the field informational (BD NID numbers vary in length and format), matching the "optional contact detail" treatment of `address`.

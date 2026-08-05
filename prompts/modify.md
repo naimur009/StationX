@@ -25,12 +25,10 @@ Then read these docs relevant to the feature being modified:
 
 ## Feature to Modify
 
-**Module:** <salaries>
+**Module:** <setting>
 **What to change:**
 
-in salary section, suppose a employee's salary is 10,000 but from this section i can give more than 10,000, this is a huge issue. 
-
-so add a validator that a employee cant get more than his salary by the main salary option. but he can get extra by bonus section
+when download backup user is skipped. i create multiple user. but it is not backup. so in the backup file include users
 
 
 ## Scope Boundaries

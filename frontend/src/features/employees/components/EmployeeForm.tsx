@@ -23,12 +23,12 @@ export default function EmployeeForm({ open, employee, onClose }: EmployeeFormPr
 
   const createForm = useForm<CreateEmployeeFormData>({
     resolver: zodResolver(createEmployeeSchema),
-    defaultValues: { name: '', phone: '', address: '', baseSalary: 0 },
+    defaultValues: { name: '', phone: '', nid: '', address: '', baseSalary: 0 },
   });
 
   const editForm = useForm<UpdateEmployeeFormData>({
     resolver: zodResolver(updateEmployeeSchema),
-    defaultValues: { name: '', phone: '', address: '', baseSalary: 0 },
+    defaultValues: { name: '', phone: '', nid: '', address: '', baseSalary: 0 },
   });
 
   useEffect(() => {
@@ -38,11 +38,12 @@ export default function EmployeeForm({ open, employee, onClose }: EmployeeFormPr
       editForm.reset({
         name: employee.name,
         phone: employee.phone,
+        nid: employee.nid || '',
         address: employee.address || '',
         baseSalary: employee.baseSalary,
       });
     } else {
-      createForm.reset({ name: '', phone: '', address: '', baseSalary: 0 });
+      createForm.reset({ name: '', phone: '', nid: '', address: '', baseSalary: 0 });
     }
   }, [open, employee]);
 
@@ -52,6 +53,7 @@ export default function EmployeeForm({ open, employee, onClose }: EmployeeFormPr
       await createEmployee.mutateAsync({
         name: data.name,
         phone: data.phone,
+        nid: data.nid || undefined,
         address: data.address || undefined,
         baseSalary: data.baseSalary || undefined,
       });
@@ -70,6 +72,7 @@ export default function EmployeeForm({ open, employee, onClose }: EmployeeFormPr
         id: employee.id,
         name: data.name,
         phone: data.phone,
+        nid: data.nid || undefined,
         address: data.address || undefined,
         baseSalary: data.baseSalary || undefined,
       });
@@ -91,6 +94,7 @@ export default function EmployeeForm({ open, employee, onClose }: EmployeeFormPr
   const fields = {
     name: isEditing ? editForm.register('name') : createForm.register('name'),
     phone: isEditing ? editForm.register('phone') : createForm.register('phone'),
+    nid: isEditing ? editForm.register('nid') : createForm.register('nid'),
     address: isEditing ? editForm.register('address') : createForm.register('address'),
     baseSalary: isEditing ? editForm.register('baseSalary', { valueAsNumber: true }) : createForm.register('baseSalary', { valueAsNumber: true }),
   };
@@ -158,6 +162,22 @@ export default function EmployeeForm({ open, employee, onClose }: EmployeeFormPr
               {...fields.phone}
             />
             {fieldErrors.phone && <p className="mt-1 text-xs text-red-500">{fieldErrors.phone.message}</p>}
+          </div>
+
+          <div>
+            <label htmlFor="emp-nid" className="mb-1.5 block text-sm font-medium text-slate-700">
+              NID No.
+            </label>
+            <input
+              id="emp-nid"
+              type="text"
+              placeholder="e.g. 1234567890"
+              className={`w-full rounded-xl border bg-white px-3.5 py-2.5 text-sm text-slate-800 placeholder-slate-400 ring-ring focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring ${
+                fieldErrors.nid ? 'border-red-400' : 'border-slate-300'
+              }`}
+              {...fields.nid}
+            />
+            {fieldErrors.nid && <p className="mt-1 text-xs text-red-500">{fieldErrors.nid.message}</p>}
           </div>
 
           <div>

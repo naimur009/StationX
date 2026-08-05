@@ -7,6 +7,7 @@ export interface EmployeeResponse {
   id: string;
   name: string;
   phone: string;
+  nid: string;
   address: string;
   baseSalary: number;
   createdAt: string;
@@ -56,6 +57,7 @@ export function useCreateEmployee() {
     mutationFn: (data: {
       name: string;
       phone: string;
+      nid?: string;
       address?: string;
       baseSalary?: number;
     }) =>
@@ -80,6 +82,7 @@ export function useUpdateEmployee() {
       id: string;
       name?: string;
       phone?: string;
+      nid?: string;
       address?: string;
       baseSalary?: number;
     }) =>

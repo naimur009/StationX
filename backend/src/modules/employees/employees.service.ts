@@ -15,6 +15,7 @@ interface EmployeeResponse {
   id: string;
   name: string;
   phone: string;
+  nid: string;
   address: string;
   baseSalary: number;
   createdAt: Date;
@@ -26,6 +27,7 @@ function toEmployeeResponse(employee: IEmployee): EmployeeResponse {
     id: employee._id.toString(),
     name: employee.name,
     phone: employee.phone,
+    nid: employee.nid ?? '',
     address: employee.address ?? '',
     baseSalary: employee.baseSalary ?? 0,
     createdAt: employee.createdAt,
@@ -58,6 +60,7 @@ export async function createEmployee(dto: CreateEmployeeDto) {
   const employee = await Employee.create({
     name: dto.name,
     phone: dto.phone,
+    nid: dto.nid ?? '',
     address: dto.address ?? '',
     baseSalary: dto.baseSalary ?? 0,
   });
@@ -79,6 +82,7 @@ export async function updateEmployee(id: string, dto: UpdateEmployeeDto) {
   const updates: Record<string, unknown> = {};
   if (dto.name !== undefined) updates.name = dto.name;
   if (dto.phone !== undefined) updates.phone = dto.phone;
+  if (dto.nid !== undefined) updates.nid = dto.nid;
   if (dto.address !== undefined) updates.address = dto.address;
   if (dto.baseSalary !== undefined) updates.baseSalary = dto.baseSalary;
 
@@ -103,12 +107,10 @@ export async function deleteEmployee(id: string) {
   }
 
   await withTransaction(async (session) => {
-    await Promise.all([
-      Attendance.deleteMany({ employee: id }).session(session),
-      Salary.deleteMany({ employeeId: id }).session(session),
-      SalaryAdjustment.deleteMany({ employeeId: id }).session(session),
-      SalarySummary.deleteMany({ employeeId: id }).session(session),
-    ]);
+    await Attendance.deleteMany({ employee: id }).session(session);
+    await Salary.deleteMany({ employeeId: id }).session(session);
+    await SalaryAdjustment.deleteMany({ employeeId: id }).session(session);
+    await SalarySummary.deleteMany({ employeeId: id }).session(session);
 
     await Employee.findByIdAndDelete(id, { session });
   });

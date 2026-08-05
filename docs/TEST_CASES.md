@@ -504,6 +504,18 @@ These apply to **every** module below; listed once here and referenced by ID rat
 | SET-E-01 | Edge | Multiple concurrent `PUT /settings` calls from different admins editing different sections simultaneously | Confirm last-write-wins per field via merge, not a full-document overwrite race — verify no section's edit is lost if two saves overlap |
 | SET-AUTH-01 | Security | Non-admin without `settings:edit` | `403 FORBIDDEN` |
 | SET-H-03 | Happy | Settings document always resolves to the same fixed `_id` | Repeated `GET`/`PUT` always target one document — never accidentally creates a second Settings document |
+| SET-PUB-01 | Happy | `GET /settings/public` | Returns `restaurantName`, `logo`, and `loyaltyOrderThreshold` only — no `vatInfo`, `businessHours`, or `address` |
+| SET-PUB-02 | Security | Unauthenticated `GET /settings/public` | `200` with the public whitelist — no auth required |
+| SET-LOY-01 | Happy | `PUT /settings` with `{ loyaltyOrderThreshold: 10 }` | Field persists; public endpoint returns the new value |
+| SET-TAB-01 | Happy | `PUT /settings` lowering `tableCount` while a table has `currentOrderId` set | Table with the active order is **preserved**; unbooked excess tables removed |
+| SET-RESET-01 | Happy | Admin calls `POST /settings/reset` | `200 { data: { success: true } }`; all non-admin data wiped; admin accounts, Settings, and Counter reset to defaults |
+| SET-RESET-02 | Security | User without `settings:edit` calls `POST /settings/reset` | `403 FORBIDDEN` |
+| SET-BAK-01 | Happy | `GET /settings/backup` | Raw JSON dump (no `{ data }` envelope) containing all collections, including `User.passwordHash` |
+| SET-BAK-02 | Security | Unauthenticated `GET /settings/backup` | `401 UNAUTHORIZED` |
+| SET-RST-01 | Happy | Admin restores a valid downloaded backup | `200 { data: { success: true, stats } }`; all collections replaced by backup contents |
+| SET-RST-02 | Validation | Restore payload missing a collection (e.g. no `ActivityLog`) | `400 VALIDATION_ERROR` |
+| SET-RST-03 | Validation | Restore payload with zero active admin users | `400 VALIDATION_ERROR` |
+| SET-RST-04 | Security | User without `settings:edit` calls `POST /settings/restore` | `403 FORBIDDEN` |
 
 ---
 
@@ -597,19 +609,20 @@ These apply to **every** module below; listed once here and referenced by ID rat
 
 | ID | Type | Case | Expected |
 |---|---|---|---|
-| EMP-H-01 | Happy | `POST /employees` with all fields (name, phone, email, address, baseSalary, password) | `201`, employee created as User with role `employee` |
-| EMP-H-02 | Happy | `POST /employees` with only required fields (name, phone, password) | `201`, auto-generated placeholder email |
+| EMP-H-01 | Happy | `POST /employees` with all fields (name, phone, nid, address, baseSalary) | `201`, Employee document created with all fields persisted |
+| EMP-H-02 | Happy | `POST /employees` with only required fields (name, phone) | `201`, `nid`/`address` default to `''`, `baseSalary` defaults to `0` |
+| EMP-H-09 | Happy | `POST /employees` omitting `nid` | `201`, `nid` stored as `''` — field is optional |
 | EMP-V-01 | Validation | Missing `name` | `400 VALIDATION_ERROR` |
 | EMP-V-02 | Validation | Missing `phone` | `400 VALIDATION_ERROR` |
-| EMP-V-03 | Validation | Missing `password` | `400 VALIDATION_ERROR` |
-| EMP-V-04 | Validation | Duplicate `email` | `409 EMAIL_EXISTS` |
-| EMP-H-03 | Happy | `GET /employees` default | Returns only active employees with role `employee`/`manager`, paginated |
-| EMP-H-04 | Happy | `GET /employees?search=` | Matches by name or email |
-| EMP-H-05 | Happy | `GET /employees/:id` | Returns full employee detail with phone, address, baseSalary |
+| EMP-V-05 | Validation | `nid` longer than 30 characters | `400 VALIDATION_ERROR` |
+| EMP-H-03 | Happy | `GET /employees` default | Returns employees, paginated |
+| EMP-H-04 | Happy | `GET /employees?search=` | Matches by name (case-insensitive) |
+| EMP-H-05 | Happy | `GET /employees/:id` | Returns full employee detail with phone, nid, address, baseSalary |
 | EMP-E-01 | Error | `GET /employees/:id` with nonexistent ID | `404 NOT_FOUND` |
 | EMP-H-06 | Happy | `PUT /employees/:id` updating name, phone, address | `200`, fields updated |
 | EMP-H-07 | Happy | `PUT /employees/:id` updating baseSalary | `200`, new salary saved |
-| EMP-H-08 | Happy | `DELETE /employees/:id` | `200`, User document removed |
+| EMP-H-10 | Happy | `PUT /employees/:id` updating `nid` | `200`, new NID saved |
+| EMP-H-08 | Happy | `DELETE /employees/:id` | `200`, Employee document removed with cascade delete of Attendance/Salary records |
 | EMP-E-02 | Error | `DELETE /employees/:id` on nonexistent employee | `404 NOT_FOUND` |
 | EMP-AUTH-01 | Security | User lacks `employees:view` | `403 FORBIDDEN` |
 | EMP-INT-01 | Integration | Employee created via `/employees` appears in Salaries employee dropdown | List includes the new employee |
