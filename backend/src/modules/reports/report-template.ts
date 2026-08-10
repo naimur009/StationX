@@ -28,7 +28,7 @@ function renderTable(rows: Array<Record<string, unknown>>, columns: { key: strin
   let thead = '<thead><tr>';
   for (const col of columns) {
     const align = col.align || 'left';
-    thead += `<th style="text-align: ${align}; padding: 10px 14px; font-size: 11px; font-weight: 600; color: #ffffff; text-transform: uppercase; letter-spacing: 0.05em; background: #1e3a8a;">${col.label}</th>`;
+    thead += `<th style="text-align: ${align}; padding: 10px 14px; font-size: 11px; font-weight: 600; color: #ffffff; text-transform: uppercase; letter-spacing: 0.05em; background: #0f172a;">${col.label}</th>`;
   }
   thead += '</tr></thead>';
 
@@ -93,12 +93,12 @@ function renderSalesReport(data: Record<string, unknown>): string {
     ${renderSectionHeader('Executive Summary', 'Key performance metrics for the selected period')}
 
     <div class="metrics-grid">
-      ${renderMetricCard('Total Revenue', formatValue(summary?.totalRevenue, '৳'), '#2563eb')}
-      ${renderMetricCard('Total Orders', String(summary?.totalOrders ?? 0), '#16a34a')}
-      ${renderMetricCard('Products Sold', String(summary?.totalProductsSold ?? 0), '#16a34a')}
-      ${renderMetricCard('Avg Order Value', formatValue(summary?.averageOrderValue, '৳'), '#6366f1')}
-      ${renderMetricCard('Total VAT', formatValue(summary?.totalTaxAmount, '৳'), '#8b5cf6')}
-      ${renderMetricCard('Discount', `${formatValue(summary?.totalDiscountAmount, '৳')} (${summary?.discountPercentage ?? 0}%)`, '#d97706')}
+      ${renderMetricCard('Total Revenue', formatValue(summary?.totalRevenue, '৳'), '#0f172a')}
+      ${renderMetricCard('Total Orders', String(summary?.totalOrders ?? 0), '#334155')}
+      ${renderMetricCard('Products Sold', String(summary?.totalProductsSold ?? 0), '#334155')}
+      ${renderMetricCard('Avg Order Value', formatValue(summary?.averageOrderValue, '৳'), '#475569')}
+      ${renderMetricCard('Total VAT', formatValue(summary?.totalTaxAmount, '৳'), '#475569')}
+      ${renderMetricCard('Discount', `${formatValue(summary?.totalDiscountAmount, '৳')} (${summary?.discountPercentage ?? 0}%)`, '#64748b')}
     </div>`;
 
   if (byProduct && byProduct.length > 0) {
@@ -167,8 +167,11 @@ function renderProfitReport(data: Record<string, unknown>): string {
   const expenseCategories = (expenses?.byCategory as Array<Record<string, unknown>> | undefined) || [];
   const salaryEmployees = (salaries?.byEmployee as Array<Record<string, unknown>> | undefined) || [];
 
-  const profitColor = profit !== undefined && profit >= 0 ? '#16a34a' : '#dc2626';
+  const profitColor = '#0f172a';
   const profitLabel = profit !== undefined && profit >= 0 ? 'Net Profit' : 'Net Loss';
+  const miscCategories =
+    ((income as Record<string, unknown> | undefined)?.byMiscCategory as Array<Record<string, unknown>> | undefined) || [];
+  const totalMiscIncome = income?.totalMiscIncome ?? 0;
 
   let html = `
     <div class="report-title-section">
@@ -182,16 +185,33 @@ function renderProfitReport(data: Record<string, unknown>): string {
     ${renderSectionHeader('Income Summary', 'Revenue from completed and paid orders')}
 
     <div class="metrics-grid">
-      ${renderMetricCard('Total Revenue', formatValue(income?.totalRevenue, '৳'), '#2563eb')}
-      ${renderMetricCard('Total Orders', String(income?.totalOrders ?? 0), '#16a34a')}
-      ${renderMetricCard('Products Sold', String(income?.totalProductsSold ?? 0), '#16a34a')}
-    </div>
+      ${renderMetricCard('Total Revenue', formatValue(income?.totalRevenue, '৳'), '#0f172a')}
+      ${renderMetricCard('Total Orders', String(income?.totalOrders ?? 0), '#334155')}
+      ${renderMetricCard('Products Sold', String(income?.totalProductsSold ?? 0), '#334155')}
+    </div>`;
 
+  if (totalMiscIncome > 0) {
+    html += `
+      ${renderSectionHeader('Other Income', 'Non-order miscellaneous income for the period')}
+      <div class="metrics-grid">
+        ${renderMetricCard('Other Income', formatValue(totalMiscIncome, '৳'), '#334155')}
+        ${renderMetricCard('Misc Entries', String(income?.miscEntries ?? 0), '#64748b')}
+      </div>`;
+    if (miscCategories.length > 0) {
+      html += renderTable(miscCategories, [
+        { key: 'category', label: 'Category' },
+        { key: 'count', label: 'Entries', align: 'right' },
+        { key: 'total', label: 'Amount', align: 'right', format: (v) => formatValue(v as number, '৳') },
+      ]);
+    }
+  }
+
+  html += `
     ${renderSectionHeader('Expenses', 'Operational costs for the period')}
 
     <div class="metrics-grid">
-      ${renderMetricCard('Total Expenses', formatValue(expenses?.totalExpenses as number, '৳'), '#dc2626')}
-      ${renderMetricCard('Expense Entries', String(expenses?.totalEntries ?? 0), '#d97706')}
+      ${renderMetricCard('Total Expenses', formatValue(expenses?.totalExpenses as number, '৳'), '#475569')}
+      ${renderMetricCard('Expense Entries', String(expenses?.totalEntries ?? 0), '#64748b')}
     </div>`;
 
   if (expenseCategories.length > 0) {
@@ -208,7 +228,7 @@ function renderProfitReport(data: Record<string, unknown>): string {
     ${renderSectionHeader('Salaries', 'Employee compensation for the period')}
 
     <div class="metrics-grid">
-      ${renderMetricCard('Total Salary', formatValue(salaries?.totalSalary as number, '৳'), '#d97706')}
+      ${renderMetricCard('Total Salary', formatValue(salaries?.totalSalary as number, '৳'), '#64748b')}
       ${renderMetricCard('Salary Records', String(salaries?.totalRecords ?? 0), '#64748b')}
     </div>`;
 
@@ -230,6 +250,7 @@ function renderProfitReport(data: Record<string, unknown>): string {
         <div class="profit-value" style="color: ${profitColor};">${formatValue(profit, '৳')}</div>
         <div class="profit-breakdown">
           <span>Revenue: ${formatValue(income?.totalRevenue, '৳')}</span>
+          <span class="profit-plus">+ Other Income: ${formatValue(totalMiscIncome, '৳')}</span>
           <span class="profit-minus">- Expenses: ${formatValue(expenses?.totalExpenses as number, '৳')}</span>
           <span class="profit-minus">- Salaries: ${formatValue(salaries?.totalSalary as number, '৳')}</span>
         </div>
@@ -310,7 +331,7 @@ export function renderReportToHtml(
       justify-content: space-between;
       padding-bottom: 20px;
       margin-bottom: 24px;
-      border-bottom: 3px solid #1e3a8a;
+      border-bottom: 3px solid #0f172a;
       position: relative;
     }
 
@@ -321,7 +342,7 @@ export function renderReportToHtml(
       left: 0;
       width: 120px;
       height: 3px;
-      background: #2563eb;
+      background: #334155;
     }
 
     .header-left {
@@ -361,7 +382,7 @@ export function renderReportToHtml(
 
     .report-badge {
       display: inline-block;
-      background: #1e3a8a;
+      background: #0f172a;
       color: #ffffff;
       padding: 6px 16px;
       border-radius: 6px;
@@ -420,7 +441,7 @@ export function renderReportToHtml(
     .section-accent {
       width: 4px;
       height: 24px;
-      background: linear-gradient(180deg, #2563eb 0%, #1d4ed8 100%);
+      background: linear-gradient(180deg, #334155 0%, #0f172a 100%);
       border-radius: 2px;
     }
 
@@ -543,8 +564,13 @@ export function renderReportToHtml(
       border-top: 1px solid #e2e8f0;
     }
 
+    .profit-plus {
+      color: #0f172a;
+      font-weight: 600;
+    }
+
     .profit-minus {
-      color: #dc2626;
+      color: #475569;
     }
 
     /* Footer */

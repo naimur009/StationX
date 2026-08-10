@@ -1,5 +1,8 @@
 import { createError } from '../middleware/errorHandler';
 
+export const DATE_RANGES = ['today', 'week', 'month', 'custom'] as const;
+export type DateRangeValue = (typeof DATE_RANGES)[number];
+
 export interface DateRange {
   from: Date;
   to: Date;

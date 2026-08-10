@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { DATE_RANGES } from '../../lib/date-range';
 
 const objectIdRegex = /^[0-9a-fA-F]{24}$/;
 
@@ -28,7 +29,7 @@ export const updateExpenseSchema = z.object({
 );
 
 export const listExpensesQuerySchema = z.object({
-  range: z.enum(['today', 'week', 'month', 'custom']).optional(),
+  range: z.enum(DATE_RANGES).optional(),
   from: z.string().optional(),
   to: z.string().optional(),
   category: z.string().max(100).trim().optional(),

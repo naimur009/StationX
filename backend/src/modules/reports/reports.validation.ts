@@ -1,7 +1,8 @@
 import { z } from 'zod';
+import { DATE_RANGES } from '../../lib/date-range';
 import { REPORT_TYPES } from './reports.helper';
 
-const rangeEnum = z.enum(['today', 'week', 'month', 'custom']);
+const rangeEnum = z.enum(DATE_RANGES);
 
 export const reportTypeParamSchema = z.object({
   type: z.enum(REPORT_TYPES as [string, ...string[]], { message: `Invalid report type. Valid types: ${REPORT_TYPES.join(', ')}` }),

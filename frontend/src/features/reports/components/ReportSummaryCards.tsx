@@ -9,6 +9,7 @@ import {
   Percent,
   TrendingUp,
   BadgePercent,
+  Coins,
 } from 'lucide-react';
 import type { ReportType } from '../schema';
 import type {
@@ -40,8 +41,9 @@ export default function ReportSummaryCards({ type, data }: ReportSummaryCardsPro
       const p = data as ProfitReport;
       const profitColor = p.profit >= 0 ? 'green' : 'red';
       return (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
           <MetricCard title="Total Revenue" value={`৳${p.income.totalRevenue.toLocaleString()}`} icon={DollarSign} color="blue" />
+          <MetricCard title="Other Income" value={`৳${p.income.totalMiscIncome.toLocaleString()}`} icon={Coins} color="green" />
           <MetricCard title="Total Expenses" value={`৳${p.expenses.totalExpenses.toLocaleString()}`} icon={DollarSign} color="red" />
           <MetricCard title="Total Salary" value={`৳${p.salaries.totalSalary.toLocaleString()}`} icon={DollarSign} color="yellow" />
           <MetricCard title="Net Profit" value={`${p.profit >= 0 ? '+' : ''}৳${p.profit.toLocaleString()}`} icon={DollarSign} color={profitColor} />

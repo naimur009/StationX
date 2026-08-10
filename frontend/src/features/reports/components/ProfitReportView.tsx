@@ -25,6 +25,10 @@ export default function ProfitReportView({ data }: ProfitReportViewProps) {
             <span className="text-sm font-medium text-indigo-700">Revenue</span>
             <span className="text-lg font-bold text-indigo-700">+ ৳{data.income.totalRevenue.toLocaleString()}</span>
           </div>
+          <div className="flex items-center justify-between rounded-lg bg-green-50 px-4 py-3">
+            <span className="text-sm font-medium text-green-700">Other Income</span>
+            <span className="text-lg font-bold text-green-700">+ ৳{data.income.totalMiscIncome.toLocaleString()}</span>
+          </div>
           <div className="flex items-center justify-between rounded-lg bg-red-50 px-4 py-3">
             <span className="text-sm font-medium text-red-700">Expenses</span>
             <span className="text-lg font-bold text-red-700">- ৳{data.expenses.totalExpenses.toLocaleString()}</span>

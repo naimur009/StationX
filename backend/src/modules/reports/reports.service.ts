@@ -114,20 +114,13 @@ export async function getReport(type: string, query: ReportQueryDto) {
       const incomeSummaryRow = incomeData.summary[0] || {};
       const totalMiscIncome = incomeSummaryRow.totalMiscIncome || 0;
 
-      const fromMonth = dateRange.from.getMonth() + 1;
-      const fromYear = dateRange.from.getFullYear();
-      const toMonth = dateRange.to.getMonth() + 1;
-      const toYear = dateRange.to.getFullYear();
-      const monthYearFilter: Record<string, unknown>[] = [];
-      for (let y = fromYear; y <= toYear; y++) {
-        const startM = y === fromYear ? fromMonth : 1;
-        const endM = y === toYear ? toMonth : 12;
-        for (let m = startM; m <= endM; m++) {
-          monthYearFilter.push({ month: m, year: y });
-        }
-      }
       const salaryData = await Salary.aggregate([
-        { $match: { $or: monthYearFilter, status: { $ne: 'cancelled' } } },
+        {
+          $match: {
+            createdAt: { $gte: dateRange.from, $lte: dateRange.to },
+            status: { $ne: 'cancelled' },
+          },
+        },
         { $lookup: { from: 'employees', localField: 'employeeId', foreignField: '_id', as: '_employee' } },
         { $unwind: { path: '$_employee', preserveNullAndEmptyArrays: true } },
         { $addFields: { employeeName: { $ifNull: ['$_employee.name', 'Unknown'] } } },

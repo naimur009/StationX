@@ -1,6 +1,7 @@
 import { z } from 'zod';
+import { DATE_RANGES } from '../../lib/date-range';
 
-const rangeEnum = z.enum(['today', 'week', 'month', 'custom']);
+const rangeEnum = z.enum(DATE_RANGES);
 
 export const dashboardMetricsQuerySchema = z.object({
   range: rangeEnum.default('today'),

@@ -5,6 +5,14 @@ export type ReportType = 'sales' | 'profit';
 
 export const REPORT_TYPES: ReportType[] = ['sales', 'profit'];
 
+function serverTimezone(): string {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+  } catch {
+    return 'UTC';
+  }
+}
+
 export function salesAggregation(from: Date, to: Date): PipelineStage[] {
   return [
     { $match: { ...buildRevenueMatch(), createdAt: { $gte: from, $lte: to } } },
@@ -75,7 +83,7 @@ export function salesAggregation(from: Date, to: Date): PipelineStage[] {
         dailyBreakdown: [
           {
             $group: {
-              _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
+              _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt', timezone: serverTimezone() } },
               orders: { $sum: 1 },
               revenue: { $sum: '$grandTotal' },
             },
@@ -247,7 +255,7 @@ export function expenseAggregation(from: Date, to: Date): PipelineStage[] {
         dailyBreakdown: [
           {
             $group: {
-              _id: { $dateToString: { format: '%Y-%m-%d', date: '$date' } },
+              _id: { $dateToString: { format: '%Y-%m-%d', date: '$date', timezone: serverTimezone() } },
               count: { $sum: 1 },
               total: { $sum: '$amount' },
             },
