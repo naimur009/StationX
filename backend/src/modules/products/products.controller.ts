@@ -69,7 +69,7 @@ export async function handleGetReferenceData(
 ): Promise<void> {
   try {
     const result = await productService.getReferenceData();
-    res.status(200).json(result);
+    res.status(200).json({ data: result });
   } catch (error) {
     next(error);
   }

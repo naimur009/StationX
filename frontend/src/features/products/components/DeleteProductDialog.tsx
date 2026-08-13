@@ -5,6 +5,7 @@ import { useDeleteProduct, type ProductResponse } from '../api';
 import { Dialog } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { AppError } from '@/lib/utils';
+import { formatCurrency } from '@/lib/format';
 
 interface DeleteProductDialogProps {
   product: ProductResponse | null;
@@ -77,7 +78,7 @@ export default function DeleteProductDialog({ product, onClose }: DeleteProductD
         <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
           <span className="font-medium text-slate-800">{product.name}</span>
           <div className="mt-1 text-slate-500">
-            TK {product.price.toFixed(2)} — {product.categoryName || 'No category'}
+            {formatCurrency(product.price)} — {product.categoryName || 'No category'}
           </div>
         </div>
 

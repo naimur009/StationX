@@ -638,6 +638,7 @@ Base path: `/products`. **Permission module key:** `products`. Hard-delete CRUD;
 | Method | Path | Action | Description |
 |---|---|---|---|
 | GET | `/products?categoryId=&search=` | `view` | Admin product list (full payload — see §9.1 for the leaner POS variant) |
+| GET | `/products/reference-data` | `view` | Reference data (categories list for the category dropdown) |
 | GET | `/products/:id` | `view` | Detail |
 | POST | `/products` | `create` | Create |
 | PUT | `/products/:id` | `edit` | Edit, including `isActive` (availability toggle) |
@@ -875,7 +876,7 @@ Single namespace, all authenticated dashboard clients join one shared room — n
 | 400 | `INVALID_CATEGORY` | Referenced category does not exist |
 | 400 | `COUPON_CODE_EXISTS` | A coupon with this code already exists |
 | 400 | `ORDER_ALREADY_PAID` | Attempt to edit items or financial fields on a paid order |
-| 400 | `PRODUCT_IS_ACTIVE` | Attempt to permanently delete an active product without deactivating first |
+| 400 | `PRODUCT_IS_ACTIVE` | (reserved — not currently used; products are unconditionally hard-deletable per §19) |
 | 401 | `UNAUTHORIZED` | Missing/invalid/expired access token |
 | 401 | `INVALID_CREDENTIALS` | Login failed |
 | 403 | `FORBIDDEN` | Valid token, but `authorize(module, action)` denied it |
@@ -889,7 +890,7 @@ Single namespace, all authenticated dashboard clients join one shared room — n
 | 409 | `LAST_ADMIN_PROTECTED` / `CANNOT_DEACTIVATE_SELF` / `CANNOT_DELETE_SELF` | User-deactivation and permanent-deletion guard rails |
 | 409 | `ORDER_NOT_DELETABLE` | See §10 open item |
 | 409 | `PRODUCT_UNAVAILABLE` | A submitted product went inactive mid-checkout |
-| 409 | `PRODUCT_IN_USE` | Hard-delete of product blocked because it is referenced by one or more orders |
+| 409 | `PRODUCT_IN_USE` | (reserved — not currently used; products are unconditionally hard-deletable per §19) |
 | 409 | `SALARY_ALREADY_EXISTS` | Salary record for this employee/month/year already exists |
 | 409 | `TABLE_ALREADY_BOOKED` | Attempt to create a dine-in order on a table that is already booked by a different active order |
 | 409 | `TABLE_IN_USE` | Attempt to hard-delete a Table whose `currentOrderId` is non-null |

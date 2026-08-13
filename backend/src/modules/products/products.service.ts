@@ -1,6 +1,8 @@
 import Product, { IProduct } from '../../models/Product';
 import Category from '../../models/Category';
 import { deleteFromCloudinary } from '../../lib/upload';
+import { escapeRegex } from '../../lib/escapeRegex';
+import { paginate } from '../../lib/pagination';
 import { createError } from '../../middleware/errorHandler';
 import type {
   CreateProductDto,
@@ -12,7 +14,7 @@ interface ProductResponse {
   id: string;
   name: string;
   price: number;
-  categoryId: string;
+  categoryId: string | null;
   categoryName: string | null;
   image: { url: string; publicId: string } | null;
   description: string | null;
@@ -22,9 +24,9 @@ interface ProductResponse {
 }
 
 function toProductResponse(product: IProduct): ProductResponse {
-  const categoryRaw = product.categoryId as unknown as { _id: string; name: string } | string;
-  const categoryId = typeof categoryRaw === 'object' ? categoryRaw._id.toString() : categoryRaw.toString();
-  const categoryName = typeof categoryRaw === 'object' ? categoryRaw.name : null;
+  const categoryRaw = product.categoryId as unknown as { _id: string; name: string } | string | null;
+  const categoryId = categoryRaw && typeof categoryRaw === 'object' ? categoryRaw._id.toString() : (categoryRaw ? categoryRaw.toString() : null);
+  const categoryName = categoryRaw && typeof categoryRaw === 'object' ? categoryRaw.name : null;
 
   return {
     id: product._id.toString(),
@@ -54,17 +56,17 @@ export async function listProducts(query: ListProductsDto) {
   }
 
   if (query.search) {
-    filter.name = { $regex: query.search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), $options: 'i' };
+    filter.name = { $regex: escapeRegex(query.search), $options: 'i' };
   }
 
-  const skip = (query.page - 1) * query.limit;
+  const { skip, limit } = paginate(query.page, query.limit);
 
   const [products, total] = await Promise.all([
     Product.find(filter)
       .populate('categoryId', 'name')
       .sort({ createdAt: -1 })
       .skip(skip)
-      .limit(query.limit)
+      .limit(limit)
       .lean(),
     Product.countDocuments(filter),
   ]);

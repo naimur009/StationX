@@ -7,7 +7,7 @@ export interface ProductResponse {
   id: string;
   name: string;
   price: number;
-  categoryId: string;
+  categoryId: string | null;
   categoryName: string | null;
   image: { url: string; publicId: string } | null;
   description: string | null;
@@ -122,7 +122,7 @@ interface ReferenceDataResponse {
 export function useProductReferenceData() {
   return useQuery({
     queryKey: ['products', 'reference-data'],
-    queryFn: () => apiClient<ReferenceDataResponse>('/products/reference-data'),
+    queryFn: () => apiClient<{ data: ReferenceDataResponse }>('/products/reference-data'),
     staleTime: 60_000,
   });
 }

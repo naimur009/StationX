@@ -2,6 +2,7 @@ import Category, { ICategory } from '../../models/Category';
 import Product from '../../models/Product';
 import { createError } from '../../middleware/errorHandler';
 import { escapeRegex } from '../../lib/escapeRegex';
+import { paginate } from '../../lib/pagination';
 import type {
   CreateCategoryDto,
   UpdateCategoryDto,
@@ -36,21 +37,10 @@ export async function listCategories(query: ListCategoriesDto) {
     filter.name = { $regex: escapeRegex(query.search), $options: 'i' };
   }
 
-  if (query.createdAtFrom || query.createdAtTo) {
-    const dateFilter: Record<string, Date> = {};
-    if (query.createdAtFrom) {
-      dateFilter.$gte = query.createdAtFrom;
-    }
-    if (query.createdAtTo) {
-      dateFilter.$lte = query.createdAtTo;
-    }
-    filter.createdAt = dateFilter;
-  }
-
-  const skip = (query.page - 1) * query.limit;
+  const { skip, limit } = paginate(query.page, query.limit);
 
   const [categories, total, counts] = await Promise.all([
-    Category.find(filter).sort({ createdAt: -1 }).skip(skip).limit(query.limit).lean(),
+    Category.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
     Category.countDocuments(filter),
     Product.aggregate([
       { $group: { _id: '$categoryId', count: { $sum: 1 } } },

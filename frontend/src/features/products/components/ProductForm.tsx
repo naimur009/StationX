@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useCreateProduct, useUpdateProduct, useProductReferenceData, type ProductResponse } from '../api';
-import { createProductSchema, type CreateProductFormData } from '../schema';
+import { createProductSchema, updateProductSchema } from '../schema';
 import { Dialog } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { AppError } from '@/lib/utils';
@@ -16,14 +16,22 @@ interface ProductFormProps {
   onClose: () => void;
 }
 
+interface ProductFormValues {
+  name?: string;
+  price?: number;
+  categoryId?: string;
+  description?: string;
+}
+
 export default function ProductForm({ open, product, onClose }: ProductFormProps) {
   const [error, setError] = useState<string | null>(null);
   const [imageValue, setImageValue] = useState<{ url: string; publicId: string } | null>(null);
+  const [isActive, setIsActive] = useState(true);
   const [isCompact, setIsCompact] = useState(false);
   const createProduct = useCreateProduct();
   const updateProduct = useUpdateProduct();
   const { data: refData } = useProductReferenceData();
-  const categoriesData = refData?.categories;
+  const categoriesData = refData?.data.categories;
 
   useEffect(() => {
     function check() {
@@ -35,14 +43,21 @@ export default function ProductForm({ open, product, onClose }: ProductFormProps
   }, []);
 
   const isEdit = !!product;
+  const schema = isEdit ? updateProductSchema : createProductSchema;
 
   const {
     register,
     handleSubmit,
     formState: { errors },
     reset,
-  } = useForm<CreateProductFormData>({
-    resolver: zodResolver(createProductSchema),
+  } = useForm({
+    resolver: zodResolver(schema),
+    defaultValues: {
+      name: '',
+      price: 0,
+      categoryId: '',
+      description: '',
+    },
   });
 
   useEffect(() => {
@@ -51,37 +66,42 @@ export default function ProductForm({ open, product, onClose }: ProductFormProps
         reset({
           name: product.name,
           price: product.price,
-          categoryId: product.categoryId,
+          categoryId: product.categoryId || '',
           description: product.description || '',
         });
         setImageValue(product.image);
+        setIsActive(product.isActive);
       } else {
         reset({ name: '', price: 0, categoryId: '', description: '' });
         setImageValue(null);
+        setIsActive(true);
       }
       setError(null);
     }
   }, [open, product, reset]);
 
-  async function onSubmit(data: CreateProductFormData) {
+  async function onSubmit(data: ProductFormValues) {
     if (isPending) return;
     setError(null);
+
+    const payload = {
+      name: data.name ?? '',
+      price: data.price ?? 0,
+      categoryId: data.categoryId ?? '',
+      description: data.description ?? '',
+    };
 
     try {
       if (isEdit && product) {
         await updateProduct.mutateAsync({
           id: product.id,
-          name: data.name,
-          price: data.price,
-          categoryId: data.categoryId,
-          description: data.description,
+          ...payload,
           image: imageValue,
+          isActive,
         });
       } else {
         await createProduct.mutateAsync({
-          name: data.name,
-          price: data.price,
-          categoryId: data.categoryId,
+          ...payload,
           description: data.description || undefined,
           image: imageValue || undefined,
         });
@@ -231,6 +251,21 @@ export default function ProductForm({ open, product, onClose }: ProductFormProps
           />
           {errors.description && <p className="mt-1 text-xs text-red-500">{errors.description.message}</p>}
         </div>
+
+        {isEdit && (
+          <div className="flex items-center gap-3">
+            <input
+              id="product-isActive"
+              type="checkbox"
+              checked={isActive}
+              onChange={(e) => setIsActive(e.target.checked)}
+              className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-ring"
+            />
+            <label htmlFor="product-isActive" className="text-sm font-medium text-slate-700">
+              Available in POS catalog
+            </label>
+          </div>
+        )}
       </form>
     </Dialog>
   );

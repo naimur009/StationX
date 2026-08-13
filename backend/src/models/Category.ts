@@ -10,7 +10,7 @@ export interface ICategory extends Document {
 const categorySchema = new Schema<ICategory>(
   {
     name: { type: String, required: true, unique: true, trim: true },
-    vatRate: { type: Number, required: true, min: 0, max: 100 },
+    vatRate: { type: Number, required: true, default: 0, min: 0, max: 100 },
   },
   { timestamps: true, toJSON: { versionKey: false } }
 );
