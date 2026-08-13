@@ -3,7 +3,9 @@ import { z } from 'zod';
 export const createCouponSchema = z.object({
   code: z.string().min(1, 'Code is required').max(50).trim().transform((v) => v.toUpperCase()),
   discountType: z.enum(['flat', 'percentage']),
-  value: z.number().positive('Value must be positive'),
+  value: z.number().positive('Value must be positive').multipleOf(0.01),
+  maxDiscountAmount: z.number().positive('Max discount must be positive').multipleOf(0.01).optional(),
+  minOrderAmount: z.number().nonnegative('Min order must not be negative').multipleOf(0.01).optional(),
   validFrom: z.coerce.date({ required_error: 'Valid from is required' }),
   validUntil: z.coerce.date({ required_error: 'Valid until is required' }),
   isEnabled: z.boolean().optional(),
@@ -19,7 +21,9 @@ export const createCouponSchema = z.object({
 export const updateCouponSchema = z.object({
   code: z.string().min(1, 'Code is required').max(50).trim().transform((v) => v.toUpperCase()).optional(),
   discountType: z.enum(['flat', 'percentage']).optional(),
-  value: z.number().positive('Value must be positive').optional(),
+  value: z.number().positive('Value must be positive').multipleOf(0.01).optional(),
+  maxDiscountAmount: z.number().positive('Max discount must be positive').multipleOf(0.01).optional().nullable(),
+  minOrderAmount: z.number().nonnegative('Min order must not be negative').multipleOf(0.01).optional().nullable(),
   validFrom: z.coerce.date().optional(),
   validUntil: z.coerce.date().optional(),
   isEnabled: z.boolean().optional(),

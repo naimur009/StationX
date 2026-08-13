@@ -1,6 +1,6 @@
 Act as a principal software architect doing a code review of the {MODULE} module.
 
-MODULE = "User and permission"
+MODULE = "POS, Orders, Coupons"
 
 Context to read first:
 - AI_rules.md (all sections — this is the binding coding standard)

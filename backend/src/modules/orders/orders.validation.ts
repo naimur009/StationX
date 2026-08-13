@@ -5,6 +5,7 @@ const objectIdPattern = /^[0-9a-fA-F]{24}$/;
 export const listOrdersQuerySchema = z.object({
   status: z.enum(['pending', 'completed', 'cancelled']).optional(),
   paymentStatus: z.enum(['unpaid', 'paid']).optional(),
+  range: z.enum(['today', 'week', 'month', 'custom']).optional(),
   from: z.string().optional(),
   to: z.string().optional(),
   createdBy: z.string().regex(objectIdPattern, 'Invalid user ID format').optional(),
@@ -38,7 +39,15 @@ export const updateOrderSchema = z.object({
   cashTendered: z.number().nonnegative().multipleOf(0.01).optional(),
   changeAmount: z.number().nonnegative().multipleOf(0.01).optional(),
   discountPercent: z.number().min(0).max(100).multipleOf(0.01).optional(),
-}).strict();
+}).strict().refine(
+  (data) => {
+    if (data.payment?.method && data.payment.method !== 'cash' && !data.payment.transactionId) {
+      return false;
+    }
+    return true;
+  },
+  { message: 'Transaction ID is required for non-cash payments', path: ['payment', 'transactionId'] }
+);
 
 export const updateOrderStatusSchema = z.object({
   status: z.enum(['pending', 'completed', 'cancelled']).optional(),
@@ -60,6 +69,14 @@ export const updateOrderStatusSchema = z.object({
     return true;
   },
   { message: 'Cash tendered is required and must be > 0 for cash payments', path: ['cashTendered'] }
+).refine(
+  (data) => {
+    if (data.payment?.method && data.payment.method !== 'cash' && !data.payment.transactionId) {
+      return false;
+    }
+    return true;
+  },
+  { message: 'Transaction ID is required for non-cash payments', path: ['payment', 'transactionId'] }
 ).refine(
   (data) => {
     if (data.status === 'cancelled' && !data.cancelReason) {

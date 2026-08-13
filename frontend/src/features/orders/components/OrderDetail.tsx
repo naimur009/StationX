@@ -164,10 +164,10 @@ export default function OrderDetailView({ order }: OrderDetailViewProps) {
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <h3 className="mb-3 text-sm font-semibold text-slate-500 uppercase tracking-wider">Order Info</h3>
           <div className="space-y-2 text-sm">
-            {order.tableNumber && (
+            {order.tableLabelSnapshot && (
               <div className="flex justify-between">
                 <span className="text-slate-500">Table</span>
-                <span className="font-medium text-slate-800">{order.tableNumber}</span>
+                <span className="font-medium text-slate-800">{order.tableLabelSnapshot}</span>
               </div>
             )}
             <div className="flex justify-between">
@@ -318,9 +318,6 @@ export default function OrderDetailView({ order }: OrderDetailViewProps) {
           {(() => {
             const totalWithVat = round2(order.subtotal + order.taxAmount);
             const totalDiscount = round2(order.discountAmount + order.taxAmount);
-            const grandTotal = round2(totalWithVat - totalDiscount);
-            const roundedGrand = Math.floor(grandTotal);
-            const autoRound = +(roundedGrand - grandTotal).toFixed(2);
             return (
               <>
                 <div className="flex justify-between text-sm">
@@ -343,15 +340,9 @@ export default function OrderDetailView({ order }: OrderDetailViewProps) {
                     <span className="text-green-600">-{formatBdt(totalDiscount)}</span>
                   </div>
                 )}
-                {autoRound !== 0 && (
-                  <div className="flex justify-between text-sm">
-                    <span className="text-slate-500">Auto Round</span>
-                    <span className="text-slate-500">{formatBdt(autoRound)}</span>
-                  </div>
-                )}
                 <div className="flex justify-between border-t border-slate-200 pt-2 text-base font-bold">
                   <span>Grand Total</span>
-                  <span>{formatBdt(roundedGrand)}</span>
+                  <span>{formatBdt(order.grandTotal)}</span>
                 </div>
               </>
             );

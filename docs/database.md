@@ -210,14 +210,21 @@ The highest-traffic, highest-stakes collection — embeds line items per the rea
 | `tableId` | ObjectId → Table | — | **Breaking rename from the previous `tableNumber` (free-text String).** Now a proper reference to the `Table` collection. Only meaningful for `orderType: 'dine-in'`. |
 | `tableLabelSnapshot` | String | — | frozen copy of `Table.tableNumber` at order creation time (see §8 open item 6 — included per recommendation, confirm before API.md) |
 | `customerId` | ObjectId → Customer | — | optional; walk-ins omit it |
+| `customerName` | String | — | name snapshot of the customer attached at order creation (populated from `customerName`/`customerPhone` on `POST /pos/orders`, §9.3) |
+| `customerPhone` | String | — | phone snapshot, also used to auto-create/update the `Customer` document (§5.7) |
+| `servedBy` | ObjectId → Employee | — | staff member who served the table (checkout-form selection) |
 | `items` | Array of `OrderItem` (embedded, see below) | ✓ (min 1) | |
 | `couponId` | ObjectId → Coupon | — | |
+| `discountPercent` | Number (default `0`) | — | percent manually applied by the cashier at checkout; only recomputed server-side, never trusted from the client |
 | `paymentStatus` | String enum `unpaid \| paid` | ✓ (default `unpaid`) | independent axis from `status`; an order can be `status: completed, paymentStatus: unpaid` (fulfilled, not yet paid). Revenue aggregations require `paymentStatus: 'paid'` |
 | `discountAmount` | Number | ✓ (default `0`) | resolved amount, computed at order creation and recomputed on every pre-payment item edit — frozen once `paymentStatus` becomes `paid` |
 | `taxAmount` | Number | ✓ (default `0`) | total VAT, computed per-product as `sum(item.lineTotal × category.vatRate / 100)` at order creation, recomputed on pre-payment item edits — frozen once `paymentStatus` becomes `paid`. Stored for VAT reporting; does not affect `grandTotal` |
 | `subtotal` | Number | ✓ | sum of `items[].lineTotal` before discount/tax |
 | `grandTotal` | Number | ✓ | `subtotal - discountAmount` (VAT is informational — displayed on the bill as part of the total discount line, but does not affect the amount the customer pays) |
-| `payment` | `{ method: enum(cash\|card\|bkash\|nagad\|split), splits?: [{ method: enum(cash\|card\|bkash\|nagad), amount: Number }] }` | — | optional at order creation; required at payment capture step |
+| `cashTendered` | Number | — | cash handed over at payment capture (required by the service layer when `payment.method === 'cash'`) |
+| `changeAmount` | Number | — | `cashTendered - grandTotal` computed server-side at payment capture |
+| `payment` | `{ method: enum(cash\|card\|bkash\|nagad), transactionId?: String }` | — | only set via `PATCH /orders/:id/status` with `paymentStatus: 'paid'` (§10). **Never accepted at order creation** — `POST /pos/orders` always creates `unpaid` orders (§9.3, no quick-checkout path) |
+| `previousPayments` | Array of `{ method: enum(cash\|card\|bkash\|nagad), amount: Number, transactionId?: String }` | ✓ (default `[]`) | retained prior payment entries across partial re-pays (the current, still-open payment lives in `payment`) |
 | `status` | String enum `pending \| completed \| cancelled` | ✓ (default `pending`) | per §1; cancelled orders excluded from all revenue aggregations |
 | `createdBy` | ObjectId → User | ✓ | staff member who created the order |
 | `completedAt` | Date | — | set on transition to `completed` |
@@ -231,6 +238,7 @@ The highest-traffic, highest-stakes collection — embeds line items per the rea
 | `productId` | ObjectId → Product | reference retained for reporting joins (e.g. "top 10 items") |
 | `nameSnapshot` | String | product name **at order time** |
 | `priceSnapshot` | Number | unit price **at order time** |
+| `categorySnapshot` | String | category name **at order time** (VAT was applied from the category's `vatRate`, so the bill's tax line stays explainable even if the category is later renamed/re-VAT'd) |
 | `quantity` | Number | ✓, min 1 |
 | `lineTotal` | Number | `priceSnapshot × quantity` |
 

@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { Input } from '@/components/ui/input';
+import DateRangeFilter from '@/components/shared/DateRangeFilter';
+import { useDateRangeFilter } from '@/hooks/useDateRangeFilter';
 import type { OrdersFilterFormData } from '../schema';
 
 interface OrderFiltersProps {
@@ -11,38 +13,43 @@ interface OrderFiltersProps {
 export default function OrderFilters({ onFilter }: OrderFiltersProps) {
   const [status, setStatus] = useState<string>('all');
   const [paymentStatus, setPaymentStatus] = useState<string>('all');
-  const [from, setFrom] = useState('');
-  const [to, setTo] = useState('');
   const [search, setSearch] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
+  const { filter: dateFilter, setRange, setCustomRange } = useDateRangeFilter('today');
 
   useEffect(() => {
     const timer = setTimeout(() => {
       onFilter({
         status: status === 'all' ? undefined : (status as OrdersFilterFormData['status']),
         paymentStatus: paymentStatus === 'all' ? undefined : (paymentStatus as OrdersFilterFormData['paymentStatus']),
-        from: from || undefined,
-        to: to || undefined,
+        range: dateFilter.range,
+        from: dateFilter.from,
+        to: dateFilter.to,
         search: search || undefined,
         customerPhone: customerPhone || undefined,
       });
     }, 300);
     return () => clearTimeout(timer);
-  }, [status, paymentStatus, from, to, search, customerPhone, onFilter]);
+  }, [status, paymentStatus, dateFilter, search, customerPhone, onFilter]);
 
   const clearFilters = () => {
     setStatus('all');
     setPaymentStatus('all');
-    setFrom('');
-    setTo('');
     setSearch('');
     setCustomerPhone('');
+    setRange('today');
   };
 
-  const hasFilters = status !== 'all' || paymentStatus !== 'all' || from || to || search || customerPhone;
+  const hasFilters = status !== 'all' || paymentStatus !== 'all' || search || customerPhone;
 
   return (
-    <div className="flex flex-wrap items-end gap-3">
+    <div className="space-y-3">
+      <DateRangeFilter
+        value={dateFilter.range}
+        onChange={setRange}
+        onCustomRange={setCustomRange}
+      />
+      <div className="flex flex-wrap items-end gap-3">
       <div className="w-40">
         <label className="mb-1 block text-xs font-medium text-slate-500">Status</label>
         <select
@@ -68,16 +75,6 @@ export default function OrderFilters({ onFilter }: OrderFiltersProps) {
           <option value="paid">Paid</option>
           <option value="unpaid">Unpaid</option>
         </select>
-      </div>
-
-      <div className="w-40">
-        <label className="mb-1 block text-xs font-medium text-slate-500">From</label>
-        <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
-      </div>
-
-      <div className="w-40">
-        <label className="mb-1 block text-xs font-medium text-slate-500">To</label>
-        <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} />
       </div>
 
       <div className="w-56">
@@ -108,6 +105,7 @@ export default function OrderFilters({ onFilter }: OrderFiltersProps) {
           Clear filters
         </button>
       )}
+      </div>
     </div>
   );
 }

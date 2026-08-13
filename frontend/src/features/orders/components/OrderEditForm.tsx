@@ -4,17 +4,11 @@ import { useState, useEffect, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog } from '@/components/ui/dialog';
-import { apiClient } from '@/lib/api-client';
 import { useUpdateOrder } from '../api';
+import { useCatalog, type CatalogProduct } from '@/features/pos/api';
+import { useTableList } from '@/features/tables/api';
 import type { OrderDetail, OrderItemUpdate } from '../api';
-import { Trash2, Plus, Minus, Search } from 'lucide-react';
-
-interface CatalogProduct {
-  id: string;
-  name: string;
-  price: number;
-  vatRate: number;
-}
+import { Trash2, Plus, Minus, Search, ChevronDown } from 'lucide-react';
 
 function round2(n: number): number {
   return Math.round(n * 100) / 100;
@@ -28,31 +22,24 @@ interface OrderEditFormProps {
 }
 
 export default function OrderEditForm({ order, open, onClose, onSaved }: OrderEditFormProps) {
-  const [tableNumber, setTableNumber] = useState(order.tableNumber || '');
+  const [tableId, setTableId] = useState<string>(order.tableId || '');
   const [items, setItems] = useState<OrderItemUpdate[]>(
     order.items.map((i) => ({ productId: i.productId, quantity: i.quantity }))
   );
   const [discountPercent, setDiscountPercent] = useState(order.discountPercent);
-  const [productCatalog, setProductCatalog] = useState<CatalogProduct[]>([]);
-  const [catalogError, setCatalogError] = useState('');
   const [productSearch, setProductSearch] = useState('');
   const [productPickerOpen, setProductPickerOpen] = useState(false);
   const [error, setError] = useState('');
 
   const updateMutation = useUpdateOrder();
+  const { data: catalogRes, isError: catalogFailed } = useCatalog();
+  const productCatalog = useMemo(() => catalogRes?.data ?? [], [catalogRes]);
+  const { data: tablesData } = useTableList();
+  const tables = tablesData?.data ?? [];
 
   useEffect(() => {
     if (!open) return;
-    apiClient<{ data: unknown }>('/pos/catalog').then((res) => {
-      if (Array.isArray(res.data)) {
-        setProductCatalog(res.data as CatalogProduct[]);
-      } else {
-        setCatalogError('Catalog data is not in expected format');
-      }
-    }).catch(() => {
-      setCatalogError('Failed to load product catalog');
-    });
-    setTableNumber(order.tableNumber || '');
+    setTableId(order.tableId || '');
     setItems(order.items.map((i) => ({ productId: i.productId, quantity: i.quantity })));
     setDiscountPercent(order.discountPercent);
     setError('');
@@ -105,7 +92,7 @@ export default function OrderEditForm({ order, open, onClose, onSaved }: OrderEd
   async function handleSave() {
     setError('');
     const payload: Record<string, unknown> = {};
-    if (tableNumber !== (order.tableNumber || '')) payload.tableNumber = tableNumber || undefined;
+    if (tableId !== (order.tableId || '')) payload.tableId = tableId || null;
     if (itemsChanged) payload.items = items;
     if (discountPercent !== order.discountPercent) {
       payload.discountPercent = discountPercent;
@@ -123,21 +110,31 @@ export default function OrderEditForm({ order, open, onClose, onSaved }: OrderEd
   }
 
   const hasChanges =
-    tableNumber !== (order.tableNumber || '') ||
+    tableId !== (order.tableId || '') ||
     itemsChanged ||
     discountChanged;
 
   return (
     <Dialog open={open} onClose={onClose} title={`Edit ${order.orderNumber}`} size="lg">
       <div className="space-y-5">
-        {/* Table Number */}
+        {/* Table */}
         <div>
-          <label className="mb-1.5 block text-sm font-medium text-slate-700">Table Number</label>
-          <Input
-            placeholder="e.g. 12"
-            value={tableNumber}
-            onChange={(e) => setTableNumber(e.target.value)}
-          />
+          <label className="mb-1.5 block text-sm font-medium text-slate-700">Table</label>
+          <div className="relative">
+            <select
+              value={tableId}
+              onChange={(e) => setTableId(e.target.value)}
+              className="flex h-10 w-full appearance-none rounded-xl border border-input bg-white px-3.5 text-sm text-slate-800 shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-ring cursor-pointer"
+            >
+              <option value="">No table</option>
+              {tables.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.tableNumber}
+                </option>
+              ))}
+            </select>
+            <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+          </div>
         </div>
 
         {/* Items */}
@@ -283,8 +280,8 @@ export default function OrderEditForm({ order, open, onClose, onSaved }: OrderEd
             />
           </div>
           <div className="max-h-64 space-y-1 overflow-y-auto">
-            {catalogError ? (
-              <p className="py-4 text-center text-sm text-red-500">{catalogError}</p>
+            {catalogFailed ? (
+              <p className="py-4 text-center text-sm text-red-500">Failed to load product catalog</p>
             ) : filteredProducts.length === 0 && productCatalog.length === 0 ? (
               <p className="py-4 text-center text-sm font-medium text-slate-500">No products found. Create products first in the Products section.</p>
             ) : filteredProducts.length === 0 ? (

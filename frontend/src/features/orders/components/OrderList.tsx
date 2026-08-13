@@ -42,7 +42,7 @@ function MobileOrderCard({ item, onView, onDelete, deletePending }: { item: Orde
           <Badge variant={config?.variant || 'slate'}>{config?.label || item.status}</Badge>
         </div>
         <div className="mt-2 flex items-center justify-between text-sm">
-          <span className="text-slate-500">{item.tableNumber ? `Table ${item.tableNumber}` : '-'}</span>
+          <span className="text-slate-500">{item.tableLabelSnapshot ? `Table ${item.tableLabelSnapshot}` : '-'}</span>
           <span className="font-semibold text-slate-800">{formatBdt(item.grandTotal)}</span>
         </div>
         <div className="mt-1 text-xs text-slate-400">{formatDate(item.createdAt)}</div>
@@ -68,10 +68,10 @@ export default function OrderList({ data, isLoading, isError, onView, onDelete, 
       ),
     },
     {
-      key: 'tableNumber',
+      key: 'tableLabelSnapshot',
       label: 'Table',
       render: (item) => (
-        <span className="text-slate-700">{item.tableNumber || '-'}</span>
+        <span className="text-slate-700">{item.tableLabelSnapshot || '-'}</span>
       ),
       hideOnMobile: true,
     },

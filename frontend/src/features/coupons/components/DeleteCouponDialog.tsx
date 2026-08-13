@@ -5,6 +5,7 @@ import { useDeleteCoupon, type CouponResponse } from '../api';
 import { Dialog } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { AppError } from '@/lib/utils';
+import PermissionGate from '@/components/shared/PermissionGate';
 
 interface DeleteCouponDialogProps {
   coupon: CouponResponse | null;
@@ -50,15 +51,17 @@ export default function DeleteCouponDialog({ coupon, onClose }: DeleteCouponDial
           <Button type="button" variant="ghost" size="md" onClick={handleClose}>
             Cancel
           </Button>
-          <Button
-            type="button"
-            variant="destructive"
-            size="md"
-            onClick={handleConfirm}
-            disabled={deleteCoupon.isPending}
-          >
-            {deleteCoupon.isPending ? 'Deleting\u2026' : 'Delete'}
-          </Button>
+          <PermissionGate module="coupons" action="delete">
+            <Button
+              type="button"
+              variant="destructive"
+              size="md"
+              onClick={handleConfirm}
+              disabled={deleteCoupon.isPending}
+            >
+              {deleteCoupon.isPending ? 'Deleting\u2026' : 'Delete'}
+            </Button>
+          </PermissionGate>
         </>
       }
     >

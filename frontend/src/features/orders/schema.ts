@@ -5,6 +5,7 @@ import { z } from 'zod';
 export const ordersFilterSchema = z.object({
   status: z.enum(['pending', 'completed', 'cancelled']).optional(),
   paymentStatus: z.enum(['unpaid', 'paid']).optional(),
+  range: z.enum(['today', 'week', 'month', 'custom']).optional(),
   from: z.string().optional(),
   to: z.string().optional(),
   search: z.string().max(50).optional(),
@@ -21,7 +22,7 @@ export const updatePaymentSchema = z.object({
 });
 
 export const updateOrderSchema = z.object({
-  tableNumber: z.string().max(20).optional(),
+  tableId: z.string().nullable().optional(),
   customerId: z.string().nullable().optional(),
   items: z.array(updateOrderItemSchema).min(1).optional(),
   payment: updatePaymentSchema.optional(),

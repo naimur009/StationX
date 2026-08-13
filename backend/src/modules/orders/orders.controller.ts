@@ -55,7 +55,10 @@ export async function handleUpdateOrderStatus(
 ): Promise<void> {
   try {
     const dto: UpdateOrderStatusDto = req.body;
-    const result = await ordersService.updateOrderStatus(req.params.id, dto);
+    if (dto.paymentStatus === 'paid') {
+      (req as unknown as Record<string, boolean>).skipActivityLog = true;
+    }
+    const result = await ordersService.updateOrderStatus(req.params.id, dto, req.user!.id);
     res.status(200).json(result);
   } catch (error) {
     next(error);

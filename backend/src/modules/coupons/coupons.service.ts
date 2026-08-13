@@ -15,6 +15,8 @@ interface CouponResponse {
   code: string;
   discountType: 'flat' | 'percentage';
   value: number;
+  maxDiscountAmount: number | null;
+  minOrderAmount: number | null;
   validFrom: Date;
   validUntil: Date;
   isEnabled: boolean;
@@ -41,6 +43,8 @@ function toResponse(coupon: ICoupon): CouponResponse {
     code: coupon.code,
     discountType: coupon.discountType,
     value: coupon.value,
+    maxDiscountAmount: coupon.maxDiscountAmount ?? null,
+    minOrderAmount: coupon.minOrderAmount ?? null,
     validFrom: coupon.validFrom,
     validUntil: coupon.validUntil,
     isEnabled: coupon.isEnabled,
@@ -104,7 +108,7 @@ export async function createCoupon(dto: CreateCouponDto) {
     const coupon = await Coupon.create({ ...dto, validFrom, validUntil });
     return { data: toResponse(coupon) };
   } catch (err) {
-    if (err instanceof mongoose.Error && (err as any).code === 11000) {
+    if (err instanceof mongoose.mongo.MongoServerError && err.code === 11000) {
       throw createError(400, 'COUPON_CODE_EXISTS', 'A coupon with this code already exists');
     }
     throw err;
@@ -129,6 +133,8 @@ export async function updateCoupon(id: string, dto: UpdateCouponDto) {
   if (dto.code !== undefined) updates.code = dto.code;
   if (dto.discountType !== undefined) updates.discountType = dto.discountType;
   if (dto.value !== undefined) updates.value = dto.value;
+  if (dto.maxDiscountAmount !== undefined) updates.maxDiscountAmount = dto.maxDiscountAmount;
+  if (dto.minOrderAmount !== undefined) updates.minOrderAmount = dto.minOrderAmount;
   if (dto.validFrom !== undefined) {
     const vf = new Date(dto.validFrom);
     vf.setUTCHours(0, 0, 0, 0);

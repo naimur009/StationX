@@ -11,6 +11,7 @@ import { getIO } from '../../config/socket';
 import { withTransaction } from '../../lib/transaction';
 import { renderPdf } from '../../lib/pdf';
 import { escapeRegex } from '../../lib/escapeRegex';
+import { normalizeDateRange } from '../../lib/date-range';
 import type {
   ListOrdersQuery,
   UpdateOrderDto,
@@ -188,9 +189,7 @@ export function renderBillHtml(order: Record<string, unknown>, settings?: BillSe
   const taxAmount = order.taxAmount as number;
   const totalWithVat = round2(subtotal + taxAmount);
   const totalDiscount = round2(discountAmount + taxAmount);
-  const grandTotal = round2(totalWithVat - totalDiscount);
-  const roundedGrand = Math.floor(grandTotal);
-  const autoRound = +(roundedGrand - grandTotal).toFixed(2);
+  const grandTotal = order.grandTotal as number;
 
   const paymentStatus = order.paymentStatus as string | undefined;
   const payment = order.payment as { method: string; transactionId?: string } | undefined;
@@ -290,8 +289,7 @@ export function renderBillHtml(order: Record<string, unknown>, settings?: BillSe
   ${taxAmount > 0 ? `<div class="total-line"><span class="label">VAT</span><span>${formatBdt(taxAmount)}</span></div>` : ''}
   <div class="total-line" style="font-weight: 600;"><span class="label">Subtotal + VAT</span><span>${formatBdt(totalWithVat)}</span></div>
   ${totalDiscount > 0 ? `<div class="total-line"><span class="label">Discount</span><span>-${formatBdt(totalDiscount)}</span></div>` : ''}
-  ${autoRound !== 0 ? `<div class="total-line"><span class="label">Auto Round</span><span>${formatBdt(autoRound)}</span></div>` : ''}
-  <div class="grand-total"><span>Grand Total</span><span>${formatBdt(roundedGrand)}</span></div>
+  <div class="grand-total"><span>Grand Total</span><span>${formatBdt(grandTotal)}</span></div>
 </div>
 
 ${paymentStatus === 'paid'
@@ -301,7 +299,7 @@ ${paymentStatus === 'paid'
   ${previousPayments.map((p) => `
   <div class="total-line"><span class="label">${p.method.toUpperCase()}</span><span>${formatBdt(p.amount)}</span></div>
   `).join('')}
-  ${payment && payment.method !== 'cash' ? `<div class="total-line" style="font-weight:600"><span class="label">${payment.method.toUpperCase()}</span><span>${formatBdt(roundedGrand - previousPaymentsTotal)}</span></div>` : ''}
+  ${payment && payment.method !== 'cash' ? `<div class="total-line" style="font-weight:600"><span class="label">${payment.method.toUpperCase()}</span><span>${formatBdt(grandTotal - previousPaymentsTotal)}</span></div>` : ''}
   ${payment && payment.method === 'cash' ? `<div class="total-line" style="font-weight:600"><span class="label">CASH</span></div>` : ''}
   ${cashTendered != null ? `<div class="total-line"><span class="label">Cash Tendered</span><span>${formatBdt(cashTendered)}</span></div>` : ''}
   ${changeAmountStored != null && changeAmountStored > 0 ? `<div class="total-line change"><span class="label">Returned</span><span>${formatBdt(changeAmountStored)}</span></div>` : ''}
@@ -363,7 +361,10 @@ export async function listOrders(query: ListOrdersQuery) {
     filter.paymentStatus = query.paymentStatus;
   }
 
-  if (query.from || query.to) {
+  if (query.range) {
+    const dateRange = normalizeDateRange(query.range, query.from, query.to);
+    filter.createdAt = { $gte: dateRange.from, $lte: dateRange.to };
+  } else if (query.from || query.to) {
     const dateFilter: Record<string, Date> = {};
     if (query.from) dateFilter.$gte = new Date(query.from);
     if (query.to) {
@@ -552,6 +553,9 @@ export async function updateOrder(id: string, dto: UpdateOrderDto) {
   }
 
   if (dto.payment) {
+    if (dto.payment.method && dto.payment.method !== 'cash' && !dto.payment.transactionId) {
+      throw createError(400, 'VALIDATION_ERROR', 'Transaction ID is required for non-cash payments');
+    }
     const oldPayment = order.payment;
     const oldMethod = oldPayment?.method;
     const newMethod = dto.payment.method;
@@ -595,6 +599,43 @@ export async function updateOrder(id: string, dto: UpdateOrderDto) {
     }
   }
 
+  const oldTableId = order.tableId ? order.tableId.toString() : null;
+  const newTableId = dto.tableId !== undefined ? (dto.tableId || null) : oldTableId;
+  let newTableLabel: string | null = null;
+  let bookedNewTable = false;
+
+  if (newTableId !== oldTableId) {
+    if (newTableId) {
+      const newTableDoc = await Table.findById(newTableId);
+      if (!newTableDoc) {
+        throw createError(400, 'TABLE_NOT_FOUND', 'Referenced table not found');
+      }
+      newTableLabel = newTableDoc.tableNumber;
+      updates.tableLabelSnapshot = newTableLabel;
+
+      if (order.paymentStatus !== 'paid') {
+        try {
+          const newTable = await Table.findOneAndUpdate(
+            { _id: newTableId, status: 'available' },
+            { status: 'booked', currentOrderId: order._id, bookedBy: 'order', bookedAt: new Date() },
+            { new: true }
+          );
+          if (!newTable) {
+            throw createError(409, 'TABLE_ALREADY_BOOKED', 'This table is already booked by another active order');
+          }
+          bookedNewTable = true;
+        } catch (error) {
+          if ((error as { codeName?: string }).codeName === 'WriteConflict') {
+            throw createError(409, 'TABLE_ALREADY_BOOKED', 'This table is already booked by another active order');
+          }
+          throw error;
+        }
+      }
+    } else {
+      updates.tableLabelSnapshot = null;
+    }
+  }
+
   const updated = await Order.findByIdAndUpdate(
     id,
     { $set: updates },
@@ -605,11 +646,39 @@ export async function updateOrder(id: string, dto: UpdateOrderDto) {
     throw createError(404, 'NOT_FOUND', 'Order not found');
   }
 
+  if (newTableId !== oldTableId && oldTableId) {
+    await Table.findOneAndUpdate(
+      { _id: oldTableId, currentOrderId: order._id },
+      { status: 'available', currentOrderId: null, bookedBy: null, bookedAt: null }
+    );
+  }
+
   try {
     getIO().emit('order:updated', {
       orderId: updated._id.toString(),
       orderNumber: updated.orderNumber,
     });
+
+    if (newTableId !== oldTableId) {
+      if (bookedNewTable && newTableId) {
+        getIO().emit('table:statusChanged', {
+          tableId: newTableId,
+          tableNumber: newTableLabel,
+          status: 'booked',
+          orderId: updated._id.toString(),
+          source: 'order',
+        });
+      }
+      if (oldTableId) {
+        getIO().emit('table:statusChanged', {
+          tableId: oldTableId,
+          tableNumber: order.tableLabelSnapshot || null,
+          status: 'available',
+          orderId: null,
+          source: 'order',
+        });
+      }
+    }
   } catch {
     // socket not available
   }
@@ -634,7 +703,7 @@ export async function updateOrder(id: string, dto: UpdateOrderDto) {
   return { data: toDetail(populated as unknown as Record<string, unknown>) };
 }
 
-export async function updateOrderStatus(id: string, dto: UpdateOrderStatusDto) {
+export async function updateOrderStatus(id: string, dto: UpdateOrderStatusDto, actorId: string) {
   const order = await Order.findById(id);
 
   if (!order) {
@@ -663,6 +732,8 @@ export async function updateOrderStatus(id: string, dto: UpdateOrderStatusDto) {
       if (cashTendered == null || cashTendered < grandTotal) {
         throw createError(400, 'VALIDATION_ERROR', 'Cash tendered must cover the grand total');
       }
+    } else if (!dto.payment.transactionId) {
+      throw createError(400, 'VALIDATION_ERROR', 'Transaction ID is required for non-cash payments');
     }
 
     await withTransaction(async (session) => {
@@ -685,11 +756,32 @@ export async function updateOrderStatus(id: string, dto: UpdateOrderStatusDto) {
       await Order.findByIdAndUpdate(id, { $set: setFields }, { session });
 
       if (order.couponId) {
-        await Coupon.findByIdAndUpdate(order.couponId, { $inc: { usageCount: 1 } }, { session });
+        const incremented = await Coupon.findOneAndUpdate(
+          {
+            _id: order.couponId,
+            $expr: {
+              $or: [
+                { $eq: ['$usageLimit', null] },
+                { $lt: ['$usageCount', '$usageLimit'] },
+              ],
+            },
+          },
+          { $inc: { usageCount: 1 } },
+          { session, new: true }
+        );
+
+        if (!incremented) {
+          const coupon = await Coupon.findById(order.couponId, null, { session });
+          if (!coupon) {
+            // coupon deleted after the order was created — nothing to count
+          } else {
+            throw createError(409, 'COUPON_USAGE_LIMIT_REACHED', 'Coupon usage limit reached');
+          }
+        }
       }
 
       await ActivityLog.create([{
-        actor: new mongoose.Types.ObjectId(order.createdBy.toString()),
+        actor: new mongoose.Types.ObjectId(actorId),
         module: 'orders',
         action: 'pos.order_paid',
         targetId: order._id.toString(),
@@ -777,24 +869,28 @@ export async function updateOrderStatus(id: string, dto: UpdateOrderStatusDto) {
     setFields.completedAt = null;
   }
 
-  const updated = await Order.findByIdAndUpdate(
-    id,
-    { $set: setFields },
-    { new: true, runValidators: true }
-  );
+  const updated = await withTransaction(async (session) => {
+    const doc = await Order.findByIdAndUpdate(
+      id,
+      { $set: setFields },
+      { new: true, runValidators: true, session }
+    );
 
-  if (!updated) {
-    throw createError(404, 'NOT_FOUND', 'Order not found');
-  }
-
-  if (targetStatus === 'cancelled' && order.tableId) {
-    const table = await Table.findOne({ _id: order.tableId, currentOrderId: order._id });
-    if (table) {
-      await Table.findByIdAndUpdate(order.tableId, {
-        status: 'available', currentOrderId: null, bookedBy: null, bookedAt: null,
-      });
+    if (!doc) {
+      throw createError(404, 'NOT_FOUND', 'Order not found');
     }
-  }
+
+    if (targetStatus === 'cancelled' && order.tableId) {
+      const table = await Table.findOne({ _id: order.tableId, currentOrderId: order._id }, null, { session });
+      if (table) {
+        await Table.findByIdAndUpdate(order.tableId, {
+          status: 'available', currentOrderId: null, bookedBy: null, bookedAt: null,
+        }, { session });
+      }
+    }
+
+    return doc;
+  });
 
   try {
     getIO().emit('order:statusChanged', {
@@ -854,10 +950,10 @@ export async function deleteOrder(id: string) {
   }
 
   await withTransaction(async (session) => {
-    if (order.couponId && order.paymentStatus === 'paid') {
-      await Coupon.findByIdAndUpdate(
-        order.couponId,
-        { $inc: { usageCount: -1 } },
+    if (order.tableId) {
+      await Table.findOneAndUpdate(
+        { _id: order.tableId, currentOrderId: order._id },
+        { status: 'available', currentOrderId: null, bookedBy: null, bookedAt: null },
         { session }
       );
     }
@@ -867,6 +963,16 @@ export async function deleteOrder(id: string) {
 
   try {
     getIO().emit('order:deleted', { orderId: id });
+
+    if (order.tableId) {
+      getIO().emit('table:statusChanged', {
+        tableId: order.tableId.toString(),
+        tableNumber: order.tableLabelSnapshot || null,
+        status: 'available',
+        orderId: null,
+        source: 'order',
+      });
+    }
   } catch {
     // socket not available
   }

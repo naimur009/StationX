@@ -2,10 +2,9 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { usePosStore } from '@/features/pos/store';
-import { useEmployees, useCreateOrder } from '@/features/pos/api';
+import { useEmployees, useCreateOrder, useLookupCustomer } from '@/features/pos/api';
 import { useTableList } from '@/features/tables/api';
 import { usePublicSettings } from '@/features/settings/api';
-import { apiClient } from '@/lib/api-client';
 import ProductGrid from '@/features/pos/components/ProductGrid';
 import Cart from '@/features/pos/components/Cart';
 import CouponInput from '@/features/pos/components/CouponInput';
@@ -26,6 +25,7 @@ export default function PosPage() {
   const couponCode = usePosStore((s) => s.couponCode);
   const couponDiscount = usePosStore((s) => s.couponDiscount);
   const couponType = usePosStore((s) => s.couponType);
+  const couponMaxDiscount = usePosStore((s) => s.couponMaxDiscount);
   const discountPercent = usePosStore((s) => s.discountPercent);
   const submitting = usePosStore((s) => s.submitting);
   const setCustomerName = usePosStore((s) => s.setCustomerName);
@@ -51,55 +51,52 @@ export default function PosPage() {
 
   const [lookedUpCust, setLookedUpCust] = useState<{ name: string; orderCount: number } | null>(null);
   const [lookingUpCust, setLookingUpCust] = useState(false);
+  const [lookupPhone, setLookupPhone] = useState('');
   const custTimerRef = useRef<ReturnType<typeof setTimeout>>();
-  const custAbortRef = useRef<AbortController>();
   const isLoyaltyMilestone = loyaltyThreshold > 0 && lookedUpCust !== null && lookedUpCust.orderCount > 0 && lookedUpCust.orderCount % loyaltyThreshold === 0;
 
   useEffect(() => {
     if (custTimerRef.current) clearTimeout(custTimerRef.current);
-    if (custAbortRef.current) custAbortRef.current.abort();
     const trimmed = customerPhone.trim();
     if (!trimmed) {
+      setLookupPhone('');
       setLookedUpCust(null);
       setLookingUpCust(false);
       return;
     }
     setLookingUpCust(true);
-    custTimerRef.current = setTimeout(async () => {
-      const controller = new AbortController();
-      custAbortRef.current = controller;
-      try {
-        const res = await apiClient<{ data: { id: string; name: string; phone: string; orderCount: number } | null }>(
-          `/pos/customers/lookup?phone=${encodeURIComponent(trimmed)}`,
-          { signal: controller.signal }
-        );
-        if (controller.signal.aborted) return;
-        if (res.data) {
-          setLookedUpCust({ name: res.data.name, orderCount: res.data.orderCount });
-          setCustomerName(res.data.name);
-        } else {
-          setLookedUpCust(null);
-          setCustomerName('');
-        }
-      } catch (e) {
-        if (e instanceof DOMException && e.name === 'AbortError') return;
-        setLookedUpCust(null);
-      } finally {
-        setLookingUpCust(false);
-      }
-    }, 500);
+    custTimerRef.current = setTimeout(() => setLookupPhone(trimmed), 500);
     return () => {
       if (custTimerRef.current) clearTimeout(custTimerRef.current);
-      if (custAbortRef.current) custAbortRef.current.abort();
     };
   }, [customerPhone]);
 
+  const { data: lookupRes, isError: lookupFailed } = useLookupCustomer(lookupPhone);
+
+  useEffect(() => {
+    if (!lookupPhone) return;
+    if (lookupRes) {
+      const match = lookupRes.data.find((c) => c.phone === lookupPhone);
+      if (match) {
+        setLookedUpCust({ name: match.name, orderCount: match.orderCount });
+        setCustomerName(match.name);
+      } else {
+        setLookedUpCust(null);
+        setCustomerName('');
+      }
+      setLookingUpCust(false);
+    } else if (lookupFailed) {
+      setLookedUpCust(null);
+      setLookingUpCust(false);
+    }
+  }, [lookupRes, lookupFailed, lookupPhone, setCustomerName]);
+
   const subtotal = items.reduce((sum, i) => sum + i.lineTotal, 0);
-  const rawDiscount = couponType === 'percentage' ? subtotal * (couponDiscount / 100) : couponDiscount;
-  const couponDiscountAmount = Math.min(rawDiscount, subtotal);
+  const rawCouponDiscount = couponType === 'percentage' ? subtotal * (couponDiscount / 100) : couponDiscount;
+  const couponDiscountAmount = couponMaxDiscount != null ? Math.min(rawCouponDiscount, couponMaxDiscount) : rawCouponDiscount;
   const manualDiscountAmount = discountPercent > 0 ? Math.round((subtotal * (discountPercent / 100)) * 100) / 100 : 0;
-  
-  const discountAmount = Math.min(couponDiscountAmount + manualDiscountAmount, subtotal);
+
+  const discountAmount = Math.round((couponDiscountAmount + manualDiscountAmount) * 100) / 100;
   const taxAmount = Math.round(items.reduce((sum, i) => sum + Math.round((i.lineTotal * ((i.vatRate || 0) / 100)) * 100) / 100, 0) * 100) / 100;
   const totalWithVat = Math.round((subtotal + taxAmount) * 100) / 100;
   const totalDiscount = Math.round((discountAmount + taxAmount) * 100) / 100;

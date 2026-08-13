@@ -10,7 +10,8 @@ import { withTransaction } from '../../lib/transaction';
 import { getNextSequence } from '../../lib/counter';
 import { createError } from '../../middleware/errorHandler';
 import { getIO } from '../../config/socket';
-import type { CreateOrderDto, CreateCustomerDto, ValidateCouponDto } from './pos.validation';
+import { escapeRegex } from '../../lib/escapeRegex';
+import type { CreateOrderDto, ValidateCouponDto } from './pos.validation';
 import type { ICoupon } from '../../models/Coupon';
 
 function round2(n: number): number {
@@ -42,10 +43,18 @@ export async function getEmployees(limit?: number) {
   }));
 }
 
-export async function getCatalog(limit?: number) {
-  const products = await Product.find({ isActive: true })
+export async function getCatalog(limit?: number, categoryId?: string, search?: string) {
+  const filter: Record<string, unknown> = { isActive: true };
+  if (categoryId) {
+    filter.categoryId = categoryId;
+  }
+  if (search) {
+    filter.name = { $regex: escapeRegex(search), $options: 'i' };
+  }
+
+  const products = await Product.find(filter)
     .select('name price image categoryId')
-    .populate('categoryId', 'name')
+    .populate('categoryId', 'name vatRate')
     .sort({ name: 1 })
     .limit(limit ?? 1000)
     .lean();
@@ -55,9 +64,9 @@ export async function getCatalog(limit?: number) {
     name: string;
     price: number;
     image?: { url: string } | null;
-    categoryId: { _id: string; name: string } | string | null;
+    categoryId: { _id: string; name: string; vatRate: number } | string | null;
   }>).map((p) => {
-    const cat = p.categoryId as { _id: string; name: string } | null;
+    const cat = p.categoryId as { _id: string; name: string; vatRate: number } | null;
     return {
       id: p._id.toString(),
       name: p.name,
@@ -65,6 +74,7 @@ export async function getCatalog(limit?: number) {
       image: { url: p.image?.url || null },
       category: cat?.name || null,
       categoryId: cat?._id?.toString() || null,
+      vatRate: cat?.vatRate ?? 0,
     };
   });
 }
@@ -111,27 +121,8 @@ export async function validateCoupon(dto: ValidateCouponDto) {
     discountType: coupon.discountType,
     value: coupon.value,
     discountAmount,
+    maxDiscountAmount: coupon.maxDiscountAmount ?? null,
   };
-}
-
-export async function lookupByPhone(phone: string) {
-  const customer = await Customer.findOne({ phone });
-  if (!customer) return null;
-  return {
-    id: customer._id.toString(),
-    name: customer.name,
-    phone: customer.phone,
-    orderCount: customer.orderCount,
-  };
-}
-
-export async function saveOrFindCustomer(dto: CreateCustomerDto) {
-  let customer = await Customer.findOne({ phone: dto.phone });
-  if (customer) {
-    return { id: customer._id.toString(), name: customer.name, phone: customer.phone, created: false };
-  }
-  customer = await Customer.create({ ...dto, isActive: true });
-  return { id: customer._id.toString(), name: customer.name, phone: customer.phone, created: true };
 }
 
 export async function createOrder(dto: CreateOrderDto, userId: string) {
@@ -213,34 +204,6 @@ export async function createOrder(dto: CreateOrderDto, userId: string) {
   );
   const grandTotal = round2(computedSubtotal - discountAmount);
 
-  let resolvedCustomerId = rest.customerId || null;
-  if (!resolvedCustomerId && rest.customerPhone) {
-    const existing = await Customer.findOne({ phone: rest.customerPhone });
-    if (existing) {
-      const historyEntries: Array<{ field: string; oldValue: string; newValue: string; changedAt: Date }> = [];
-      if (rest.customerName && existing.name !== rest.customerName) {
-        historyEntries.push({ field: 'name', oldValue: existing.name, newValue: rest.customerName, changedAt: new Date() });
-      }
-      const update: Record<string, unknown> = { $inc: { orderCount: 1 } };
-      if (rest.customerName) {
-        (update as Record<string, unknown>).$set = { name: rest.customerName };
-      }
-      if (historyEntries.length > 0) {
-        (update as Record<string, unknown>).$push = { history: { $each: historyEntries } };
-      }
-      await Customer.findByIdAndUpdate(existing._id, update);
-      resolvedCustomerId = existing._id.toString();
-    } else {
-      const customer = await Customer.create({
-        name: rest.customerName || rest.customerPhone,
-        phone: rest.customerPhone,
-        orderCount: 1,
-        isActive: true,
-      });
-      resolvedCustomerId = customer._id.toString();
-    }
-  }
-
   let tableLabelSnapshot: string | undefined;
   if (rest.tableId) {
     const table = await Table.findById(rest.tableId);
@@ -251,6 +214,34 @@ export async function createOrder(dto: CreateOrderDto, userId: string) {
   }
 
   const orderResult = await withTransaction(async (session) => {
+    let resolvedCustomerId = rest.customerId || null;
+    if (!resolvedCustomerId && rest.customerPhone) {
+      const existing = await Customer.findOne({ phone: rest.customerPhone }, null, { session });
+      if (existing) {
+        const historyEntries: Array<{ field: string; oldValue: string; newValue: string; changedAt: Date }> = [];
+        if (rest.customerName && existing.name !== rest.customerName) {
+          historyEntries.push({ field: 'name', oldValue: existing.name, newValue: rest.customerName, changedAt: new Date() });
+        }
+        const update: Record<string, unknown> = { $inc: { orderCount: 1 } };
+        if (rest.customerName) {
+          (update as Record<string, unknown>).$set = { name: rest.customerName };
+        }
+        if (historyEntries.length > 0) {
+          (update as Record<string, unknown>).$push = { history: { $each: historyEntries } };
+        }
+        await Customer.findByIdAndUpdate(existing._id, update, { session });
+        resolvedCustomerId = existing._id.toString();
+      } else {
+        const customer = await Customer.create([{
+          name: rest.customerName || rest.customerPhone,
+          phone: rest.customerPhone,
+          orderCount: 1,
+          isActive: true,
+        }], { session });
+        resolvedCustomerId = customer[0]._id.toString();
+      }
+    }
+
     const seq = await getNextSequence('orderNumber', session);
 
     const padded = seq.toString().padStart(6, '0');
@@ -273,9 +264,8 @@ export async function createOrder(dto: CreateOrderDto, userId: string) {
         taxAmount: totalTaxAmount,
         subtotal: computedSubtotal,
         grandTotal,
-        status: rest.status || 'pending',
+        status: 'pending',
         createdBy: userId,
-        ...(rest.status === 'completed' ? { completedAt: new Date() } : {}),
       }],
       { session }
     );
@@ -287,7 +277,7 @@ export async function createOrder(dto: CreateOrderDto, userId: string) {
         action: 'pos.order_created',
         targetId: order[0]._id.toString(),
         targetType: 'Order',
-        description: `Created order ${on} for BDT ${grandTotal.toFixed(2)}, ${rest.status || 'pending'}`,
+        description: `Created order ${on} for BDT ${grandTotal.toFixed(2)}, pending`,
       }],
       { session }
     );
@@ -315,7 +305,7 @@ export async function createOrder(dto: CreateOrderDto, userId: string) {
       orderNumber: on,
       orderId: order[0]._id.toString(),
       grandTotal,
-      status: rest.status || 'pending',
+      status: 'pending',
       createdBy: userId,
     };
   });
@@ -346,5 +336,18 @@ export async function createOrder(dto: CreateOrderDto, userId: string) {
     // socket not available
   }
 
-  return { orderNumber: orderResult.orderNumber };
+  return {
+    id: orderResult.orderId,
+    orderNumber: orderResult.orderNumber,
+    orderType: rest.orderType || 'dine-in',
+    tableId: rest.tableId || null,
+    items: itemsWithCategory,
+    subtotal: computedSubtotal,
+    discountAmount,
+    taxAmount: totalTaxAmount,
+    grandTotal: orderResult.grandTotal,
+    paymentStatus: 'unpaid',
+    status: orderResult.status,
+    createdBy: orderResult.createdBy,
+  };
 }

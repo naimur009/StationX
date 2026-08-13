@@ -46,6 +46,7 @@ export default function OrdersPage() {
   const { data, isLoading, isError, isRefetching, refetch } = useOrderList({
     status: filters.status,
     paymentStatus: filters.paymentStatus,
+    range: filters.range,
     from: filters.from,
     to: filters.to,
     customerPhone: filters.customerPhone,

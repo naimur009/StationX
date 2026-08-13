@@ -29,6 +29,7 @@ export interface PosState {
   couponCode: string;
   couponDiscount: number;
   couponType: 'flat' | 'percentage' | null;
+  couponMaxDiscount: number | null;
   discountPercent: number;
   submitting: boolean;
 }

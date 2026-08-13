@@ -7,7 +7,8 @@ import toast from 'react-hot-toast';
 export interface OrderListItem {
   id: string;
   orderNumber: string;
-  tableNumber?: string;
+  tableId: string | null;
+  tableLabelSnapshot?: string;
   customerId: string | null;
   customerName?: string;
   customerPhone?: string;
@@ -30,7 +31,8 @@ export interface OrderItemDetail {
 export interface OrderDetail {
   id: string;
   orderNumber: string;
-  tableNumber?: string;
+  tableId: string | null;
+  tableLabelSnapshot?: string;
   customerId: { _id: string; name: string; phone: string } | string | null;
   customerName?: string;
   customerPhone?: string;
@@ -76,6 +78,7 @@ interface OrdersListResponse {
 interface OrdersListParams {
   status?: string;
   paymentStatus?: string;
+  range?: 'today' | 'week' | 'month' | 'custom';
   from?: string;
   to?: string;
   createdBy?: string;
@@ -91,6 +94,7 @@ export function useOrderList(params: OrdersListParams) {
   const searchParams = new URLSearchParams();
   if (params.status) searchParams.set('status', params.status);
   if (params.paymentStatus) searchParams.set('paymentStatus', params.paymentStatus);
+  if (params.range) searchParams.set('range', params.range);
   if (params.from) searchParams.set('from', params.from);
   if (params.to) searchParams.set('to', params.to);
   if (params.createdBy) searchParams.set('createdBy', params.createdBy);
@@ -123,7 +127,7 @@ export function useUpdateOrder() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (data: { id: string; tableNumber?: string; customerId?: string | null; items?: OrderItemUpdate[]; payment?: { method?: string }; discountPercent?: number }) => {
+    mutationFn: (data: { id: string; tableId?: string | null; customerId?: string | null; items?: OrderItemUpdate[]; payment?: { method?: string }; discountPercent?: number }) => {
       const { id, ...body } = data;
       return apiClient<{ data: OrderDetail }>(`/orders/${id}`, {
         method: 'PUT',

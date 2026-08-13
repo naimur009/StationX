@@ -1,7 +1,7 @@
 import { Response, NextFunction } from 'express';
 import { AuthenticatedRequest } from '../../middleware/authenticate';
 import * as posService from './pos.service';
-import type { CreateOrderDto, CreateCustomerDto, ValidateCouponDto } from './pos.validation';
+import type { CreateOrderDto, ValidateCouponDto } from './pos.validation';
 
 export async function handleGetEmployees(
   req: AuthenticatedRequest,
@@ -23,8 +23,8 @@ export async function handleGetCatalog(
   next: NextFunction
 ): Promise<void> {
   try {
-    const { limit } = req.query as { limit?: string };
-    const products = await posService.getCatalog(limit ? Number(limit) : undefined);
+    const { limit, categoryId, search } = req.query as { limit?: string; categoryId?: string; search?: string };
+    const products = await posService.getCatalog(limit ? Number(limit) : undefined, categoryId, search);
     res.status(200).json({ data: products });
   } catch (error) {
     next(error);
@@ -39,34 +39,6 @@ export async function handleValidateCoupon(
   try {
     const dto: ValidateCouponDto = req.body;
     const result = await posService.validateCoupon(dto);
-    res.status(200).json({ data: result });
-  } catch (error) {
-    next(error);
-  }
-}
-
-export async function handleLookupCustomer(
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction
-): Promise<void> {
-  try {
-    const { phone } = req.query as { phone: string };
-    const result = await posService.lookupByPhone(phone);
-    res.status(200).json({ data: result });
-  } catch (error) {
-    next(error);
-  }
-}
-
-export async function handleSaveOrFindCustomer(
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction
-): Promise<void> {
-  try {
-    const dto: CreateCustomerDto = req.body;
-    const result = await posService.saveOrFindCustomer(dto);
     res.status(200).json({ data: result });
   } catch (error) {
     next(error);

@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { Search, ChevronLeft, ChevronRight, ToggleLeft, ToggleRight } from 'lucide-react';
 import { useCouponList, useToggleCoupon, COUPON_STATUS_CONFIG, type CouponResponse } from '../api';
 import { Badge } from '@/components/ui/badge';
+import PermissionGate from '@/components/shared/PermissionGate';
 import { Button } from '@/components/ui/button';
 import { AppError } from '@/lib/utils';
 
@@ -173,36 +174,40 @@ export default function CouponList({ onEdit, onDelete }: CouponListProps) {
                   </div>
 
                   <div className="flex items-center justify-end gap-1 border-t border-slate-100 px-5 py-2.5">
-                    <button
-                      onClick={() => handleToggle(coupon)}
-                      disabled={toggleCoupon.isPending}
-                      className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-primary disabled:opacity-40 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
-                      title={coupon.isEnabled ? 'Disable' : 'Enable'}
-                    >
-                      {coupon.isEnabled ? (
-                        <ToggleRight className="h-5 w-5 text-green-500" />
-                      ) : (
-                        <ToggleLeft className="h-5 w-5" />
-                      )}
-                    </button>
-                    <button
-                      onClick={() => onEdit(coupon)}
-                      className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-primary focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
-                      title="Edit"
-                    >
-                      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                      </svg>
-                    </button>
-                    <button
-                      onClick={() => onDelete(coupon)}
-                      className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-red-500 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
-                      title="Delete"
-                    >
-                      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                      </svg>
-                    </button>
+                    <PermissionGate module="coupons" action="edit">
+                      <button
+                        onClick={() => handleToggle(coupon)}
+                        disabled={toggleCoupon.isPending}
+                        className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-primary disabled:opacity-40 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                        title={coupon.isEnabled ? 'Disable' : 'Enable'}
+                      >
+                        {coupon.isEnabled ? (
+                          <ToggleRight className="h-5 w-5 text-green-500" />
+                        ) : (
+                          <ToggleLeft className="h-5 w-5" />
+                        )}
+                      </button>
+                      <button
+                        onClick={() => onEdit(coupon)}
+                        className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-primary focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                        title="Edit"
+                      >
+                        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                        </svg>
+                      </button>
+                    </PermissionGate>
+                    <PermissionGate module="coupons" action="delete">
+                      <button
+                        onClick={() => onDelete(coupon)}
+                        className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-red-500 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                        title="Delete"
+                      >
+                        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                      </button>
+                    </PermissionGate>
                   </div>
                 </div>
               );
@@ -253,36 +258,40 @@ export default function CouponList({ onEdit, onDelete }: CouponListProps) {
                       </td>
                       <td className="px-5 py-3.5 text-right">
                         <div className="flex items-center justify-end gap-1">
-                          <button
-                            onClick={() => handleToggle(coupon)}
-                            disabled={toggleCoupon.isPending}
-                            className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-primary disabled:opacity-40 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
-                            title={coupon.isEnabled ? 'Disable' : 'Enable'}
-                          >
-                            {coupon.isEnabled ? (
-                              <ToggleRight className="h-4 w-4 text-green-500" />
-                            ) : (
-                              <ToggleLeft className="h-4 w-4" />
-                            )}
-                          </button>
-                          <button
-                            onClick={() => onEdit(coupon)}
-                            className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-primary focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
-                            title="Edit"
-                          >
-                            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                            </svg>
-                          </button>
-                          <button
-                            onClick={() => onDelete(coupon)}
-                            className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-red-500 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
-                            title="Delete"
-                          >
-                            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                            </svg>
-                          </button>
+                          <PermissionGate module="coupons" action="edit">
+                            <button
+                              onClick={() => handleToggle(coupon)}
+                              disabled={toggleCoupon.isPending}
+                              className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-primary disabled:opacity-40 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                              title={coupon.isEnabled ? 'Disable' : 'Enable'}
+                            >
+                              {coupon.isEnabled ? (
+                                <ToggleRight className="h-4 w-4 text-green-500" />
+                              ) : (
+                                <ToggleLeft className="h-4 w-4" />
+                              )}
+                            </button>
+                            <button
+                              onClick={() => onEdit(coupon)}
+                              className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-primary focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                              title="Edit"
+                            >
+                              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                              </svg>
+                            </button>
+                          </PermissionGate>
+                          <PermissionGate module="coupons" action="delete">
+                            <button
+                              onClick={() => onDelete(coupon)}
+                              className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-red-500 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                              title="Delete"
+                            >
+                              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                              </svg>
+                            </button>
+                          </PermissionGate>
                         </div>
                       </td>
                     </tr>

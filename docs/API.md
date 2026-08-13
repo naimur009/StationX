@@ -180,7 +180,10 @@ Base path: `/pos`. **Permission module key:** `pos`. Only `view` (browse catalog
 
 ### 9.1 Product Catalog for POS
 `GET /pos/products?categoryId=&search=`
-Returns only `isActive: true` products, trimmed to the fields the POS grid needs (`id, name, price, image.url, categoryId`). Deliberately a separate route from `GET /products` (§19) rather than the admin product list with a filter flag — the POS screen has its own latency budget (NFR: fast loading for POS) and shouldn't pay for the heavier admin-list payload shape (full image object, `isActive` toggle metadata, timestamps).
+Returns only `isActive: true` products, trimmed to the fields the POS grid needs (`id, name, price, image.url, categoryId, vatRate`). `vatRate` (0–100) is the product's category VAT rate, returned so the POS totals preview can mirror the server's per-line VAT math (informational — see §9.3). Deliberately a separate route from `GET /products` (§19) rather than the admin product list with a filter flag — the POS screen has its own latency budget (NFR: fast loading for POS) and shouldn't pay for the heavier admin-list payload shape (full image object, `isActive` toggle metadata, timestamps). `categoryId` filters by category; `search` matches product name (case-insensitive).
+
+`GET /pos/employees`
+Name-only staff list (`[{ "id": "...", "name": "..." }]`, sorted by name, capped at 500) for the served-by selector on the checkout form. Gated by `pos:create` (the same permission that submits orders) — it's a convenience feed for the checkout screen, not a management endpoint (those live in the Employees module).
 
 ### 9.2 Coupon Validation (pre-check)
 `POST /pos/coupons/validate`
@@ -191,7 +194,7 @@ Returns only `isActive: true` products, trimmed to the fields the POS grid needs
 ```json
 // Response 200 (valid)
 { "data": { "valid": true, "couponId": "...", "discountType": "percentage",
-            "value": 10, "discountAmount": 54 } }
+            "value": 10, "discountAmount": 54, "maxDiscountAmount": 200 } }
 ```
 ```json
 // Response 200 (invalid)
@@ -199,7 +202,9 @@ Returns only `isActive: true` products, trimmed to the fields the POS grid needs
 ```
 `reason` ∈ `NOT_FOUND | DISABLED | NOT_YET_VALID | EXPIRED | BELOW_MIN_ORDER | USAGE_LIMIT_REACHED`.
 
-This is a **read-only preview** — `Coupon.usageCount` is *not* incremented here, even though the cart may call this endpoint multiple times as items change. The actual increment happens exactly once, atomically, inside the order-creation transaction (§9.3), per `DATABASE.md` §5.2's race-condition handling. Calling this endpoint is purely advisory for the POS UI.
+`maxDiscountAmount` (`number | null`) is the coupon's cap for percentage discounts (the server applies `min(rawPercentageDiscount, maxDiscountAmount)`); the POS preview mirrors this cap so the displayed discount matches what will be charged. `null` means no cap.
+
+This is a **read-only preview** — `Coupon.usageCount` is *not* incremented here, even though the cart may call this endpoint multiple times as items change. The actual increment happens exactly once, atomically, inside the payment-capture transaction (`PATCH /orders/:id/status`, §10) — orders are always created `unpaid` (§9.3) — per `DATABASE.md` §5.2's race-condition handling. Calling this endpoint is purely advisory for the POS UI.
 
 ### 9.3 Order Creation
 `POST /pos/orders`
@@ -212,12 +217,11 @@ This is where `ARCHITECTURE.md` §4's `pos.service.ts` ("order total calc, coupo
   "tableId": "...",
   "customerId": null,
   "items": [{ "productId": "...", "quantity": 2 }, { "productId": "...", "quantity": 1 }],
-  "couponCode": "WELCOME10",
-  "status": "pending"
+  "couponCode": "WELCOME10"
 }
 ```
 
-Orders are always created with `paymentStatus: 'unpaid'` — a `payment` block is **not** accepted at creation (no quick-checkout path; `POST /pos/orders` is creation-only). Payment is captured exclusively via `PATCH /orders/:id/status` (§10), where the `Coupon.usageCount` `$inc` and table-unbooking side-effects run inside the same transaction.
+Orders are always created with `paymentStatus: 'unpaid'` and `status: 'pending'` — neither is client-settable (a `payment` block is **not** accepted at creation, no quick-checkout path; `POST /pos/orders` is creation-only). Status transitions — including `completed`/`cancelled` — happen exclusively via `PATCH /orders/:id/status` (§10), where the `Coupon.usageCount` `$inc` and table-unbooking side-effects run inside the same transaction.
 
 ```json
 // Response 201
@@ -842,6 +846,8 @@ Single namespace, all authenticated dashboard clients join one shared room — n
 | Event | Emitted when | Payload | Typical consumer |
 |---|---|---|---|
 | `order:created` | `POST /pos/orders` succeeds | `{ orderId, orderNumber, grandTotal, status, createdBy }` | Orders list (live row insert), future KDS |
+| `order:updated` | `PUT /orders/:id` succeeds | `{ orderId, orderNumber }` | Orders list (live row update) |
+| `order:deleted` | `DELETE /orders/:id` succeeds | `{ orderId }` | Orders list (row removal) |
 | `order:statusChanged` | `PATCH /orders/:id/status` succeeds | `{ orderId, status }` | Orders list, Dashboard |
 | `order:itemsUpdated` | `PUT /orders/:id` succeeds with item changes on a completed order | `{ orderId, orderNumber }` | Kitchen display (re-notification for added items) |
 | `order:paid` | `PATCH /orders/:id/status` with `paymentStatus: 'paid'` succeeds | `{ orderId, orderNumber, paymentStatus }` | Orders list, Dashboard |

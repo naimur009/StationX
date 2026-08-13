@@ -10,7 +10,7 @@ interface PosActions {
   addItem: (product: { productId: string; name: string; price: number; vatRate: number }) => void;
   removeItem: (productId: string) => void;
   updateQuantity: (productId: string, quantity: number) => void;
-  setCoupon: (code: string, discount: number, type: 'flat' | 'percentage') => void;
+  setCoupon: (code: string, discount: number, type: 'flat' | 'percentage', maxDiscount: number | null) => void;
   clearCoupon: () => void;
   setCustomer: (customer: CustomerInfo | null) => void;
   setCustomerName: (name: string) => void;
@@ -32,6 +32,7 @@ const initialState: PosState = {
   couponCode: '',
   couponDiscount: 0,
   couponType: null,
+  couponMaxDiscount: null,
   discountPercent: 0,
   submitting: false,
 };
@@ -65,8 +66,8 @@ export const usePosStore = create<PosState & PosActions>()(
                 i.productId === productId ? { ...i, quantity, lineTotal: round2(quantity * i.price) } : i
               ),
         })),
-      setCoupon: (couponCode, couponDiscount, couponType) => set({ couponCode, couponDiscount, couponType }),
-      clearCoupon: () => set({ couponCode: '', couponDiscount: 0, couponType: null }),
+      setCoupon: (couponCode, couponDiscount, couponType, couponMaxDiscount) => set({ couponCode, couponDiscount, couponType, couponMaxDiscount }),
+      clearCoupon: () => set({ couponCode: '', couponDiscount: 0, couponType: null, couponMaxDiscount: null }),
       setCustomer: (customer) => set({ customer }),
       setCustomerName: (customerName) => set({ customerName }),
       setCustomerPhone: (customerPhone) => set({ customerPhone }),

@@ -41,6 +41,8 @@ export default function CouponForm({ open, coupon, onClose }: CouponFormProps) {
           code: coupon.code,
           discountType: coupon.discountType,
           value: coupon.value,
+          maxDiscountAmount: coupon.maxDiscountAmount ?? undefined,
+          minOrderAmount: coupon.minOrderAmount ?? undefined,
           validFrom: coupon.validFrom.slice(0, 10),
           validUntil: coupon.validUntil.slice(0, 10),
           usageLimit: coupon.usageLimit ?? undefined,
@@ -50,6 +52,8 @@ export default function CouponForm({ open, coupon, onClose }: CouponFormProps) {
           code: '',
           discountType: 'flat',
           value: '' as unknown as number,
+          maxDiscountAmount: undefined,
+          minOrderAmount: undefined,
           validFrom: '',
           validUntil: '',
           usageLimit: undefined,
@@ -79,6 +83,12 @@ export default function CouponForm({ open, coupon, onClose }: CouponFormProps) {
       validFrom: data.validFrom,
       validUntil: data.validUntil,
     };
+
+    const maxDiscountAmount = toNumber(data.maxDiscountAmount ?? undefined);
+    if (maxDiscountAmount !== undefined) payload.maxDiscountAmount = maxDiscountAmount;
+
+    const minOrderAmount = toNumber(data.minOrderAmount ?? undefined);
+    if (minOrderAmount !== undefined) payload.minOrderAmount = minOrderAmount;
 
     const usageLimit = toNumber(data.usageLimit);
     if (usageLimit !== undefined) payload.usageLimit = usageLimit;
@@ -221,6 +231,50 @@ export default function CouponForm({ open, coupon, onClose }: CouponFormProps) {
               {...register('validUntil')}
             />
             {errors.validUntil && <p className="mt-1 text-xs text-red-500">{errors.validUntil.message}</p>}
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label htmlFor="coupon-max-discount" className="mb-1.5 block text-sm font-medium text-secondary-foreground">
+              Max Discount (TK, optional)
+            </label>
+            <input
+              id="coupon-max-discount"
+              type="number"
+              step="0.01"
+              inputMode="decimal"
+              placeholder="Unlimited"
+              className={`w-full rounded-xl border bg-white px-3.5 py-2.5 text-sm text-slate-800 placeholder-slate-400 ring-ring focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 ${
+                errors.maxDiscountAmount ? 'border-red-400' : 'border-slate-300'
+              }`}
+              {...register('maxDiscountAmount', { setValueAs: (v) => (v === '' ? undefined : Number(v)) })}
+            />
+            {errors.maxDiscountAmount && <p className="mt-1 text-xs text-red-500">{errors.maxDiscountAmount.message}</p>}
+            <p className="mt-1 text-xs text-slate-400">
+              Caps the discount applied for percentage coupons
+            </p>
+          </div>
+
+          <div>
+            <label htmlFor="coupon-min-order" className="mb-1.5 block text-sm font-medium text-secondary-foreground">
+              Min Order (TK, optional)
+            </label>
+            <input
+              id="coupon-min-order"
+              type="number"
+              step="0.01"
+              inputMode="decimal"
+              placeholder="None"
+              className={`w-full rounded-xl border bg-white px-3.5 py-2.5 text-sm text-slate-800 placeholder-slate-400 ring-ring focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 ${
+                errors.minOrderAmount ? 'border-red-400' : 'border-slate-300'
+              }`}
+              {...register('minOrderAmount', { setValueAs: (v) => (v === '' ? undefined : Number(v)) })}
+            />
+            {errors.minOrderAmount && <p className="mt-1 text-xs text-red-500">{errors.minOrderAmount.message}</p>}
+            <p className="mt-1 text-xs text-slate-400">
+              Minimum subtotal required to use the coupon
+            </p>
           </div>
         </div>
 

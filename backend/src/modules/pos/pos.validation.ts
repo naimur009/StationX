@@ -17,15 +17,7 @@ export const createOrderSchema = z.object({
   items: z.array(orderItemSchema).min(1, 'Order must have at least one item'),
   couponCode: z.string().max(50).optional(),
   discountPercent: z.number().min(0).max(100).optional(),
-  status: z.enum(['pending', 'completed', 'cancelled']).optional(),
 });
-
-export const createCustomerSchema = z.object({
-  name: z.string().min(1, 'Name is required').max(100).trim(),
-  phone: z.string().min(1, 'Phone is required').max(20).trim(),
-  email: z.string().email().max(255).optional(),
-  address: z.string().max(500).optional(),
-}).strict();
 
 export const validateCouponSchema = z.object({
   code: z.string().min(1, 'Coupon code is required').max(50),
@@ -35,12 +27,9 @@ export const validateCouponSchema = z.object({
 
 export const listQuerySchema = z.object({
   limit: z.coerce.number().int().positive().max(10000).optional(),
-}).strict();
-
-export const lookupQuerySchema = z.object({
-  phone: z.string().min(1, 'Phone is required').max(20, 'Phone is too long').regex(/^\+?[\d\s-]{7,20}$/, 'Invalid phone format'),
+  categoryId: z.string().optional(),
+  search: z.string().max(100).optional(),
 }).strict();
 
 export type CreateOrderDto = z.infer<typeof createOrderSchema>;
-export type CreateCustomerDto = z.infer<typeof createCustomerSchema>;
 export type ValidateCouponDto = z.infer<typeof validateCouponSchema>;

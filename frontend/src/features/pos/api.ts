@@ -26,14 +26,20 @@ export interface CouponCheckResult {
   discountType?: 'flat' | 'percentage';
   value?: number;
   discountAmount?: number;
+  maxDiscountAmount?: number | null;
   reason?: 'NOT_FOUND' | 'DISABLED' | 'NOT_YET_VALID' | 'EXPIRED' | 'BELOW_MIN_ORDER' | 'USAGE_LIMIT_REACHED';
 }
 
-export interface CustomerResult {
-  id: string;
-  name: string;
-  phone: string;
-  created: boolean;
+export function useLookupCustomer(phone: string) {
+  return useQuery({
+    queryKey: ['pos', 'customer-lookup', phone],
+    queryFn: () => apiClient<{
+      data: Array<{ id: string; name: string; phone: string; orderCount: number }>;
+      meta: { total: number; page: number; limit: number };
+    }>(`/customers?search=${encodeURIComponent(phone)}&limit=10`),
+    enabled: phone.length > 0,
+    staleTime: 60_000,
+  });
 }
 
 export function useEmployees() {
@@ -47,7 +53,7 @@ export function useEmployees() {
 export function useCatalog() {
   return useQuery({
     queryKey: ['pos', 'catalog'],
-    queryFn: () => apiClient<{ data: CatalogProduct[] }>('/pos/catalog'),
+    queryFn: () => apiClient<{ data: CatalogProduct[] }>('/pos/products'),
     staleTime: 30_000,
   });
 }
@@ -61,23 +67,6 @@ export function useCheckCoupon() {
       }),
     onError: (error: unknown) => {
       toast.error(error instanceof Error ? error.message : 'Failed to validate coupon');
-    },
-  });
-}
-
-export function useSaveOrFindCustomer() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (data: { name: string; phone: string; email?: string; address?: string }) =>
-      apiClient<{ data: CustomerResult }>('/pos/customers', {
-        method: 'POST',
-        body: JSON.stringify(data),
-      }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['customers'] });
-    },
-    onError: (error: unknown) => {
-      toast.error(error instanceof Error ? error.message : 'Failed to save or find customer');
     },
   });
 }

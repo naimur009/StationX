@@ -243,6 +243,8 @@ Profit formula updated from `totalRevenue - totalExpenses - totalSalary` to `tot
 
 **Reasoning:** The basic template already shipped with the Orders module was functional but minimal — it didn't use Settings data, omitted cash tendered/change, and lacked the receipt-style layout the reference design calls for. These enhancements make the bill production-ready for both on-screen preview and PDF print/download, without changing the endpoint contract. Auto-round is intentionally display-only (never stored) to avoid schema complexity for a cosmetic rounding line.
 
+> **Superseded (2026-08-13, review M11):** the Auto Round line was **removed** — the bill template and the `OrderDetail` totals now display the stored `order.grandTotal` (round2, no floor). A `Math.floor`-based total could show up to 0.99 below the payment-capture amount, rejecting a customer who pays the displayed total. No schema change was needed; `database.md` §1 requires no rounding-policy amendment for these paths.
+
 ### [3] Users & Permissions — 2026-06-22
 
 **Open items resolved:** `API.md §25.4`, `AI_rules.md §13.4`

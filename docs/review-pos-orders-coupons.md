@@ -10,10 +10,10 @@
 | Severity | Count |
 |---|---|
 | Critical | 0 (C1, C2 resolved 2026-08-13 — see sections) |
-| High | 9 |
-| Medium | 12 |
+| High | 0 (H1–H9 resolved 2026-08-13 — see sections) |
+| Medium | 0 (M1–M12 resolved 2026-08-13 — see sections) |
 | Low | 8 |
-| §12 prompt-conflict flags | 4 |
+| §12 prompt-conflict flags | 0 (all 4 resolved — see H2, H3, H8, H9) |
 
 ## Verified clean (settled decisions and upheld conventions)
 
@@ -52,50 +52,59 @@
 - **Rule:** `database.md` §5.2 — "service-layer check (`usageCount < usageLimit`) re-validated within the same transaction before commit"; `API.md` §26 documents the error code.
 - **Issue:** the `$inc` is unconditional; a coupon at its limit can be used again if two paid orders commit concurrently. No code path throws `COUPON_USAGE_LIMIT_REACHED`.
 - **Fix:** re-fetch the coupon with the session and require `usageCount < usageLimit` before the `$inc`; throw `409 COUPON_USAGE_LIMIT_REACHED` otherwise.
+- **Status: RESOLVED (2026-08-13).** `orders.service.ts` paid path re-fetches the coupon with the session; if `usageLimit != null` and `usageCount >= usageLimit` it throws `409 COUPON_USAGE_LIMIT_REACHED` before the `$inc`. The error code now has a live code path (was dead).
 
 ### H2 — `POST /pos/orders` response shape deviates from the contract
 - **Location:** `backend/src/modules/pos/pos.service.ts:361` (returns `{ orderNumber }` only); FE adapted at `frontend/src/features/pos/api.ts:89`.
 - **Rule:** `API.md` §9.3 response — full order (`id, orderNumber, orderType, tableId, items, subtotal, discountAmount, taxAmount, grandTotal, paymentStatus, status, createdBy`); `AI_rules.md` §3.
 - **Fix:** return the persisted order document per §9.3. Intentional-looking trim — see §12 flag 1.
+- **Status: RESOLVED (2026-08-13).** `pos.service.ts` now returns the full §9.3 shape built from in-scope variables: `{ id, orderNumber, orderType, tableId, items, subtotal, discountAmount, taxAmount, grandTotal, paymentStatus: 'unpaid', status, createdBy }`. FE `useCreateOrder` return type is structural so it stays valid.
 
 ### H3 — POS route set is off-contract
 - **Location:** `backend/src/modules/pos/pos.routes.ts:17-21` — `/pos/catalog`, `/pos/employees`, `/pos/customers/lookup`, `/pos/customers`.
 - **Rule:** `API.md` §9.1 defines `GET /pos/products?categoryId=&search=`; `decision.md` CM-FIX-04 also references `/pos/products`; `API.md` §21 forbids pos-scoped customer duplicates ("calls the Customers module's GET/POST — not a pos-scoped duplicate").
 - **Fix:** rename to `/pos/products` with `categoryId`/`search`; drop the pos-scoped customer endpoints in favor of `/customers`, or amend the docs first (§12 flag 2).
+- **Status: RESOLVED (2026-08-13).** Code-aligned, per `AI_rules.md` §12: `GET /pos/catalog` → `GET /pos/products?categoryId=&search=` (service `getCatalog` now filters by category + case-insensitive name via `escapeRegex`, matching the products-module pattern); `/pos/customers/lookup` and `/pos/customers` removed — the FE now uses the Customers module's `GET /customers?search=` and `POST /customers/save-or-find` (§21); the dead FE `useSaveOrFindCustomer`/`CustomerResult` were deleted; `OrderEditForm` calls `/pos/products`. `GET /pos/employees` is retained and now documented in `API.md` §9.1 (doc-amend per §12).
 
 ### H4 — `PUT /orders/:id` tableId change leaves both tables corrupt
 - **Location:** `backend/src/modules/orders/orders.service.ts:454-456`.
 - **Rule:** `AI_rules.md` §6 (status/`currentOrderId` invariant); `API.md` §11.1 (side-effects owned by order writes).
 - **Issue:** changing `tableId` never unbooks the old table and never checks/books the new one — the old table stays `booked`, and a dine-in order can be moved onto an already-booked table.
 - **Fix:** on tableId change, unbook the old table and conditionally book the new one in the same write, emitting `table:statusChanged`.
+- **Status: RESOLVED (2026-08-13).** `updateOrder` now, on tableId change: validates the new table exists (`400 TABLE_NOT_FOUND`), updates `tableLabelSnapshot`, conditionally books the new table via `Table.findOneAndUpdate({ _id, status: 'available' }, ...)` (unpaid orders only — paid orders skip booking so a paid order can never leak a forever-booked table; `WriteConflict` → `409 TABLE_ALREADY_BOOKED`), then defensively unbooks the old table (`currentOrderId === order._id`) after the order write, and emits `order:updated` + `table:statusChanged` (booked/available) — matching the paid-path pattern.
 
 ### H5 — `DELETE /orders/:id` never unbooks the table
 - **Location:** `backend/src/modules/orders/orders.service.ts:856-866`.
 - **Rule:** `AI_rules.md` §6 invariant.
 - **Issue:** the order is deleted but `Table.currentOrderId` keeps pointing at a nonexistent order; the table can never be rebooked by POS or orders.
 - **Fix:** inside the delete transaction, if `order.tableId` is set and `table.currentOrderId === order._id`, reset to `available` and emit `table:statusChanged`.
+- **Status: RESOLVED (2026-08-13).** The delete transaction now resets the table (defensive `currentOrderId === order._id` guard, session-scoped) before `Order.findByIdAndDelete`, and emits `order:deleted` + `table:statusChanged` after commit. The unreachable coupon `$inc: -1` branch (L5) was removed in the same pass.
 
 ### H6 — Cancel-path table unbooking is a separate, non-atomic write
 - **Location:** `backend/src/modules/orders/orders.service.ts:790-797` (second write after the status `findByIdAndUpdate`; no session).
 - **Rule:** `database.md` §5.8 — "the unbooking runs in the same write operation as the status transition". (The paid path at `:700-709` does this correctly inside its transaction; the cancel path does not.)
 - **Fix:** fold the table reset into the same `findByIdAndUpdate`/transaction as the status transition.
+- **Status: RESOLVED (2026-08-13).** The cancel path is now wrapped in `withTransaction` — the status write and the table reset share one session, matching `database.md` §5.8 and the paid path at `:700-709`.
 
 ### H7 — Double ActivityLog on payment capture, with the wrong actor
 - **Location:** `backend/src/modules/orders/orders.service.ts:691-698`.
 - **Rule:** `AI_rules.md` §11 (inherit the middleware; no module-specific logging substitute; actor must be the acting user).
 - **Issue:** the service writes its own `pos.order_paid` entry inside the transaction with `actor = order.createdBy`, while the global `activityLogger` middleware (`app.ts:101`, no `skipActivityLog` set for this route) also writes `order.status_changed` with the real `req.user` — two entries per payment, and the in-transaction one misattributes the actor.
 - **Fix:** set `skipActivityLog` on this route and write one entry with `req.user.id`, or drop the manual write and keep the middleware's.
+- **Status: RESOLVED (2026-08-13).** Option (a) from the finding: `orders.controller.ts` sets `req.skipActivityLog = true` when `dto.paymentStatus === 'paid'` (same cast pattern as `pos.controller.ts:83`), and `updateOrderStatus(id, dto, actorId)` now takes `req.user.id` and uses it for the in-transaction `pos.order_paid` entry — one entry per payment, correctly attributed. Cancel transitions keep middleware logging (no manual entry).
 
 ### H8 — Socket events `order:updated` / `order:deleted` are not in API.md §25
 - **Location:** `backend/src/modules/orders/orders.service.ts:609` and `:869`; FE listeners at `frontend/src/features/orders/page.tsx:32-33` (file `frontend/src/app/(dashboard)/orders/page.tsx`).
 - **Rule:** `AI_rules.md` §7 — events must match `API.md` §25 exactly.
 - **Fix:** add both events (with payloads) to `API.md` §25 or remove the emissions (§12 flag 4).
+- **Status: RESOLVED (2026-08-13).** Doc-amended: `API.md` §25 now lists `order:updated { orderId, orderNumber }` and `order:deleted { orderId }` with consumers (orders list).
 
 ### H9 — Order model drifts from DATABASE.md §3.8
 - **Location:** `backend/src/models/Order.ts:29-43`.
 - **Rule:** `AI_rules.md` §2 — "If a model needs a field DATABASE.md doesn't list, update DATABASE.md first; don't let schema drift silently into code".
 - **Issue:** `customerName`, `customerPhone`, `servedBy`, `discountPercent`, `cashTendered`, `changeAmount`, `previousPayments` are undocumented; conversely `payment.splits` (documented in §3.8) was replaced by `payment.transactionId` without a doc update.
 - **Fix:** reconcile `database.md` §3.8 with the model (§12 flag 3).
+- **Status: RESOLVED (2026-08-13).** `database.md` §3.8 now documents `customerName`, `customerPhone`, `servedBy`, `discountPercent`, `cashTendered`, `changeAmount`, `previousPayments`; the `payment` row reflects `{ method: enum(cash|card|bkash|nagad), transactionId?: String }` (no `splits`) and is `unpaid`-creation-only; `OrderItem.categorySnapshot` added. `API.md` §9.2's stale "increment inside the order-creation transaction" note was also corrected to the payment-capture transaction.
 
 ---
 
@@ -105,63 +114,75 @@
 - **Location:** `backend/src/modules/orders/orders.validation.ts:5-17` (rejects `range`), `backend/src/modules/orders/orders.service.ts:366-375` (inline from/to), `frontend/src/features/orders/components/OrderFilters.tsx` (module-specific picker).
 - **Rule:** `API.md` §2 (`?range=today|week|month|custom&from=&to=`); `AI_rules.md` §3/§8 — shared `normalizeDateRange`/`useDateRangeFilter` are used by dashboard, expenses, incomes, reports; Orders does not.
 - **Fix:** accept `range` and use `normalizeDateRange`; swap the FE to the shared hook.
+- **Status: RESOLVED (2026-08-13).** `orders.validation.ts` accepts `range: z.enum(['today','week','month','custom'])`; `listOrders` uses `normalizeDateRange(query.range, query.from, query.to)` when `range` is set (inline from/to fallback retained). FE `ordersFilterSchema` adds `range`; `OrderFilters.tsx` uses the shared `useDateRangeFilter('today')` + `DateRangeFilter`; `orders/api.ts`/`orders/page.tsx` pass `range`/`from`/`to` through.
 
 ### M2 — FE/BE update-schema drift breaks the table edit feature
 - **Location:** FE sends `tableNumber` — `frontend/src/features/orders/schema.ts:24`, `frontend/src/features/orders/api.ts:126`, `OrderEditForm.tsx:108`; BE expects ObjectId `tableId` in a `.strict()` schema (`backend/src/modules/orders/orders.validation.ts:34,41`) → every table edit 400s. FE types read `tableNumber` that BE never returns (`orders/api.ts:10,33`, `OrderList.tsx:45,74`, `OrderDetail.tsx:167`); BE returns only `tableId` + `tableLabelSnapshot` (`orders.service.ts:94-95,113-114`) — the Table column/row never renders.
 - **Rule:** `AI_rules.md` §4 (FE/BE wire-shape parity).
 - **Fix:** use `tableId` + `tableLabelSnapshot` on the FE.
+- **Status: RESOLVED (2026-08-13).** FE `OrderListItem`/`OrderDetail` types read `tableId: string | null` + `tableLabelSnapshot?`; `updateOrderSchema` sends `tableId` (nullable); `OrderEditForm` renders a `useTableList()` dropdown (clearing → `null`); `OrderList`/`OrderDetail` render `tableLabelSnapshot`.
 
 ### M3 — `vatRate` contract mismatch
 - **Location:** FE requires `vatRate` — `frontend/src/features/pos/api.ts:20`, `ProductGrid.tsx:78`, `OrderEditForm.tsx:16`; BE catalog response omits it (`pos.service.ts:45-70`; `API.md` §9.1 field list).
 - **Rule:** `AI_rules.md` §4; `API.md` §9.1.
 - **Fix:** include `vatRate` in the catalog response or resolve it from the categories query on the FE.
+- **Status: RESOLVED (2026-08-13).** `getCatalog` populates `categoryId` with `name vatRate` and returns `vatRate: cat?.vatRate ?? 0`; `API.md` §9.1 field list amended (doc-amend per §12 precedent — superset response).
 
 ### M4 — Client preview math diverges from the server
 - **Location:** FE caps total discount at subtotal and ignores the coupon cap (`frontend/src/app/(dashboard)/pos/page.tsx:102`, `BillPreview.tsx:19`); BE caps only via `maxDiscountAmount`, never at subtotal (`pos.service.ts:169-188`).
 - **Rule:** `AI_rules.md` §3 (server is source of truth; the preview must mirror it).
 - **Fix:** make the preview use the server-returned `discountAmount` and identical formulas.
+- **Status: RESOLVED (2026-08-13).** `pos/store.ts` now holds `couponMaxDiscount`; `validateCoupon` returns `maxDiscountAmount`; `CouponInput` stores it; `pos/page.tsx` preview mirrors the server exactly — coupon = `min(rawCouponDiscount, maxDiscountAmount)` (no subtotal cap), manual = `round2(subtotal × discountPercent/100)`, `discountAmount = round2(coupon + manual)`.
 
 ### M5 — ORD-FIX-02 (settled decision) not enforced
 - **Location:** `backend/src/modules/pos/pos.validation.ts:6-9`, `backend/src/modules/orders/orders.validation.ts:28-31` (no refine); `pos.service.ts:295` silently drops a missing `transactionId`.
 - **Rule:** `decision.md` QA Fix Batch ORD-FIX-02 — `transactionId` required when `payment.method !== 'cash'`, with a service-layer guard.
 - **Fix:** add the Zod refine + service check.
+- **Status: RESOLVED (2026-08-13).** Refine added to `updateOrderSchema` and `updateOrderStatusSchema` (path `['payment','transactionId']`); `pos.service.ts` paid path and `orders.service.ts` `if (dto.payment)` block throw `400 VALIDATION_ERROR 'Transaction ID is required for non-cash payments'` — a `null` transactionId can never persist.
 
 ### M6 — `any` cast
 - **Location:** `(err as any).code === 11000` at `backend/src/modules/coupons/coupons.service.ts:107` (also `tables.service.ts:68`, out of scope).
 - **Rule:** `AI_rules.md` §1 (strict TS, no `any`).
 - **Fix:** narrow via `mongoose.mongo.MongoServerError`.
+- **Status: RESOLVED (2026-08-13).** `coupons.service.ts` now uses `err instanceof mongoose.mongo.MongoServerError && err.code === 11000`.
 
 ### M7 — Coupon `maxDiscountAmount`/`minOrderAmount` unmanageable via the API
 - **Location:** model `backend/src/models/Coupon.ts:7-8` and honored by POS validate (`pos.service.ts:25,92`), but absent from create/update validation, the response mapper, and the FE form.
 - **Rule:** `database.md` §3.5; `AI_rules.md` §4 shape parity.
 - **Fix:** add both to `coupons.validation.ts`, `toResponse`, and `CouponForm`.
+- **Status: RESOLVED (2026-08-13).** BE `createCouponSchema`/`updateCouponSchema` + `CouponResponse`/`toResponse`/`updateCoupon` handle `maxDiscountAmount`/`minOrderAmount` (`.multipleOf(0.01)`); FE `CouponResponse`, `createCouponSchema`/`updateCouponSchema`, and `CouponForm` (two new inputs, payload, reset) carry both.
 
 ### M8 — Customer upsert runs outside the order-creation transaction
 - **Location:** `backend/src/modules/pos/pos.service.ts:217-243`.
 - **Rule:** `AI_rules.md` §6 — "any new step added to this flow joins the same transaction".
 - **Issue:** a failed order leaves `orderCount`/`history` incremented on the customer.
 - **Fix:** move the customer lookup/create/update inside `withTransaction`.
+- **Status: RESOLVED (2026-08-13).** The customer upsert (lookup, `findByIdAndUpdate`, `create([...], { session })`) moved inside `withTransaction` before `getNextSequence`, so a rolled-back order no longer leaves `orderCount`/`history` increments behind.
 
 ### M9 — Money fields missing `.multipleOf(0.01)`
 - **Location:** `cashTendered` (`backend/src/modules/pos/pos.validation.ts:26`); Coupon `value` flat type (`backend/src/modules/coupons/coupons.validation.ts:6,22` and `frontend/src/features/coupons/schema.ts:6`).
 - **Rule:** `AI_rules.md` §4; `database.md` §1.
 - **Fix:** add `multipleOf(0.01)` on both sides.
+- **Status: RESOLVED (2026-08-13).** Coupon `value` now `.multipleOf(0.01)` on BE (`create` + `update`) and FE (`coupons/schema.ts`), same for the new `maxDiscountAmount`/`minOrderAmount`. The `cashTendered` half is obsolete — creation no longer accepts `payment`/`cashTendered` (C2), and `updateOrder`/`updateOrderStatus` schemas already had `.multipleOf(0.01)`.
 
 ### M10 — API calls outside `features/<module>/api.ts`
 - **Location:** `frontend/src/features/orders/components/OrderEditForm.tsx:46` calls `apiClient('/pos/catalog')` directly (a `useCatalog` hook already exists); `frontend/src/app/(dashboard)/pos/page.tsx:72` does a manual `useEffect` + `AbortController` lookup instead of React Query.
 - **Rule:** `AI_rules.md` §2/§8.
 - **Fix:** move both into the module `api.ts` as React Query hooks.
+- **Status: RESOLVED (2026-08-13).** `OrderEditForm` uses the existing `useCatalog()` hook (error surface kept via `catalogFailed`); `pos/page.tsx` customer lookup moved to a new `useLookupCustomer(phone)` React Query hook (500ms debounce retained, `AbortController` removed).
 
 ### M11 — Bill/display total diverges from the validated total
 - **Location:** bill template `backend/src/modules/orders/orders.service.ts:189-193` and FE `frontend/src/features/orders/components/OrderDetail.tsx:318-358` both display `Math.floor(subtotal - discountAmount)` with an undocumented "Auto Round" line; stored `order.grandTotal` (round2, no floor) is what payment capture validates against (`orders.service.ts:663`).
 - **Rule:** `database.md` §1 (money/rounding policy); `AI_rules.md` §3.
 - **Issue:** the bill can show up to 0.99 below the amount the cashier must collect; a customer paying the displayed total is rejected.
 - **Fix:** display the stored `grandTotal`; remove the "Auto Round" math or document it as a policy decision in `database.md` §1.
+- **Status: RESOLVED (2026-08-13).** Removal chosen: `renderBillHtml` uses the stored `order.grandTotal` (Auto Round line deleted, non-cash payment line uses `grandTotal - previousPaymentsTotal`); `OrderDetail` totals block displays the stored `grandTotal` without floor/Auto Round. `database.md` §1 documents no rounding policy for these paths, so no doc change was needed there; the cashier-facing bill now matches the payment-capture amount.
 
 ### M12 — Coupon CRUD buttons not PermissionGate-wrapped
 - **Location:** `frontend/src/features/coupons/components/CouponList.tsx:176-205` (toggle/edit/delete) and `DeleteCouponDialog.tsx` — active controls visible to users with only `coupons:view`. The analogous delete in `OrderDetail.tsx:104` is gated.
 - **Rule:** `AI_rules.md` §9 (every CRUD button wrapped in `PermissionGate` with the action it triggers).
 - **Fix:** wrap toggle/edit/delete in `PermissionGate module="coupons" action={...}`.
+- **Status: RESOLVED (2026-08-13).** `CouponList.tsx` wraps toggle/edit in `PermissionGate module="coupons" action="edit"` and delete in `action="delete"` (card + table layouts); `DeleteCouponDialog.tsx` wraps the destructive confirm button in `action="delete"`.
 
 ---
 
@@ -189,11 +210,14 @@ Per `AI_rules.md` §12, these four code-vs-doc deviations look deliberate and ne
 
 Each requires either code alignment or an upstream doc amendment (`API.md`/`database.md`/`AI_rules.md` + a `decision.md` entry) before the next PR — the docs remain the binding contract.
 
+> **Status: all 4 resolved (2026-08-13).** Flag 1 → code-aligned (H2 full response). Flag 2 → code-aligned (H3 `/pos/products`, customers via the Customers module) + doc-amended (`/pos/employees` documented in `API.md` §9.1). Flag 3 → doc-amended (`database.md` §3.8 reconciled). Flag 4 → doc-amended (`API.md` §25).
+
 ## Suggested fix order
 
 1. ~~**C1, C2**~~ **RESOLVED** (data corruption / floor-state) — backend, `pos.service.ts` + `pos.validation.ts` + doc alignment (`API.md` §9.3, `database.md` §5.1/§5.2).
-2. **H1, H4, H5, H6** (integrity guards) — backend transaction boundaries.
-3. **H7** (audit integrity) — backend, plus the skipActivityLog pattern.
-4. **§12 doc reconciliation** (H2, H3, H8, H9) — decide trim/rename vs. docs first, per `AI_rules.md` §12.
-5. **H3** route rename — touches FE (`features/pos/api.ts`, `OrderEditForm.tsx`) and backend routes.
-6. **M-series + L-series** — FE/BE parity fixes, PermissionGate, `multipleOf`, shared date-range, `any` removal.
+2. ~~**H1, H4, H5, H6**~~ **RESOLVED** (integrity guards) — backend transaction boundaries.
+3. ~~**H7**~~ **RESOLVED** (audit integrity) — backend, plus the skipActivityLog pattern.
+4. ~~**§12 doc reconciliation**~~ **RESOLVED** (H2, H3, H8, H9).
+5. ~~**H3**~~ **RESOLVED** route rename — backend routes + FE (`features/pos/api.ts`, `pos/page.tsx`, `OrderEditForm.tsx`).
+6. ~~**M-series**~~ **RESOLVED** — FE/BE parity fixes, PermissionGate, `multipleOf`, shared date-range, `any` removal, transaction boundary.
+7. **L-series** — FE/BE parity fixes, PermissionGate, `multipleOf`, shared date-range, `any` removal.
