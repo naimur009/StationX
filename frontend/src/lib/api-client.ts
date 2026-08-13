@@ -9,7 +9,9 @@ interface RequestConfig extends RequestInit {
   skipAuth?: boolean;
 }
 
-async function refreshAccessToken(): Promise<string | null> {
+let refreshPromise: Promise<string | null> | null = null;
+
+async function doRefreshAccessToken(): Promise<string | null> {
   try {
     const response = await fetch(`${API_BASE}/auth/refresh`, {
       method: 'POST',
@@ -31,6 +33,25 @@ async function refreshAccessToken(): Promise<string | null> {
     return newToken;
   } catch {
     return null;
+  }
+}
+
+function refreshAccessToken(): Promise<string | null> {
+  if (!refreshPromise) {
+    refreshPromise = doRefreshAccessToken().finally(() => {
+      refreshPromise = null;
+    });
+  }
+  return refreshPromise;
+}
+
+function isTokenExpired(token: string): boolean {
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    const expMs = typeof payload.exp === 'number' ? payload.exp * 1000 : null;
+    return expMs === null || expMs - Date.now() < 30_000;
+  } catch {
+    return false;
   }
 }
 
@@ -57,6 +78,13 @@ export async function apiClient<T>(
 
   if (!token && !skipAuth && (store.isAuthenticated || path === '/auth/me')) {
     token = await refreshAccessToken();
+  }
+
+  if (token && !skipAuth && !isAuthPage && isTokenExpired(token)) {
+    const freshToken = await refreshAccessToken();
+    if (freshToken) {
+      token = freshToken;
+    }
   }
 
   const response = await fetch(`${API_BASE}${path}`, {
@@ -126,6 +154,13 @@ export async function uploadFile(
 
   if (!token && store.isAuthenticated) {
     token = await refreshAccessToken();
+  }
+
+  if (token && isTokenExpired(token)) {
+    const freshToken = await refreshAccessToken();
+    if (freshToken) {
+      token = freshToken;
+    }
   }
 
   const formData = new FormData();

@@ -107,6 +107,12 @@ const RESOURCE_DESCRIPTION_MAP: Record<string, (req: AuthenticatedRequest) => st
   },
   'expenses.updated': () => 'Updated expense',
   'expenses.deleted': () => 'Deleted expense',
+  'incomes.created': (req) => {
+    const body = req.body as Record<string, unknown>;
+    return `Created income of BDT ${(body.amount as number)?.toFixed(2) ?? '0.00'}${body.receivedFrom ? ` — ${body.receivedFrom}` : ''}`;
+  },
+  'incomes.updated': () => 'Updated income',
+  'incomes.deleted': () => 'Deleted income',
   'tasks.created': (req) => {
     const title = (req.body as Record<string, string>).title ?? '';
     return `Created task "${title}"`;

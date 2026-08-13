@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { Search, ChevronLeft, ChevronRight } from 'lucide-react';
-import { useTasksList, useTask, type TaskResponse } from '../api';
+import { useTasksList, type TaskResponse } from '../api';
 import TaskCard from './TaskCard';
 import { useEmployeesList } from '../../employees/api';
 
@@ -34,8 +34,8 @@ const sortOptions = [
 ] as const;
 
 export default function TaskList({ onEdit, onDelete }: TaskListProps) {
-  const [statusFilter, setStatusFilter] = useState('');
-  const [priorityFilter, setPriorityFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'' | 'pending' | 'in_progress' | 'completed'>('');
+  const [priorityFilter, setPriorityFilter] = useState<'' | 'low' | 'medium' | 'high'>('');
   const [assigneeFilter, setAssigneeFilter] = useState('');
   const [sort, setSort] = useState('-createdAt');
   const [page, setPage] = useState(1);
@@ -106,6 +106,7 @@ export default function TaskList({ onEdit, onDelete }: TaskListProps) {
         <div className="flex flex-wrap items-center gap-3 text-sm text-slate-500">
           <span className="font-medium text-slate-700">{totalCount} total</span>
           <span className="text-slate-300">|</span>
+          <span className="text-slate-500">this page:</span>
           <span className="text-yellow-600">{taskCounts.pending} pending</span>
           <span className="text-slate-300">|</span>
           <span className="text-indigo-600">{taskCounts.in_progress} in progress</span>
@@ -148,7 +149,7 @@ export default function TaskList({ onEdit, onDelete }: TaskListProps) {
 
           <select
             value={priorityFilter}
-            onChange={(e) => setPriorityFilter(e.target.value)}
+            onChange={(e) => setPriorityFilter(e.target.value as '' | 'low' | 'medium' | 'high')}
             className="rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-sm text-slate-700 ring-ring focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring"
           >
             {priorityOptions.map((opt) => (

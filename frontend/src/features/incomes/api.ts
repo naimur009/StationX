@@ -2,6 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api-client';
+import type { DateRange } from '@/hooks/useDateRangeFilter';
 
 export interface IncomeResponse {
   id: string;
@@ -25,11 +26,11 @@ interface IncomesListResponse {
 interface IncomesListParams {
   page?: number;
   limit?: number;
-  range?: string;
+  range?: DateRange;
   from?: string;
   to?: string;
   category?: string;
-  paymentMethod?: string;
+  paymentMethod?: 'cash' | 'card' | 'bkash' | 'nagad';
   receivedBy?: string;
 }
 

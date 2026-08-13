@@ -1,12 +1,13 @@
 import { z } from 'zod';
 import { DATE_RANGES } from '../../lib/date-range';
+import { paginationSchema } from '../../lib/pagination';
 
 const objectIdRegex = /^[0-9a-fA-F]{24}$/;
 
 export const createIncomeSchema = z.object({
   amount: z.number().positive('Amount must be positive').multipleOf(0.01, 'Amount must have at most 2 decimal places'),
   date: z.coerce.date({ required_error: 'Date is required' }),
-  description: z.string().max(500).trim().optional(),
+  description: z.string().min(1, 'Description is required').max(500).trim(),
   category: z.string().min(1, 'Category is required').max(100).trim(),
   receivedFrom: z.string().min(1, 'Received from is required').max(200).trim(),
   receivedBy: z.string().regex(objectIdRegex, 'Invalid receivedBy ID format'),
@@ -33,8 +34,7 @@ export const listIncomesQuerySchema = z.object({
   category: z.string().max(100).trim().optional(),
   paymentMethod: z.enum(['cash', 'card', 'bkash', 'nagad']).optional(),
   receivedBy: z.string().regex(objectIdRegex, 'Invalid receivedBy ID format').optional(),
-  page: z.coerce.number().int().positive('Page must be a positive number').max(1000, 'Page number must not exceed 1000').default(1),
-  limit: z.coerce.number().int().positive('Limit must be a positive number').max(100, 'Limit must not exceed 100').default(20),
+  ...paginationSchema.shape,
 }).strict().refine(
   (data) => {
     if (data.range === 'custom') {

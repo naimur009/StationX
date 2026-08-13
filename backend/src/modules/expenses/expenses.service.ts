@@ -1,10 +1,12 @@
 import mongoose from 'mongoose';
-import Expense from '../../models/Expense';
+import Expense, { IExpense } from '../../models/Expense';
 import Vendor from '../../models/Vendor';
 import Employee from '../../models/Employee';
 import { createError } from '../../middleware/errorHandler';
+import { getIO } from '../../config/socket';
 import { escapeRegex } from '../../lib/escapeRegex';
 import { normalizeDateRange } from '../../lib/date-range';
+import { paginate } from '../../lib/pagination';
 import type {
   CreateExpenseDto,
   UpdateExpenseDto,
@@ -41,18 +43,18 @@ interface ExpenseData {
   updatedAt: Date;
 }
 
-function toData(expense: Record<string, unknown>): ExpenseData {
+function toData(expense: IExpense): ExpenseData {
   return {
     id: String(expense._id),
     amount: expense.amount as number,
     date: expense.date as Date,
     description: expense.description as string,
     category: expense.category as string,
-    vendorId: expense.vendorId as PopulatedVendor | null | undefined,
-    paidBy: expense.paidBy as PopulatedEmployee,
+    vendorId: expense.vendorId as unknown as PopulatedVendor | null | undefined,
+    paidBy: expense.paidBy as unknown as PopulatedEmployee,
     paidTo: expense.paidTo as string,
     paymentMethod: expense.paymentMethod as string,
-    createdBy: expense.createdBy as PopulatedCreator,
+    createdBy: expense.createdBy as unknown as PopulatedCreator,
     createdAt: expense.createdAt as Date,
     updatedAt: expense.updatedAt as Date,
   };
@@ -82,7 +84,7 @@ export async function listExpenses(query: ListExpensesQuery) {
     filter.paidBy = new mongoose.Types.ObjectId(query.paidBy);
   }
 
-  const skip = (query.page - 1) * query.limit;
+  const { skip, limit } = paginate(query.page, query.limit);
 
   const [expenses, total] = await Promise.all([
     Expense.find(filter)
@@ -91,12 +93,12 @@ export async function listExpenses(query: ListExpensesQuery) {
       .populate('paidBy', 'name')
       .populate('createdBy', 'name')
       .skip(skip)
-      .limit(query.limit)
+      .limit(limit)
       .lean(),
     Expense.countDocuments(filter),
   ]);
 
-  const data = expenses.map((expense) => toData(expense as unknown as Record<string, unknown>));
+  const data = expenses.map((expense) => toData(expense as unknown as IExpense));
 
   return {
     data,
@@ -115,7 +117,7 @@ export async function getExpenseById(id: string) {
     throw createError(404, 'NOT_FOUND', 'Expense not found');
   }
 
-  return toData(expense as unknown as Record<string, unknown>);
+  return toData(expense as unknown as IExpense);
 }
 
 export async function createExpense(dto: CreateExpenseDto, userId: string) {
@@ -137,13 +139,23 @@ export async function createExpense(dto: CreateExpenseDto, userId: string) {
     createdBy: userId,
   });
 
+  try {
+    getIO().emit('dashboard:metricsInvalidate');
+  } catch {
+    // Socket.io not initialized — skip real-time event
+  }
+
   const populated = await Expense.findById(expense._id)
     .populate('vendorId', 'name')
     .populate('paidBy', 'name email')
     .populate('createdBy', 'name')
     .lean();
 
-  return toData(populated! as unknown as Record<string, unknown>);
+  if (!populated) {
+    throw createError(500, 'INTERNAL_ERROR', 'Failed to load created expense');
+  }
+
+  return toData(populated as unknown as IExpense);
 }
 
 export async function updateExpense(id: string, dto: UpdateExpenseDto) {
@@ -175,7 +187,7 @@ export async function updateExpense(id: string, dto: UpdateExpenseDto) {
     throw createError(404, 'NOT_FOUND', 'Expense not found');
   }
 
-  return toData(updated as unknown as Record<string, unknown>);
+  return toData(updated as unknown as IExpense);
 }
 
 export async function getReferenceData() {

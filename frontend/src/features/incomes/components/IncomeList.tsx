@@ -7,7 +7,6 @@ import { useIncomesList, useIncomeReferenceData, type IncomeResponse } from '../
 import { useDateRangeFilter } from '@/hooks/useDateRangeFilter';
 import DateRangeFilter from '@/components/shared/DateRangeFilter';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import PermissionGate from '@/components/shared/PermissionGate';
 
 interface IncomeListProps {
@@ -20,11 +19,11 @@ export default function IncomeList({ onEdit, onDelete }: IncomeListProps) {
   const [page, setPage] = useState(1);
   const [categoryFilter, setCategoryFilter] = useState('');
   const [debouncedCategory, setDebouncedCategory] = useState('');
-  const [paymentFilter, setPaymentFilter] = useState('');
+  const [paymentFilter, setPaymentFilter] = useState<'cash' | 'card' | 'bkash' | 'nagad' | ''>('');
   const [receivedByFilter, setReceivedByFilter] = useState('');
   const mountedRef = useRef(true);
 
-  const { filter: dateFilter, setRange, setCustomRange, queryString: dateQueryString } = useDateRangeFilter('today');
+  const { filter: dateFilter, setRange, setCustomRange } = useDateRangeFilter('today');
 
   const { data: refData, isError: refError } = useIncomeReferenceData();
 
@@ -121,7 +120,7 @@ export default function IncomeList({ onEdit, onDelete }: IncomeListProps) {
 
           <select
             value={paymentFilter}
-            onChange={(e) => setPaymentFilter(e.target.value)}
+            onChange={(e) => setPaymentFilter(e.target.value as 'cash' | 'card' | 'bkash' | 'nagad' | '')}
             className="rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-700 ring-ring focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring"
           >
             <option value="">All Methods</option>

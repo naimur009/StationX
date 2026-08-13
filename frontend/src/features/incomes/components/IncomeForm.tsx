@@ -15,6 +15,16 @@ interface IncomeFormProps {
   onClose: () => void;
 }
 
+interface IncomeFormValues {
+  amount?: number;
+  date?: string;
+  description?: string;
+  category?: string;
+  receivedFrom?: string;
+  receivedBy?: string;
+  paymentMethod?: 'cash' | 'card' | 'bkash' | 'nagad';
+}
+
 export default function IncomeForm({ open, income, onClose }: IncomeFormProps) {
   const [error, setError] = useState<string | null>(null);
   const createIncome = useCreateIncome();
@@ -32,16 +42,8 @@ export default function IncomeForm({ open, income, onClose }: IncomeFormProps) {
     handleSubmit,
     formState: { errors },
     reset,
-  } = useForm<{
-    amount: number;
-    date: string;
-    description: string;
-    category: string;
-    receivedFrom: string;
-    receivedBy: string;
-    paymentMethod: 'cash' | 'card' | 'bkash' | 'nagad' | '';
-  }>({
-    resolver: zodResolver(schema as never),
+  } = useForm({
+    resolver: zodResolver(schema),
     defaultValues: {
       amount: 0,
       date: '',
@@ -49,7 +51,7 @@ export default function IncomeForm({ open, income, onClose }: IncomeFormProps) {
       category: '',
       receivedFrom: '',
       receivedBy: '',
-      paymentMethod: '',
+      paymentMethod: undefined,
     },
   });
 
@@ -73,31 +75,23 @@ export default function IncomeForm({ open, income, onClose }: IncomeFormProps) {
           category: '',
           receivedFrom: '',
           receivedBy: '',
-          paymentMethod: '',
+          paymentMethod: undefined,
         });
       }
       setError(null);
     }
   }, [open, income, reset]);
 
-  async function onSubmit(data: {
-    amount: number;
-    date: string;
-    description: string;
-    category: string;
-    receivedFrom: string;
-    receivedBy: string;
-    paymentMethod: 'cash' | 'card' | 'bkash' | 'nagad' | '';
-  }) {
+  async function onSubmit(data: IncomeFormValues) {
     setError(null);
 
     const payload = {
-      amount: data.amount,
-      date: data.date,
-      description: data.description,
-      category: data.category,
-      receivedFrom: data.receivedFrom,
-      receivedBy: data.receivedBy,
+      amount: data.amount ?? 0,
+      date: data.date ?? '',
+      description: data.description ?? '',
+      category: data.category ?? '',
+      receivedFrom: data.receivedFrom ?? '',
+      receivedBy: data.receivedBy ?? '',
       paymentMethod: data.paymentMethod as 'cash' | 'card' | 'bkash' | 'nagad',
     };
 
@@ -202,7 +196,7 @@ export default function IncomeForm({ open, income, onClose }: IncomeFormProps) {
 
         <div>
           <label htmlFor="income-description" className="mb-1.5 block text-sm font-medium text-slate-700">
-            Description
+            Description <span className="text-red-500">*</span>
           </label>
           <textarea
             id="income-description"

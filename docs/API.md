@@ -344,6 +344,7 @@ Base path: `/tasks`. **Permission module key:** `tasks`. Hard-deletable per `DAT
 | PUT | `/tasks/:id` | `edit` | Edit title/description/priority/deadline/assignee |
 | PATCH | `/tasks/:id/status` | `view` | `{ "status": "in_progress" | "completed" }` — any user with `view` permission can change status; sets `completedAt` on transition to `completed` |
 | DELETE | `/tasks/:id` | `delete` | Hard delete |
+| GET | `/tasks/assignable-employees` | `create` | Employee lookup for the task form's assignee dropdown — returns `{ id, name }` for all employees |
 
 ---
 
@@ -422,11 +423,12 @@ Manages restaurant staff records. Employees are users with role `employee` or `m
 
 ## 15. Expenses
 
-Base path: `/expenses`. **Permission module key:** `expenses`. **Hard-deletable** — `Expense` has no `isActive` field in `DATABASE.md` §3.12, so unlike Vendors/Products/etc. it falls outside the five-collection soft-delete list in §1's conventions table.
+Base path: `/expenses`. **Permission module key:** `expenses`. **Hard-deletable** — `Expense` has no `isActive` field in `DATABASE.md` §3.15, so unlike Vendors/Products/etc. it falls outside the five-collection soft-delete list in §1's conventions table.
 
 | Method | Path | Action | Description |
 |---|---|---|---|
-| GET | `/expenses?range=&category=&vendorId=` | `view` | List, feeds Reports |
+| GET | `/expenses?range=&category=&vendorId=` | `view` | List, paginated, date-range filter — feeds Reports |
+| GET | `/expenses/reference-data` | `view` | Reference data (vendors + employees lists for the paidBy/vendor dropdowns) |
 | GET | `/expenses/:id` | `view` | Detail |
 | POST | `/expenses` | `create` | Create |
 | PUT | `/expenses/:id` | `edit` | Edit |
@@ -763,7 +765,7 @@ Profit is calculated as: `profit = totalRevenue + totalMiscIncome - totalExpense
 
 ## 23. Settings
 
-Base path: `/settings`. **Permission module key:** `settings`. Singleton (fixed `_id`, `DATABASE.md` §3.15).
+Base path: `/settings`. **Permission module key:** `settings`. Singleton (fixed `_id`, `DATABASE.md` §3.18).
 
 | Method | Path | Auth | Action | Description |
 |---|---|---|---|---|
@@ -778,7 +780,7 @@ Base path: `/settings`. **Permission module key:** `settings`. Singleton (fixed 
 
 **`PUT` here behaves like a merge, not a full replace:** the Settings UI is naturally split into sections (Business Info, VAT Information, Business Hours, Logo, Loyalty Threshold, Table Settings), and requiring the frontend to resend the entire document on every section save would be both wasteful and risky (a stale `logo` object in a VAT-tab form could accidentally null it out). The server merges the submitted fields into the singleton document rather than replacing it wholesale. Flagged here as a deliberate departure from strict REST `PUT` semantics, consistent with this document being where such calls get made explicit. Accepted fields: `restaurantName`, `address`, `logo`, `contactNumber`, `businessHours`, `vatInfo`, `loyaltyOrderThreshold`, `tableCount`.
 
-**`PUT /settings` with a changed `tableCount` also re-syncs the Table collection** (`DATABASE.md` §3.15): tables are recreated with sequential labels ("1", "2", ...), **preserving tables with a non-null `currentOrderId`** (active orders), and broadcasts `table:statusChanged` as a signal-only event (§25) so the floor grid re-fetches.
+**`PUT /settings` with a changed `tableCount` also re-syncs the Table collection** (`DATABASE.md` §3.18): tables are recreated with sequential labels ("1", "2", ...), **preserving tables with a non-null `currentOrderId`** (active orders), and broadcasts `table:statusChanged` as a signal-only event (§25) so the floor grid re-fetches.
 
 **Data-management endpoints:**
 - `POST /settings/reset` is the **sole generated-code path allowed to hard-delete `Order` and `Expense`** (exception to the never-hard-delete rule, see `AI_rules.md` §6). Admin accounts survive; non-admin users and all other collections are wiped. The operation is non-transactional — if it fails partway, re-run it to complete the wipe.
@@ -851,7 +853,7 @@ Single namespace, all authenticated dashboard clients join one shared room — n
 | `order:statusChanged` | `PATCH /orders/:id/status` succeeds | `{ orderId, status }` | Orders list, Dashboard |
 | `order:itemsUpdated` | `PUT /orders/:id` succeeds with item changes on a completed order | `{ orderId, orderNumber }` | Kitchen display (re-notification for added items) |
 | `order:paid` | `PATCH /orders/:id/status` with `paymentStatus: 'paid'` succeeds | `{ orderId, orderNumber, paymentStatus }` | Orders list, Dashboard |
-| `dashboard:metricsInvalidate` | Any revenue-affecting event (order created/status changed, expense created) | *(signal only, no payload)* | Dashboard triggers a React Query `invalidateQueries(['dashboard'])`, per `ARCHITECTURE.md` §8 |
+| `dashboard:metricsInvalidate` | Any revenue-affecting event (order created/status changed, expense created, income created) | *(signal only, no payload)* | Dashboard triggers a React Query `invalidateQueries(['dashboard'])`, per `ARCHITECTURE.md` §8 |
 | `task:assigned` | Task created/reassigned | `{ taskId, assignedTo }` | Assignee's live task badge |
 | `attendance:marked` | `POST /attendance` or `POST /attendance/batch` succeeds | `{ employeeId, date, status }` | Live attendance view |
 | `attendance:updated` | `PUT /attendance/:id` succeeds | `{ employeeId, date, status }` | Live attendance view |
@@ -878,6 +880,8 @@ Single namespace, all authenticated dashboard clients join one shared room — n
 | 401 | `INVALID_CREDENTIALS` | Login failed |
 | 403 | `FORBIDDEN` | Valid token, but `authorize(module, action)` denied it |
 | 404 | `NOT_FOUND` | Resource doesn't exist (or is soft-deleted and the route doesn't opt into `includeInactive`) |
+| 404 | `VENDOR_NOT_FOUND` | Referenced vendor doesn't exist (`POST`/`PUT /expenses`) |
+| 404 | `EMPLOYEE_NOT_FOUND` | Referenced employee doesn't exist (`POST`/`PUT /expenses` `paidBy`, `POST`/`PUT /incomes` `receivedBy`) |
 | 409 | `COUPON_IN_USE` | (reserved — not currently used; coupons are unconditionally hard-deletable) |
 | 409 | `COUPON_USAGE_LIMIT_REACHED` | Lost a race at order-commit time |
 | 409 | `ALREADY_CHECKED_IN` | Attendance unique-index violation (duplicate mark for same user+date) |

@@ -1,6 +1,8 @@
 import Task, { ITask } from '../../models/Task';
 import Employee from '../../models/Employee';
 import { createError } from '../../middleware/errorHandler';
+import { getIO } from '../../config/socket';
+import { paginate } from '../../lib/pagination';
 import type {
   CreateTaskDto,
   UpdateTaskDto,
@@ -40,9 +42,7 @@ function toResponse(task: ITask): TaskResponse {
 
 function emitTaskAssigned(taskId: string, assignedTo: string): void {
   try {
-    const { getIO } = require('../../config/socket');
-    const io = getIO();
-    io.emit('task:assigned', { taskId, assignedTo });
+    getIO().emit('task:assigned', { taskId, assignedTo });
   } catch {
     // Socket.io not initialized — skip real-time event
   }
@@ -70,7 +70,7 @@ export async function listTasks(query: ListTasksDto) {
     }
   }
 
-  const skip = (query.page - 1) * query.limit;
+  const { skip, limit } = paginate(query.page, query.limit);
 
   const [tasks, total] = await Promise.all([
     Task.find(filter)
@@ -78,24 +78,12 @@ export async function listTasks(query: ListTasksDto) {
       .populate('assignedBy', 'name')
       .sort(sortObj)
       .skip(skip)
-      .limit(query.limit)
+      .limit(limit)
       .lean(),
     Task.countDocuments(filter),
   ]);
 
-  const data = tasks.map((task) => ({
-    id: task._id.toString(),
-    title: task.title,
-    description: task.description,
-    assignedTo: task.assignedTo as unknown as { _id: string; name: string },
-    assignedBy: task.assignedBy as unknown as { _id: string; name: string },
-    priority: task.priority,
-    deadline: task.deadline instanceof Date ? task.deadline.toISOString() : String(task.deadline),
-    status: task.status,
-    completedAt: task.completedAt instanceof Date ? task.completedAt.toISOString() : undefined,
-    createdAt: task.createdAt instanceof Date ? task.createdAt.toISOString() : String(task.createdAt),
-    updatedAt: task.updatedAt instanceof Date ? task.updatedAt.toISOString() : String(task.updatedAt),
-  }));
+  const data = (tasks as unknown as ITask[]).map(toResponse);
 
   return {
     data,
@@ -113,19 +101,7 @@ export async function getTaskById(id: string) {
     throw createError(404, 'NOT_FOUND', 'Task not found');
   }
 
-  return {
-    id: task._id.toString(),
-    title: task.title,
-    description: task.description,
-    assignedTo: task.assignedTo as unknown as { _id: string; name: string },
-    assignedBy: task.assignedBy as unknown as { _id: string; name: string },
-    priority: task.priority,
-    deadline: task.deadline instanceof Date ? task.deadline.toISOString() : String(task.deadline),
-    status: task.status,
-    completedAt: task.completedAt instanceof Date ? task.completedAt.toISOString() : undefined,
-    createdAt: task.createdAt instanceof Date ? task.createdAt.toISOString() : String(task.createdAt),
-    updatedAt: task.updatedAt instanceof Date ? task.updatedAt.toISOString() : String(task.updatedAt),
-  };
+  return toResponse(task as unknown as ITask);
 }
 
 export async function createTask(dto: CreateTaskDto, userId: string) {

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { paginationSchema } from '../../lib/pagination';
 
 export const createTaskSchema = z.object({
   title: z.string().min(1, 'Title is required').max(200).trim(),
@@ -29,8 +30,7 @@ export const listTasksQuerySchema = z.object({
     'createdAt', '-createdAt',
     'priority', '-priority',
   ]).default('-createdAt'),
-  page: z.coerce.number().int().positive('Page must be a positive number').max(1000, 'Page number must not exceed 1000').default(1),
-  limit: z.coerce.number().int().positive('Limit must be a positive number').max(100, 'Limit must not exceed 100').default(20),
+  ...paginationSchema.shape,
 }).strict();
 
 export const objectIdParam = z.object({

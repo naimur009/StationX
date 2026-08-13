@@ -17,7 +17,7 @@ const incomeSchema = new Schema<IIncome>(
   {
     amount: { type: Number, required: true, min: 0 },
     date: { type: Date, required: true },
-    description: { type: String, trim: true, maxlength: 500 },
+    description: { type: String, required: true, trim: true, maxlength: 500 },
     category: { type: String, required: true, trim: true, maxlength: 100 },
     receivedFrom: { type: String, required: true, trim: true, maxlength: 200 },
     receivedBy: { type: Schema.Types.ObjectId, ref: 'Employee', required: true },

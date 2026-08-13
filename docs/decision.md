@@ -697,3 +697,30 @@ Pulling table management into v1 was low-risk because `architecture.md`'s Future
 - `frontend/src/features/employees/components/EmployeeForm.tsx` (NID No. input in create/edit form)
 
 **Reasoning:** API.md §14.5 already documented `nid` in its request/response examples, so the contract anticipated the field — the schema, model, and form were the gap. Adding it as a plain optional string keeps the field informational (BD NID numbers vary in length and format), matching the "optional contact detail" treatment of `address`.
+
+### [—] Income & Expenses — Code-Review Reconciliation — 2026-08-13
+
+**Open item resolved:** Two §12 prompt-conflict flags from the Income & Expenses code review — (1) Expense hard-delete: `AI_rules.md` §6 ("Expense never hard-deleted") vs `API.md` §15 ("Hard delete") vs `DATABASE.md` §1 (Expense listed in neither the soft- nor hard-delete column); (2) `Expense.paidBy` reference: `DATABASE.md` §3.15 said `ObjectId → User` while the model, service validation, reference-data endpoint, and UI all use `Employee`.
+
+**Decision:**
+1. **Expense is hard-deletable** — bless the implemented behavior (`DELETE /expenses/:id`, `findByIdAndDelete`). `Expense` added to the `DATABASE.md` §1 hard-delete list and to `AI_rules.md` §6's hard-delete-collections line; `Expense` removed from the "never hard-deleted" clause. The Settings reset/restore exception is unchanged (`AI_rules.md` §6, `DATABASE.md` §5.11).
+2. **`Expense.paidBy` references Employee** — `DATABASE.md` §3.15 and the §2 ER diagram updated (`paidBy → ObjectId → Employee`). Code unchanged — the dropdown semantics ("staff member who actually made the payment") and the parallel `Income.receivedBy → Employee` already matched the implementation.
+3. **Section renumbering (housekeeping)** — `DATABASE.md` had duplicate §3.14 (SalarySummary + ActivityLog) and §3.15 (Expense + Settings) headers: ActivityLog → §3.17, Settings → §3.18, Employee → §3.19. `API.md` references updated (§15 Expense → §3.15, §23 Settings → §3.18; a stale `DATABASE.md` §3.12 reference for `Expense.category` in §8 also corrected to §3.15).
+
+**Doc(s) updated:**
+- `API.md` §15 (documented `GET /expenses/reference-data`; fixed stale `DATABASE.md` §3.12 → §3.15), §25 (`dashboard:metricsInvalidate` trigger extended to "income created"), §26 (added `VENDOR_NOT_FOUND`, `EMPLOYEE_NOT_FOUND`), §23 (Settings §3.18 reference)
+- `database.md` §1 (hard-delete list + Expense), §2 (ER line `Expense ── paidBy → Employee`), §3.15 (`paidBy` → Employee), §3.17/§3.18/§3.19 (renumbered ActivityLog/Settings/Employee), §8 (stale §3.12 → §3.15)
+- `AI_rules.md` §6 (Expense moved to hard-delete collections; removed from the never-hard-deleted clause)
+- `decision.md` (this entry)
+
+**Files changed:**
+- `backend/src/modules/expenses/expenses.service.ts` (emit `dashboard:metricsInvalidate` after create per `API.md` §25; shared `paginate()` from `lib/pagination`; `toData` typed against `IExpense`; null-guard replacing `populated!`)
+- `backend/src/modules/incomes/incomes.service.ts` (same: emit after create, `paginate()`, `toData(IIncome)`, null-guard)
+- `backend/src/modules/expenses/expenses.validation.ts` / `backend/src/modules/incomes/incomes.validation.ts` (`paginationSchema` spread; `description` required per `DATABASE.md` §3.15/§3.16)
+- `backend/src/models/Expense.ts` / `backend/src/models/Income.ts` (`description` now `required: true`)
+- `backend/src/middleware/activityLogger.ts` (`incomes.created/updated/deleted` descriptions, mirroring `expenses.*`)
+- `frontend/src/features/expenses/{schema.ts,api.ts}` / `frontend/src/features/incomes/{schema.ts,api.ts}` (`.multipleOf(0.01)` on amount; required description; date as plain `YYYY-MM-DD` string per the CouponForm precedent; `DateRange` + payment-method enum param typing)
+- `frontend/src/features/expenses/components/ExpenseForm.tsx` / `frontend/src/features/incomes/components/IncomeForm.tsx` (`zodResolver(schema as never)` removed — resolver-inferred `useForm` typing like TaskForm; `ExpenseFormValues`/`IncomeFormValues`)
+- `frontend/src/features/expenses/components/ExpenseList.tsx` / `frontend/src/features/incomes/components/IncomeList.tsx` (unused `dateQueryString` removed; payment-filter state typed)
+
+**Reasoning:** The Expense hard-delete behavior and the `paidBy → Employee` reference both predate and contradict parts of the docs, and both were already the de-facto contract in `API.md` §15 and the implementation — per the review discipline the docs were amended to state the implemented behavior rather than reshaping code to a stale spec. The remaining code changes align the modules with already-documented contracts (socket trigger, error-code reference, shared pagination helper) and remove the `as never` escape hatch, mirroring the earlier Tasks module reconciliation.

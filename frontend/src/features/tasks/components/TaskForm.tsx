@@ -15,6 +15,14 @@ interface TaskFormProps {
   onClose: () => void;
 }
 
+interface TaskFormValues {
+  title?: string;
+  description?: string;
+  assignedTo?: string;
+  priority?: 'low' | 'medium' | 'high';
+  deadline?: Date;
+}
+
 export default function TaskForm({ open, task, onClose }: TaskFormProps) {
   const [error, setError] = useState<string | null>(null);
   const createTask = useCreateTask();
@@ -65,19 +73,29 @@ export default function TaskForm({ open, task, onClose }: TaskFormProps) {
     }
   }, [open, task, reset]);
 
-  async function onSubmit(data: Record<string, unknown>) {
+  async function onSubmit(data: TaskFormValues) {
     setError(null);
 
-    const payload = {
-      ...data,
-      description: data.description || undefined,
-    };
+    const description = data.description || undefined;
 
     try {
       if (isEdit && task) {
-        await updateTask.mutateAsync({ id: task.id, ...payload } as never);
+        await updateTask.mutateAsync({
+          id: task.id,
+          title: data.title ?? '',
+          description,
+          assignedTo: data.assignedTo ?? '',
+          priority: data.priority ?? 'medium',
+          deadline: data.deadline,
+        });
       } else {
-        await createTask.mutateAsync(payload as never);
+        await createTask.mutateAsync({
+          title: data.title ?? '',
+          description,
+          assignedTo: data.assignedTo ?? '',
+          priority: data.priority ?? 'medium',
+          deadline: data.deadline as Date,
+        });
       }
       reset();
       onClose();

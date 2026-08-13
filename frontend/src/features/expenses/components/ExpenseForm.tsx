@@ -15,6 +15,17 @@ interface ExpenseFormProps {
   onClose: () => void;
 }
 
+interface ExpenseFormValues {
+  amount?: number;
+  date?: string;
+  description?: string;
+  category?: string;
+  vendorId?: string | null;
+  paidBy?: string;
+  paidTo?: string;
+  paymentMethod?: 'cash' | 'card' | 'bkash' | 'nagad';
+}
+
 export default function ExpenseForm({ open, expense, onClose }: ExpenseFormProps) {
   const [error, setError] = useState<string | null>(null);
   const createExpense = useCreateExpense();
@@ -35,17 +46,8 @@ export default function ExpenseForm({ open, expense, onClose }: ExpenseFormProps
     reset,
     setValue,
     watch,
-  } = useForm<{
-    amount: number;
-    date: string;
-    description: string;
-    category: string;
-    vendorId?: string;
-    paidBy: string;
-    paidTo: string;
-    paymentMethod: 'cash' | 'card' | 'bkash' | 'nagad' | '';
-  }>({
-    resolver: zodResolver(schema as never),
+  } = useForm({
+    resolver: zodResolver(schema),
     defaultValues: {
       amount: 0,
       date: '',
@@ -54,7 +56,7 @@ export default function ExpenseForm({ open, expense, onClose }: ExpenseFormProps
       vendorId: '',
       paidBy: '',
       paidTo: '',
-      paymentMethod: '',
+      paymentMethod: undefined,
     },
   });
 
@@ -82,7 +84,7 @@ export default function ExpenseForm({ open, expense, onClose }: ExpenseFormProps
           vendorId: '',
           paidBy: '',
           paidTo: '',
-          paymentMethod: '',
+          paymentMethod: undefined,
         });
       }
       setError(null);
@@ -107,26 +109,17 @@ export default function ExpenseForm({ open, expense, onClose }: ExpenseFormProps
     }
   }, [selectedVendorId, autoFillPaidTo]);
 
-  async function onSubmit(data: {
-    amount: number;
-    date: string;
-    description: string;
-    category: string;
-    vendorId?: string;
-    paidBy: string;
-    paidTo: string;
-    paymentMethod: 'cash' | 'card' | 'bkash' | 'nagad' | '';
-  }) {
+  async function onSubmit(data: ExpenseFormValues) {
     setError(null);
 
     const payload = {
-      amount: data.amount,
-      date: data.date,
-      description: data.description,
-      category: data.category,
+      amount: data.amount ?? 0,
+      date: data.date ?? '',
+      description: data.description ?? '',
+      category: data.category ?? '',
       vendorId: data.vendorId || undefined,
-      paidBy: data.paidBy,
-      paidTo: data.paidTo,
+      paidBy: data.paidBy ?? '',
+      paidTo: data.paidTo ?? '',
       paymentMethod: data.paymentMethod as 'cash' | 'card' | 'bkash' | 'nagad',
     };
 
@@ -231,7 +224,7 @@ export default function ExpenseForm({ open, expense, onClose }: ExpenseFormProps
 
         <div>
           <label htmlFor="expense-description" className="mb-1.5 block text-sm font-medium text-slate-700">
-            Description
+            Description <span className="text-red-500">*</span>
           </label>
           <textarea
             id="expense-description"

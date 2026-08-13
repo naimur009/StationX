@@ -1,9 +1,11 @@
 import mongoose from 'mongoose';
-import Income from '../../models/Income';
+import Income, { IIncome } from '../../models/Income';
 import Employee from '../../models/Employee';
 import { createError } from '../../middleware/errorHandler';
+import { getIO } from '../../config/socket';
 import { escapeRegex } from '../../lib/escapeRegex';
 import { normalizeDateRange } from '../../lib/date-range';
+import { paginate } from '../../lib/pagination';
 import type {
   CreateIncomeDto,
   UpdateIncomeDto,
@@ -34,7 +36,7 @@ interface IncomeData {
   updatedAt: Date;
 }
 
-function toData(income: Record<string, unknown>): IncomeData {
+function toData(income: IIncome): IncomeData {
   return {
     id: String(income._id),
     amount: income.amount as number,
@@ -42,9 +44,9 @@ function toData(income: Record<string, unknown>): IncomeData {
     description: income.description as string,
     category: income.category as string,
     receivedFrom: income.receivedFrom as string,
-    receivedBy: income.receivedBy as PopulatedEmployee,
+    receivedBy: income.receivedBy as unknown as PopulatedEmployee,
     paymentMethod: income.paymentMethod as string,
-    createdBy: income.createdBy as PopulatedCreator,
+    createdBy: income.createdBy as unknown as PopulatedCreator,
     createdAt: income.createdAt as Date,
     updatedAt: income.updatedAt as Date,
   };
@@ -70,7 +72,7 @@ export async function listIncomes(query: ListIncomesQuery) {
     filter.receivedBy = new mongoose.Types.ObjectId(query.receivedBy);
   }
 
-  const skip = (query.page - 1) * query.limit;
+  const { skip, limit } = paginate(query.page, query.limit);
 
   const [incomes, total] = await Promise.all([
     Income.find(filter)
@@ -78,12 +80,12 @@ export async function listIncomes(query: ListIncomesQuery) {
       .populate('receivedBy', 'name')
       .populate('createdBy', 'name')
       .skip(skip)
-      .limit(query.limit)
+      .limit(limit)
       .lean(),
     Income.countDocuments(filter),
   ]);
 
-  const data = incomes.map((income) => toData(income as unknown as Record<string, unknown>));
+  const data = incomes.map((income) => toData(income as unknown as IIncome));
 
   return {
     data,
@@ -101,7 +103,7 @@ export async function getIncomeById(id: string) {
     throw createError(404, 'NOT_FOUND', 'Income not found');
   }
 
-  return toData(income as unknown as Record<string, unknown>);
+  return toData(income as unknown as IIncome);
 }
 
 export async function createIncome(dto: CreateIncomeDto, userId: string) {
@@ -115,12 +117,22 @@ export async function createIncome(dto: CreateIncomeDto, userId: string) {
     createdBy: userId,
   });
 
+  try {
+    getIO().emit('dashboard:metricsInvalidate');
+  } catch {
+    // Socket.io not initialized — skip real-time event
+  }
+
   const populated = await Income.findById(income._id)
     .populate('receivedBy', 'name email')
     .populate('createdBy', 'name')
     .lean();
 
-  return toData(populated! as unknown as Record<string, unknown>);
+  if (!populated) {
+    throw createError(500, 'INTERNAL_ERROR', 'Failed to load created income');
+  }
+
+  return toData(populated as unknown as IIncome);
 }
 
 export async function updateIncome(id: string, dto: UpdateIncomeDto) {
@@ -144,7 +156,7 @@ export async function updateIncome(id: string, dto: UpdateIncomeDto) {
     throw createError(404, 'NOT_FOUND', 'Income not found');
   }
 
-  return toData(updated as unknown as Record<string, unknown>);
+  return toData(updated as unknown as IIncome);
 }
 
 export async function getReferenceData() {

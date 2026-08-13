@@ -15,7 +15,7 @@
 | Primary key | MongoDB default `_id: ObjectId` on every collection |
 | Timestamps | `{ timestamps: true }` (Mongoose) → `createdAt`, `updatedAt` on every collection except `ActivityLog`, which is append-only and omits `updatedAt` |
 | Soft delete | `isActive: Boolean (default: true)` on **User, Customer** — entities referenced by historical records (Order, Expense, ActivityLog). Matches `ARCHITECTURE.md` §7. Vendor, Category, and Product use hard delete. `isActive` remains on Product as an availability toggle (POS catalog filtering), not a soft-delete flag. |
-| Hard delete | **Coupon, Task, Salary, Income** — no downstream historical references, may be physically removed. Salary deletion is blocked at the service layer if advances exist. |
+| Hard delete | **Coupon, Task, Salary, Income, Expense** — no downstream historical references, may be physically removed. Salary deletion is blocked at the service layer if advances exist. |
 | Reference naming | `<entity>Id` (e.g. `customerId`, `vendorId`), type `ObjectId` with `ref: '<Collection>'` |
 | Money fields | Stored as `Number`, decimal currency value (e.g. `199.50`), **not** integer minor units (paise/cents). **Assumption, flag if wrong:** the PRD doesn't specify multi-currency, so minor-unit storage isn't required for v1; all monetary math is rounded to 2 decimal places at the application layer (Zod `.multipleOf(0.01)`) before persisting, to satisfy the NFR "no rounding/discount errors." |
 | Enums | Stored as lowercase string literals, validated by Mongoose `enum` **and** mirrored in a shared Zod schema (per future `AI_RULES.md`) so frontend/backend never drift |
@@ -40,6 +40,7 @@ Product ──< OrderItem (embedded snapshot inside Order, productId reference r
 Coupon ──< Order (couponId, optional)
 
 Vendor ──< Expense (vendorId, optional)
+Expense ── paidBy → Employee
 
 Income ── receivedBy → Employee
 Income ── createdBy → User
@@ -373,7 +374,7 @@ Monthly salary summary per employee, computed from the salary record and all adj
 | `description` | String | ✓ | |
 | `category` | String | ✓ | free-text/select (e.g. "Utilities", "Ingredients", "Maintenance") — not its own collection; PRD doesn't request expense-category CRUD, unlike Product categories |
 | `vendorId` | ObjectId → Vendor | — | optional per §1 |
-| `paidBy` | ObjectId → User | ✓ | staff member who actually made the payment — may differ from `createdBy`, who only recorded the entry |
+| `paidBy` | ObjectId → Employee | ✓ | staff member who actually made the payment — may differ from `createdBy`, who only recorded the entry |
 | `paidTo` | String | ✓ | name of the recipient/payee; free text so it covers ad-hoc payments (e.g. a delivery rider, a utility company) not registered as a Vendor — when `vendorId` is set, this typically mirrors the vendor name for record consistency |
 | `paymentMethod` | String enum `cash \| card \| bkash \| nagad` | ✓ | how the expense was paid; same method set as `Order.payment.method` (minus `split`, since an expense is recorded as a single payment) for consistency across the app |
 | `createdBy` | ObjectId → User | ✓ | |
@@ -403,7 +404,7 @@ Records non-food miscellaneous income (e.g., scrap sales, plastic recycling, oth
 
 ---
 
-### 3.14 ActivityLog
+### 3.17 ActivityLog
 
 Append-only audit trail, written by the global `activityLogger` middleware (`ARCHITECTURE.md` §4) on every mutating request.
 
@@ -425,7 +426,7 @@ No `updatedAt` — log entries are immutable once written.
 
 ---
 
-### 3.15 Settings
+### 3.18 Settings
 
 Singleton — exactly one document for the whole restaurant (single-tenant per `ARCHITECTURE.md` §1).
 
@@ -444,7 +445,7 @@ Singleton — exactly one document for the whole restaurant (single-tenant per `
 
 ---
 
-### 3.17 Employee
+### 3.19 Employee
 
 Staff records managed by the Employees module (`API.md` §14.5). Separate from `User` accounts — an Employee document holds contact and salary-default data, while authentication/permissions live on `User`. Referenced by `Attendance.employee`, `Salary.employeeId`, `SalaryAdjustment.employeeId`, and `SalarySummary.employeeId`.
 
@@ -534,7 +535,7 @@ Mirrors `ARCHITECTURE.md` §13 — listed here only where it has a *specific* sc
 
 1. **ActivityLog `action` taxonomy** — the exact enum/string list (e.g. `order.completed`, `order.cancelled`, `user.created`, `product.deleted`, …) should be finalized when each module's endpoints are defined, so every mutating endpoint maps to exactly one action string.
 2. ~~**Settings.taxConfig mode** — confirm whether v1 needs `itemized` (per-category tax rates) or whether a single flat `rate` covers all current requirements; affects POS tax-calculation logic and `Order.taxAmount` derivation.~~ **RESOLVED:** The system uses a per-category VAT model (`Category.vatRate`). The old `taxConfig` has been removed. VAT is calculated per line item and is informational (does not inflate `grandTotal`).
-3. ~~**Expense.category values** — confirm whether this should be a fixed enum (cleaner filtering, matches "Filter expenses by category" in PRD Feature 9) or free text (more flexible, harder to filter cleanly). Leaning enum; needs sign-off before `API.md` defines the validation schema.~~ **RESOLVED:** free text, not enum. Both `DATABASE.md` §3.12 (field definition) and the §6 normalization note already describe `category` as free-text; confirmed during Expense implementation planning. See `tasks/implementation_plan.md`.
+3. ~~**Expense.category values** — confirm whether this should be a fixed enum (cleaner filtering, matches "Filter expenses by category" in PRD Feature 9) or free text (more flexible, harder to filter cleanly). Leaning enum; needs sign-off before `API.md` defines the validation schema.~~ **RESOLVED:** free text, not enum. Both `DATABASE.md` §3.15 (field definition) and the §6 normalization note already describe `category` as free-text; confirmed during Expense implementation planning. See `tasks/implementation_plan.md`.
 4. **Coupon `usageLimit` scope** — confirm whether the limit is global (current schema: total redemptions across all customers) or per-customer; the latter would require a `CouponRedemption` join collection instead of a single `usageCount` field.
 5. **One or multiple simultaneous orders per table?** The PRD implies one-to-one (a table → `booked` when a dine-in order targets it, → `available` when that order is paid/cancelled). However, a large table could theoretically host two separate parties on separate bills. **Assumption: one active order per table at a time.** The `currentOrderId` field and booking guard (rule 9) enforce this. Flag this assumption if split-bill-per-table is required — it would need a different model (e.g. a `TableSession` collection).
 6. **Should `Order` snapshot the table label for historical display?** Currently `Order.tableId` is a live reference — if a table is later renumbered or renamed, historical orders and bills would silently show the new label. **Recommendation: add `tableLabelSnapshot: String` to the Order schema** (similar to `OrderItem.nameSnapshot`), populated at order creation time from `Table.tableNumber`. This keeps historical bills accurate. `database.md` should adopt this; `API.md` should populate it. Flag if you prefer the simpler live-reference approach (no snapshot, accept the rename risk).

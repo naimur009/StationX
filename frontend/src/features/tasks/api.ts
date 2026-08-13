@@ -35,8 +35,8 @@ interface TasksListParams {
   page?: number;
   limit?: number;
   assignedTo?: string;
-  status?: string;
-  priority?: string;
+  status?: 'pending' | 'in_progress' | 'completed';
+  priority?: 'low' | 'medium' | 'high';
   sort?: string;
 }
 

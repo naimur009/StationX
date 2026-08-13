@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Calendar, User, Building2, CreditCard, FileText } from 'lucide-react';
+import { ArrowLeft, Calendar, User, Building2, CreditCard } from 'lucide-react';
 import { useExpense, useDeleteExpense, type ExpenseResponse } from '../api';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
