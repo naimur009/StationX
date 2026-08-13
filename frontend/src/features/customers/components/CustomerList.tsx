@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Search, ChevronLeft, ChevronRight, Edit3, Phone, Mail, MapPin, ShoppingBag, Trash2 } from 'lucide-react';
 import { useCustomersList, type CustomerResponse } from '../api';
 import { Button } from '@/components/ui/button';
+import PermissionGate from '@/components/shared/PermissionGate';
 
 interface CustomerListProps {
   onEdit: (customer: CustomerResponse) => void;
@@ -127,17 +128,21 @@ export default function CustomerList({ onEdit, onDelete, onCreate }: CustomerLis
                   </div>
                 </div>
                 <div className="mt-3 flex items-center justify-end gap-1.5">
-                  <button
-                    onClick={() => onEdit(customer)}
-                    className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-primary focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
-                    title="Edit customer"
-                  >
-                    <Edit3 className="h-4 w-4" />
-                  </button>
-                  <Button variant="destructive" size="xs" onClick={() => onDelete(customer)}>
-                    <Trash2 className="mr-1 h-3.5 w-3.5" />
-                    Delete
-                  </Button>
+                  <PermissionGate module="customers" action="edit">
+                    <button
+                      onClick={() => onEdit(customer)}
+                      className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-primary focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                      title="Edit customer"
+                    >
+                      <Edit3 className="h-4 w-4" />
+                    </button>
+                  </PermissionGate>
+                  <PermissionGate module="customers" action="delete">
+                    <Button variant="destructive" size="xs" onClick={() => onDelete(customer)}>
+                      <Trash2 className="mr-1 h-3.5 w-3.5" />
+                      Delete
+                    </Button>
+                  </PermissionGate>
                 </div>
               </div>
             ))}
@@ -177,17 +182,21 @@ export default function CustomerList({ onEdit, onDelete, onCreate }: CustomerLis
                     </td>
                     <td className="px-5 py-3.5">
                       <div className="flex items-center justify-end gap-2">
-                        <button
-                          onClick={() => onEdit(customer)}
-                          className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-primary focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
-                          title="Edit customer"
-                        >
-                          <Edit3 className="h-4 w-4" />
-                        </button>
-                        <Button variant="destructive" size="xs" onClick={() => onDelete(customer)}>
-                          <Trash2 className="mr-1 h-3.5 w-3.5" />
-                          Delete
-                        </Button>
+                        <PermissionGate module="customers" action="edit">
+                          <button
+                            onClick={() => onEdit(customer)}
+                            className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-primary focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                            title="Edit customer"
+                          >
+                            <Edit3 className="h-4 w-4" />
+                          </button>
+                        </PermissionGate>
+                        <PermissionGate module="customers" action="delete">
+                          <Button variant="destructive" size="xs" onClick={() => onDelete(customer)}>
+                            <Trash2 className="mr-1 h-3.5 w-3.5" />
+                            Delete
+                          </Button>
+                        </PermissionGate>
                       </div>
                     </td>
                   </tr>

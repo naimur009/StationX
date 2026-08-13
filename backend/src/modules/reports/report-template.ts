@@ -228,7 +228,7 @@ function renderProfitReport(data: Record<string, unknown>): string {
     ${renderSectionHeader('Salaries', 'Employee compensation for the period')}
 
     <div class="metrics-grid">
-      ${renderMetricCard('Total Salary', formatValue(salaries?.totalSalary as number, '৳'), '#64748b')}
+      ${renderMetricCard('Total Paid', formatValue(salaries?.totalPaid as number, '৳'), '#64748b')}
       ${renderMetricCard('Salary Records', String(salaries?.totalRecords ?? 0), '#64748b')}
     </div>`;
 
@@ -236,7 +236,7 @@ function renderProfitReport(data: Record<string, unknown>): string {
     html += `
       ${renderTable(salaryEmployees, [
         { key: 'employeeName', label: 'Employee' },
-        { key: 'baseSalary', label: 'Base Salary', align: 'right', format: (v) => formatValue(v as number, '৳') },
+        { key: 'totalPaid', label: 'Salary Paid', align: 'right', format: (v) => formatValue(v as number, '৳') },
         { key: 'status', label: 'Status' },
       ])}`;
   }
@@ -252,7 +252,7 @@ function renderProfitReport(data: Record<string, unknown>): string {
           <span>Revenue: ${formatValue(income?.totalRevenue, '৳')}</span>
           <span class="profit-plus">+ Other Income: ${formatValue(totalMiscIncome, '৳')}</span>
           <span class="profit-minus">- Expenses: ${formatValue(expenses?.totalExpenses as number, '৳')}</span>
-          <span class="profit-minus">- Salaries: ${formatValue(salaries?.totalSalary as number, '৳')}</span>
+          <span class="profit-minus">- Salaries Paid: ${formatValue(salaries?.totalPaid as number, '৳')}</span>
         </div>
       </div>
     </div>`;

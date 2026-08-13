@@ -10,11 +10,11 @@ import { Select } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { useEmployeeAttendanceMonth, useTodayStaff } from '../api';
 
-const STATUS_META: Record<string, { label: string; bg: string; dot: string; icon: React.ElementType }> = {
-  present: { label: 'Present', bg: 'bg-green-500', dot: 'bg-green-500', icon: Check },
-  absent: { label: 'Absent', bg: 'bg-red-500', dot: 'bg-red-500', icon: X },
-  late: { label: 'Late', bg: 'bg-amber-500', dot: 'bg-amber-500', icon: Clock },
-  'half-day': { label: 'Half Day', bg: 'bg-blue-500', dot: 'bg-blue-500', icon: Moon },
+const STATUS_META: Record<string, { label: string; bg: string; text: string; dot: string; icon: React.ElementType }> = {
+  present: { label: 'Present', bg: 'bg-green-100', text: 'text-green-700', dot: 'bg-green-500', icon: Check },
+  absent: { label: 'Absent', bg: 'bg-red-100', text: 'text-red-700', dot: 'bg-red-500', icon: X },
+  late: { label: 'Late', bg: 'bg-amber-100', text: 'text-amber-700', dot: 'bg-amber-500', icon: Clock },
+  'half-day': { label: 'Half Day', bg: 'bg-blue-100', text: 'text-blue-700', dot: 'bg-blue-500', icon: Moon },
 };
 
 const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -222,8 +222,8 @@ export default function AttendanceCalendar() {
                         <div key={cell.day} className="group relative">
                           <div
                             className={`flex h-9 w-full items-center justify-center rounded-lg text-sm font-semibold transition-all duration-100
-                              ${meta ? `${meta.bg} text-white shadow-sm` : cell.isPast ? 'bg-slate-100 text-slate-400' : 'bg-white text-slate-300'}
-                              ${cell.isToday && !meta ? 'ring-2 ring-blue-400 ring-offset-1' : ''}
+                              ${meta ? `${meta.bg} ${meta.text} shadow-sm` : cell.isPast ? 'bg-slate-100 text-slate-400' : 'bg-white text-slate-300'}
+                              ${cell.isToday && !meta ? 'ring-2 ring-ring ring-offset-1' : ''}
                               ${cell.isToday && meta ? 'ring-2 ring-white ring-offset-1' : ''}
                             `}
                           >

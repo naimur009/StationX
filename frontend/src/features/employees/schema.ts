@@ -5,7 +5,7 @@ export const createEmployeeSchema = z.object({
   phone: z.string().min(1, 'Phone is required').max(20),
   nid: z.string().max(30).optional().or(z.literal('')),
   address: z.string().max(200).optional().or(z.literal('')),
-  baseSalary: z.coerce.number().min(0).optional(),
+  baseSalary: z.coerce.number().min(0).multipleOf(0.01).optional(),
 });
 
 export const updateEmployeeSchema = z.object({
@@ -13,7 +13,7 @@ export const updateEmployeeSchema = z.object({
   phone: z.string().min(1, 'Phone is required').max(20).optional(),
   nid: z.string().max(30).optional().or(z.literal('')),
   address: z.string().max(200).optional().or(z.literal('')),
-  baseSalary: z.coerce.number().min(0).optional(),
+  baseSalary: z.coerce.number().min(0).multipleOf(0.01).optional(),
 });
 
 export type CreateEmployeeFormData = z.infer<typeof createEmployeeSchema>;

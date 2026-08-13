@@ -1,5 +1,4 @@
 import { Router } from 'express';
-import { z } from 'zod';
 import { authenticate } from '../../middleware/authenticate';
 import { authorize } from '../../middleware/authorize';
 import { validate } from '../../middleware/validate';
@@ -7,6 +6,7 @@ import {
   createEmployeeSchema,
   updateEmployeeSchema,
   listEmployeesSchema,
+  objectIdParam,
 } from './employees.validation';
 import {
   handleListEmployees,
@@ -15,8 +15,6 @@ import {
   handleUpdateEmployee,
   handleDeleteEmployee,
 } from './employees.controller';
-
-const objectIdParam = z.object({ id: z.string().min(1) });
 
 const router = Router();
 

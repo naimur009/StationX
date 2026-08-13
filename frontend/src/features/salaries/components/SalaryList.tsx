@@ -259,7 +259,7 @@ export default function SalaryList({ onAddAdvance, onViewDetail, onDelete, onPay
                           {totalBonus > 0 ? (
                             <span className="inline-flex items-center gap-1">
                               {formatCurrency(totalBonus)}
-                              <PermissionGate module="expenses" action="delete">
+                              <PermissionGate module="salary" action="delete">
                                 <button
                                   onClick={() => handleClearBonuses(row.employeeId)}
                                   className="rounded p-0.5 text-green-400 transition-colors hover:bg-green-100 hover:text-red-500"
@@ -275,7 +275,7 @@ export default function SalaryList({ onAddAdvance, onViewDetail, onDelete, onPay
                           {totalCut > 0 ? (
                             <span className="inline-flex items-center gap-1">
                               {formatCurrency(totalCut)}
-                              <PermissionGate module="expenses" action="delete">
+                              <PermissionGate module="salary" action="delete">
                                 <button
                                   onClick={() => handleClearCuts(row.employeeId)}
                                   className="rounded p-0.5 text-red-400 transition-colors hover:bg-red-100 hover:text-red-600"
@@ -304,7 +304,7 @@ export default function SalaryList({ onAddAdvance, onViewDetail, onDelete, onPay
                         </td>
                         <td className="px-4 py-3">
                           <div className="flex items-center justify-end gap-1">
-                            <PermissionGate module="expenses" action="create">
+                            <PermissionGate module="salary" action="create">
                               <button
                                 onClick={() => onPay(row.employeeId)}
                                 className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-green-600"
@@ -314,7 +314,7 @@ export default function SalaryList({ onAddAdvance, onViewDetail, onDelete, onPay
                               </button>
                             </PermissionGate>
                             {onAddBonus && (
-                              <PermissionGate module="expenses" action="create">
+                              <PermissionGate module="salary" action="create">
                                 <button
                                   onClick={() => onAddBonus(row.employeeId, monthFilter, yearFilter)}
                                   className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-green-600"
@@ -325,7 +325,7 @@ export default function SalaryList({ onAddAdvance, onViewDetail, onDelete, onPay
                               </PermissionGate>
                             )}
                             {onAddCut && (
-                              <PermissionGate module="expenses" action="create">
+                              <PermissionGate module="salary" action="create">
                                 <button
                                   onClick={() => onAddCut(row.employeeId, monthFilter, yearFilter)}
                                   className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-red-500"
@@ -358,7 +358,7 @@ export default function SalaryList({ onAddAdvance, onViewDetail, onDelete, onPay
                         {totalBonus > 0 ? (
                           <span className="inline-flex items-center gap-1">
                             {formatCurrency(totalBonus)}
-                            <PermissionGate module="expenses" action="delete">
+                            <PermissionGate module="salary" action="delete">
                               <button
                                 onClick={() => handleClearBonuses(salary.employeeId._id)}
                                 className="rounded p-0.5 text-green-400 transition-colors hover:bg-green-100 hover:text-red-500"
@@ -374,7 +374,7 @@ export default function SalaryList({ onAddAdvance, onViewDetail, onDelete, onPay
                         {totalCut > 0 ? (
                           <span className="inline-flex items-center gap-1">
                             {formatCurrency(totalCut)}
-                            <PermissionGate module="expenses" action="delete">
+                            <PermissionGate module="salary" action="delete">
                               <button
                                 onClick={() => handleClearCuts(salary.employeeId._id)}
                                 className="rounded p-0.5 text-red-400 transition-colors hover:bg-red-100 hover:text-red-600"
@@ -415,7 +415,7 @@ export default function SalaryList({ onAddAdvance, onViewDetail, onDelete, onPay
                             <Eye className="h-4 w-4" />
                           </button>
                           {getPaymentState(row) === 'unpaid' && (
-                            <PermissionGate module="expenses" action="create">
+                            <PermissionGate module="salary" action="create">
                               <button
                                 onClick={() => onPay(salary.employeeId._id)}
                                 className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-green-600"
@@ -426,7 +426,7 @@ export default function SalaryList({ onAddAdvance, onViewDetail, onDelete, onPay
                             </PermissionGate>
                           )}
                           {getPaymentState(row) !== 'paid' && (
-                            <PermissionGate module="expenses" action="edit">
+                            <PermissionGate module="salary" action="edit">
                               <button
                                 onClick={() => onAddAdvance(salary)}
                                 className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-green-600"
@@ -437,7 +437,7 @@ export default function SalaryList({ onAddAdvance, onViewDetail, onDelete, onPay
                             </PermissionGate>
                           )}
                           {onAddBonus && (
-                            <PermissionGate module="expenses" action="create">
+                            <PermissionGate module="salary" action="create">
                               <button
                                 onClick={() => onAddBonus(salary.employeeId._id, salary.month, salary.year)}
                                 className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-green-600"
@@ -448,7 +448,7 @@ export default function SalaryList({ onAddAdvance, onViewDetail, onDelete, onPay
                             </PermissionGate>
                           )}
                           {onAddCut && (
-                            <PermissionGate module="expenses" action="create">
+                            <PermissionGate module="salary" action="create">
                               <button
                                 onClick={() => onAddCut(salary.employeeId._id, salary.month, salary.year)}
                                 className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-red-500"
@@ -458,7 +458,7 @@ export default function SalaryList({ onAddAdvance, onViewDetail, onDelete, onPay
                               </button>
                             </PermissionGate>
                           )}
-                          <PermissionGate module="expenses" action="delete">
+                          <PermissionGate module="salary" action="delete">
                               <button
                                 onClick={() => onDelete(salary)}
                                 className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-red-500"

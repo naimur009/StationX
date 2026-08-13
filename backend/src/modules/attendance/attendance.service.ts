@@ -2,10 +2,11 @@ import Attendance, { IAttendance } from '../../models/Attendance';
 import Employee from '../../models/Employee';
 import { createError } from '../../middleware/errorHandler';
 import { escapeRegex } from '../../lib/escapeRegex';
+import { paginate } from '../../lib/pagination';
+import { getIO } from '../../config/socket';
 import type {
   CreateAttendanceDto,
   BatchAttendanceDto,
-  BatchAttendanceRecord,
   UpdateAttendanceDto,
   ListAttendanceQueryDto,
 } from './attendance.validation';
@@ -57,10 +58,10 @@ interface BatchResult {
   errors: Array<{ employeeId: string; code: string; message: string }>;
 }
 
-function formatLocalDate(d: Date): string {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
+function formatDate(d: Date): string {
+  const y = d.getUTCFullYear();
+  const m = String(d.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(d.getUTCDate()).padStart(2, '0');
   return `${y}-${m}-${day}`;
 }
 
@@ -70,7 +71,7 @@ function toResponse(record: IAttendance): AttendanceResponse {
   return {
     id: record._id.toString(),
     employee,
-    date: record.date instanceof Date ? formatLocalDate(record.date) : String(record.date),
+    date: record.date instanceof Date ? formatDate(record.date) : String(record.date),
     status: record.status,
     checkInAt: record.checkInAt instanceof Date ? record.checkInAt.toISOString() : null,
     checkOutAt: record.checkOutAt instanceof Date ? record.checkOutAt.toISOString() : null,
@@ -84,23 +85,13 @@ function toResponse(record: IAttendance): AttendanceResponse {
 function normalizeDate(input?: Date | string): Date {
   if (!input) {
     const now = new Date();
-    return new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    return new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
   }
   if (typeof input === 'string') {
     const parts = input.split('T')[0].split('-');
-    return new Date(+parts[0], +parts[1] - 1, +parts[2]);
+    return new Date(Date.UTC(+parts[0], +parts[1] - 1, +parts[2]));
   }
-  return new Date(input.getUTCFullYear(), input.getUTCMonth(), input.getUTCDate());
-}
-
-function tryEmit(event: string, data: Record<string, unknown>): void {
-  try {
-    const { getIO } = require('../../config/socket');
-    const io = getIO();
-    io.emit(event, data);
-  } catch {
-    // socket not available
-  }
+  return new Date(Date.UTC(input.getUTCFullYear(), input.getUTCMonth(), input.getUTCDate()));
 }
 
 export async function getTodayStaff(queryDate?: string): Promise<TodayResponse> {
@@ -156,7 +147,7 @@ export async function getTodayStaff(queryDate?: string): Promise<TodayResponse> 
   const total = allEmployees.length;
 
   return {
-    date: date.toISOString(),
+    date: formatDate(date),
     summary: { present, absent, late, halfDay, unmarked, total },
     staff,
   };
@@ -185,11 +176,15 @@ export async function markAttendance(dto: CreateAttendanceDto, authenticatedUser
     await record.populate('employee', 'name');
     await record.populate('markedBy', 'name');
 
-    tryEmit('attendance:marked', {
-      employeeId: dto.employeeId,
-      date: date.toISOString(),
-      status: dto.status,
-    });
+    try {
+      getIO().emit('attendance:marked', {
+        employeeId: dto.employeeId,
+        date: formatDate(date),
+        status: dto.status,
+      });
+    } catch {
+      // socket not available
+    }
 
     return toResponse(record);
   } catch (error: unknown) {
@@ -277,11 +272,19 @@ export async function batchMarkAttendance(dto: BatchAttendanceDto, authenticated
   }
 
   if (result.created > 0) {
-    tryEmit('attendance:marked', {
-      batch: true,
-      date: date.toISOString(),
-      count: result.created,
-    });
+    const failedIds = new Set(result.errors.map((e) => e.employeeId));
+    for (const record of attendanceRecords) {
+      if (failedIds.has(record.employee)) continue;
+      try {
+        getIO().emit('attendance:marked', {
+          employeeId: record.employee,
+          date: formatDate(date),
+          status: record.status,
+        });
+      } catch {
+        // socket not available
+      }
+    }
   }
 
   return result;
@@ -303,12 +306,15 @@ export async function updateAttendance(id: string, dto: UpdateAttendanceDto) {
   await record.populate('employee', 'name');
   await record.populate('markedBy', 'name');
 
-  tryEmit('attendance:updated', {
-    id: record._id.toString(),
-    employeeId: record.employee._id,
-    date: record.date.toISOString(),
-    status: record.status,
-  });
+  try {
+    getIO().emit('attendance:updated', {
+      employeeId: record.employee._id,
+      date: formatDate(record.date),
+      status: record.status,
+    });
+  } catch {
+    // socket not available
+  }
 
   return toResponse(record);
 }
@@ -348,7 +354,7 @@ export async function listAttendance(query: ListAttendanceQueryDto) {
     filter.date = dateFilter;
   }
 
-  const skip = (query.page - 1) * query.limit;
+  const { skip, limit } = paginate(query.page, query.limit);
 
   const [records, total] = await Promise.all([
     Attendance.find(filter)
@@ -356,7 +362,7 @@ export async function listAttendance(query: ListAttendanceQueryDto) {
       .populate('markedBy', 'name')
       .sort({ date: -1, createdAt: -1 })
       .skip(skip)
-      .limit(query.limit)
+      .limit(limit)
       .lean(),
     Attendance.countDocuments(filter),
   ]);

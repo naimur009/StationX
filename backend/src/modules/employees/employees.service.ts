@@ -5,6 +5,8 @@ import SalaryAdjustment from '../../models/SalaryAdjustment';
 import SalarySummary from '../../models/SalarySummary';
 import { createError } from '../../middleware/errorHandler';
 import { withTransaction } from '../../lib/transaction';
+import { escapeRegex } from '../../lib/escapeRegex';
+import { paginate } from '../../lib/pagination';
 import type {
   CreateEmployeeDto,
   UpdateEmployeeDto,
@@ -39,14 +41,13 @@ export async function listEmployees(query: ListEmployeesDto) {
   const filter: Record<string, unknown> = {};
 
   if (query.search) {
-    const safe = query.search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    filter.name = { $regex: safe, $options: 'i' };
+    filter.name = { $regex: escapeRegex(query.search), $options: 'i' };
   }
 
-  const skip = (query.page - 1) * query.limit;
+  const { skip, limit } = paginate(query.page, query.limit);
 
   const [employees, total] = await Promise.all([
-    Employee.find(filter).sort({ createdAt: -1 }).skip(skip).limit(query.limit).lean(),
+    Employee.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
     Employee.countDocuments(filter),
   ]);
 

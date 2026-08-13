@@ -286,12 +286,14 @@ Base path: `/tables`. **Permission module key:** `tables`.
 
 | Method | Path | Action | Description |
 |---|---|---|---|
-| GET | `/tables` | `view` | List all tables with live status, for the floor-plan grid |
-| GET | `/tables/:id` | `view` | Single table detail, including populated `currentOrderId` if booked |
+| GET | `/tables?status=` | `view` | List all tables with live status, for the floor-plan grid (optional `status` filter; returns the full set — no pagination) |
+| GET | `/tables/:id` | `view` | Single table detail, including the referencing `currentOrderId` (ObjectId string) if booked |
 | POST | `/tables` | `create` | Add a new physical table (`tableNumber`, `capacity`) |
 | PUT | `/tables/:id` | `edit` | Edit `tableNumber` / `capacity` |
 | PATCH | `/tables/:id/status` | `edit` | Manual status override — `{ status: "available" \| "booked", notes? }` |
-| DELETE | `/tables/:id` | `delete` | Remove a table — **rejects** with `409 TABLE_IN_USE` if `currentOrderId` is non-null |
+| DELETE | `/tables/:id` | `delete` | Remove a table — **rejects** with `409 TABLE_IN_USE` while a live (non-completed, non-cancelled) order references it |
+
+> `GET /tables` returns the complete table set (no pagination) — the floor grid needs every table, and `tableCount` is capped at 100 (`DATABASE.md` §3.18), so a fixed 50-row default would silently truncate the grid.
 
 ```json
 // POST /tables request
@@ -377,20 +379,20 @@ Base path: `/attendance`. **Permission module key:** `attendance`. No `delete` a
 
 Base path: `/employees`. **Permission module key:** `employees`.
 
-Manages restaurant staff records. Employees are users with role `employee` or `manager`. Each employee record includes contact information and a default base salary used as a preset when creating monthly salary records in the Salaries sub-feature (§17.1).
+Manages restaurant staff records. Employee documents hold contact and salary-default data and are **separate from `User` accounts** — authentication and permissions live on `User`, which is managed by the Users module (`DATABASE.md` §3.19). Each employee record includes contact information and a default base salary used as a preset when creating monthly salary records in the Salaries sub-feature (§17.1).
 
 | Method | Path | Action | Description |
 |---|---|---|---|
-| GET | `/employees?search=&page=&limit=` | `view` | List employees (filters to `employee`/`manager` roles, active only by default) |
+| GET | `/employees?search=&page=&limit=` | `view` | List, paginated, with case-insensitive name search (regex-escaped) |
 | GET | `/employees/:id` | `view` | Single employee detail |
-| POST | `/employees` | `create` | Create employee account (creates a User with role `employee`) |
+| POST | `/employees` | `create` | Create employee record — does **not** create a `User` account (`DATABASE.md` §3.19) |
 | PUT | `/employees/:id` | `edit` | Update employee info |
-| DELETE | `/employees/:id` | `delete` | Hard-delete employee (removes the User document) |
+| DELETE | `/employees/:id` | `delete` | **Hard-delete** the employee **and cascade-delete** all related Attendance, Salary, SalaryAdjustment, and SalarySummary records in one Mongo transaction (`DATABASE.md` §5) — no `User` document is touched |
 
 ```json
 // POST /employees request
-{ "name": "John Doe", "phone": "+8801712345678", "email": "john@restaurant.com",
-  "address": "123 Main Street, Dhaka", "nid": "1234567890", "baseSalary": 10000, "password": "Secret123" }
+{ "name": "John Doe", "phone": "+8801712345678",
+  "address": "123 Main Street, Dhaka", "nid": "1234567890", "baseSalary": 10000 }
 ```
 
 ```json
@@ -401,12 +403,9 @@ Manages restaurant staff records. Employees are users with role `employee` or `m
       "id": "...",
       "name": "John Doe",
       "phone": "+8801712345678",
-      "email": "john@restaurant.com",
-      "address": "123 Main Street, Dhaka",
       "nid": "1234567890",
+      "address": "123 Main Street, Dhaka",
       "baseSalary": 10000,
-      "role": "employee",
-      "isActive": true,
       "createdAt": "2026-07-01T10:00:00.000Z",
       "updatedAt": "2026-07-01T10:00:00.000Z"
     }
@@ -415,9 +414,9 @@ Manages restaurant staff records. Employees are users with role `employee` or `m
 }
 ```
 
-> **Email is optional.** When creating an employee without an email, a placeholder (`{phone}@employee.local`) is generated automatically to satisfy the User model's email requirement.
->
 > **Base salary** is a per-employee default rate, distinct from per-month `baseSalary` tracked in the Salary collection (§17.1). When creating a monthly salary record, this value can be used as a pre-fill.
+>
+> **Cascade delete:** hard-deleting an employee removes all related Attendance, Salary, SalaryAdjustment, and SalarySummary records in one Mongo transaction (`DATABASE.md` §5). Employee and `User` are independent collections — deleting an employee never deletes or modifies a `User` document.
 
 ---
 
@@ -487,16 +486,18 @@ Manages non-food miscellaneous income (e.g., scrap sales, plastic recycling, oth
 
 ## 17. Salaries
 
-Manages employee monthly salary records with advance tracking. `baseSalary` is fixed per employee (from the Employee record, not user-entered). When creating a salary record, `paidAmount` is entered instead — it creates the first advance automatically. `remainingBalance` = `baseSalary` - sum of all advances. Uses the `expenses` permission module key.
+Manages employee monthly salary records with advance tracking. `baseSalary` is fixed per employee (from the Employee record, not user-entered). When creating a salary record, `paidAmount` is entered instead — it creates the first advance automatically. `remainingBalance` = `baseSalary` - sum of all advances. Uses the `salary` permission module key.
 
 | Method | Path | Action | Description |
 |---|---|---|---|
-| GET | `/salaries?month=&year=&employeeId=&status=` | `expenses:view` | List salary records |
-| GET | `/salaries/:id` | `expenses:view` | Detail with advance history |
-| POST | `/salaries` | `expenses:create` | Create a monthly salary record |
-| PATCH | `/salaries/:id/advance` | `expenses:edit` | Add an advance (partial salary payment) |
-| PATCH | `/salaries/:id/status` | `expenses:edit` | Update status (`active` → `paid` or `cancelled`) |
-| DELETE | `/salaries/:id` | `expenses:delete` | Delete — blocked if advances exist |
+| GET | `/salaries?month=&year=&employeeId=&status=` | `salary:view` | List salary records |
+| GET | `/salaries/report?month=&year=` | `salary:view` | Monthly salary report with per-employee and grand totals |
+| GET | `/salaries/report/employee/:employeeId?year=` | `salary:view` | Month-by-month salary report for a single employee |
+| GET | `/salaries/:id` | `salary:view` | Detail with advance history |
+| POST | `/salaries` | `salary:create` | Create a monthly salary record |
+| PATCH | `/salaries/:id/advance` | `salary:edit` | Add an advance (partial salary payment) |
+| PATCH | `/salaries/:id/status` | `salary:edit` | Update status (`active` → `paid` or `cancelled`) |
+| DELETE | `/salaries/:id` | `salary:delete` | Delete — blocked if advances exist; pass `?force=true` to hard-delete a record that has advances (for correcting mistaken entries) |
 
 ```json
 // POST /salaries request
@@ -516,7 +517,7 @@ Manages employee monthly salary records with advance tracking. `baseSalary` is f
   "data": [
     {
       "id": "...",
-      "employeeId": { "_id": "...", "name": "John", "email": "john@restaurant.com" },
+      "employeeId": { "_id": "...", "name": "John" },
       "baseSalary": 10000,
       "month": 6,
       "year": 2026,
@@ -532,16 +533,19 @@ Manages employee monthly salary records with advance tracking. `baseSalary` is f
 }
 ```
 
+> `paidAt` is set automatically when the salary record becomes `paid` — on creation with full `paidAmount`, when advances complete the base salary, or via `PATCH /salaries/:id/status` → `paid`. It is returned on the detail, list, and both report endpoints so the report's `paid` state can be traced to an actual payment date.
+
 ### 17.1 Salary Adjustments (Bonus / Cut)
 
-Manages bonuses (positive adjustments) and salary cuts/deductions for employees. Each adjustment is a single record with a type, amount, and reason. Uses the `expenses` permission module key.
+Manages bonuses (positive adjustments) and salary cuts/deductions for employees. Each adjustment is a single record with a type, amount, and reason. Uses the `salary` permission module key.
 
 | Method | Path | Action | Description |
 |---|---|---|---|
-| GET | `/salary-adjustments?employeeId=&salaryId=&type=&month=&year=` | `expenses:view` | List adjustments (bonuses/cuts) |
-| GET | `/salary-adjustments/:id` | `expenses:view` | Single adjustment detail |
-| POST | `/salary-adjustments` | `expenses:create` | Create a bonus or cut adjustment |
-| DELETE | `/salary-adjustments/:id` | `expenses:delete` | Delete an adjustment |
+| GET | `/salary-adjustments?employeeId=&salaryId=&type=&month=&year=` | `salary:view` | List adjustments (bonuses/cuts) |
+| GET | `/salary-adjustments/:id` | `salary:view` | Single adjustment detail |
+| POST | `/salary-adjustments` | `salary:create` | Create a bonus or cut adjustment |
+| PATCH | `/salary-adjustments/:id` | `salary:edit` | Update an adjustment (type/amount/reason/date) |
+| DELETE | `/salary-adjustments/:id` | `salary:delete` | Delete an adjustment |
 
 ```json
 // POST /salary-adjustments request
@@ -590,11 +594,11 @@ Manages bonuses (positive adjustments) and salary cuts/deductions for employees.
 
 ### 17.2 Salary Summary
 
-Read-only endpoint that computes or retrieves a monthly salary summary for an employee, including total salary, total bonus, total cut, total paid, and net salary. Uses the `expenses:view` permission.
+Read-only endpoint that computes or retrieves a monthly salary summary for an employee, including total salary, total bonus, total cut, total paid, and net salary. Uses the `salary:view` permission.
 
 | Method | Path | Action | Description |
 |---|---|---|---|
-| GET | `/salary-summary?employeeId=&month=&year=` | `expenses:view` | Get salary summary for an employee/period |
+| GET | `/salary-summary?employeeId=&month=&year=` | `salary:view` | Get salary summary for an employee/period |
 
 ```json
 // GET /salary-summary?employeeId=xxx&month=7&year=2026 response
@@ -613,7 +617,7 @@ Read-only endpoint that computes or retrieves a monthly salary summary for an em
 }
 ```
 
-The summary is auto-created on first query if it doesn't exist, computed from the salary record + all adjustments. To refresh, re-query.
+The summary is recomputed from the salary record + all adjustments and upserted on every query, so it always reflects the latest advances and adjustments.
 
 ---
 
@@ -676,6 +680,7 @@ Base path: `/customers`. **Permission module key:** `customers`. Standard CRUD w
 | GET | `/customers?search=` | `view` | List/search by name or phone (text index, `DATABASE.md` §4) |
 | GET | `/customers/:id` | `view` | Detail — `?includeOrders=true` populates recent `Order` history via `customerId` |
 | POST | `/customers` | `create` | Create |
+| POST | `/customers/save-or-find` | `create` | Find by phone — returns the existing customer with the given `phone`, or creates a new one when none exists (name required to create) |
 | PUT | `/customers/:id` | `edit` | Edit — previous field values are automatically pushed to the customer's `history` array |
 | DELETE | `/customers/:id` | `delete` | **Hard delete** — permanently removes the customer document |
 
@@ -714,7 +719,9 @@ Base path: `/customers`. **Permission module key:** `customers`. Standard CRUD w
 }
 ```
 
-> **Cross-module note:** a cashier attaching a customer to a sale during POS checkout calls this module's `GET`/`POST`, gated by the *Customers* permission — not a `pos`-scoped duplicate. A staff member without `customers:create` can still complete a walk-in order (`customerId: null`); they just can't attach/register a new customer inline.
+> **Cross-module note:** a cashier attaching a customer to a sale during POS checkout calls this module's `GET /customers?search=` (lookup) and `POST /customers/save-or-find` (attach/register), gated by the *Customers* permission — not a `pos`-scoped duplicate. A staff member without `customers:create` can still complete a walk-in order (`customerId: null`); they just can't attach/register a new customer inline.
+>
+> **`POST /customers/save-or-find`:** looks up by `phone` first — if a customer with that phone exists, it is returned unchanged (`200`); if not, a new customer is created from the provided fields (`name` required for creation, `orderCount: 0`) and returned. Response is `{ "data": { ...customer } }`.
 >
 > **Phone is the primary customer identifier.** When a POS order is created (`POST /pos/orders`) with `customerPhone` filled in, the server looks up by phone. If found, the customer's name is updated (if provided, old name pushed to `history`) and `orderCount` is incremented — no name-matching required. If not found, a new customer is created with `orderCount: 1`. This ensures customer records stay current without manual data-entry overhead.
 
@@ -750,12 +757,12 @@ Sales report excludes cancelled orders via the shared aggregation helper from §
     ]
   },
   "expenses": { "totalExpenses": 45000, "totalEntries": 28, "byCategory": [...] },
-  "salaries": { "totalSalary": 60000, "totalRecords": 5, "byEmployee": [...] },
+  "salaries": { "totalPaid": 60000, "totalRecords": 5, "byEmployee": [...] },
   "profit": 50000
 }
 ```
 
-Profit is calculated as: `profit = totalRevenue + totalMiscIncome - totalExpenses - totalSalary`.
+Profit is calculated as: `profit = totalRevenue + totalMiscIncome - totalExpenses - totalPaid`, where `salaries.totalPaid` is the sum of **paid salary amounts** (advances) in the period — not the full contracted base salaries. `byEmployee` contains `{ employeeName, totalPaid, status }` per salary record, with `totalPaid` being the advance sum of that record.
 
 > `totalMiscIncome` aggregates non-order miscellaneous income from the `/incomes` module. The `byMiscCategory` array provides a category-level breakdown of those entries. Both fields are `0` / empty when no Income records exist for the period.
 
@@ -893,9 +900,10 @@ Single namespace, all authenticated dashboard clients join one shared room — n
 | 409 | `PRODUCT_IN_USE` | (reserved — not currently used; products are unconditionally hard-deletable per §19) |
 | 409 | `SALARY_ALREADY_EXISTS` | Salary record for this employee/month/year already exists |
 | 409 | `TABLE_ALREADY_BOOKED` | Attempt to create a dine-in order on a table that is already booked by a different active order |
-| 409 | `TABLE_IN_USE` | Attempt to hard-delete a Table whose `currentOrderId` is non-null |
-| 409 | `SALARY_HAS_ADVANCES` | Cannot delete a salary record that has advances |
-| 400 | `INVALID_SALARY_STATUS` | Can only add advances to active salary records |
+| 409 | `TABLE_IN_USE` | Attempt to hard-delete a Table while a live (non-completed, non-cancelled) order references it via `currentOrderId` — a stale reference to a completed/cancelled order does not block deletion |
+| 409 | `TABLE_NUMBER_IN_USE` | Duplicate `tableNumber` on `POST /tables` or `PUT /tables/:id` (unique index) |
+| 409 | `SALARY_HAS_ADVANCES` | Cannot delete a salary record that has advances — unless the delete is forced via `?force=true` (hard delete) |
+| 400 | `INVALID_SALARY_STATUS` | Can only add advances to active salary records, or transition a salary record's status from `active` |
 | 400 | `EXCEEDS_SALARY` | Payment exceeds the employee base salary — initial `paidAmount` on `POST /salaries` or an advance on `PATCH /salaries/:id/advance`. Extra pay beyond the base salary must use the bonus adjustment (`POST /salary-adjustments`) |
 | 400 | `ADJUSTMENT_EXCEEDS_SALARY` | Cut amount exceeds base salary |
 | 400 | `HAS_ADVANCES` | Cannot cancel a salary record with advances |

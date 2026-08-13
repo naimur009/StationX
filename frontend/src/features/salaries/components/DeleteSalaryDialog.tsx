@@ -18,14 +18,17 @@ interface DeleteSalaryDialogProps {
 
 export default function DeleteSalaryDialog({ salary, onClose }: DeleteSalaryDialogProps) {
   const [error, setError] = useState<string | null>(null);
+  const [forceConfirmed, setForceConfirmed] = useState(false);
   const deleteSalary = useDeleteSalary();
+
+  const hasAdvances = (salary?.advances.length ?? 0) > 0;
 
   async function handleConfirm() {
     if (!salary) return;
     setError(null);
 
     try {
-      await deleteSalary.mutateAsync(salary.id);
+      await deleteSalary.mutateAsync({ id: salary.id, force: hasAdvances });
       onClose();
     } catch (err) {
       if (err instanceof AppError) {
@@ -38,6 +41,7 @@ export default function DeleteSalaryDialog({ salary, onClose }: DeleteSalaryDial
 
   function handleClose() {
     setError(null);
+    setForceConfirmed(false);
     onClose();
   }
 
@@ -51,7 +55,7 @@ export default function DeleteSalaryDialog({ salary, onClose }: DeleteSalaryDial
     <Dialog
       open={!!salary}
       onClose={handleClose}
-      title="Delete Salary Record"
+      title={hasAdvances ? 'Hard Delete Salary Record' : 'Delete Salary Record'}
       size="sm"
       footer={
         <>
@@ -63,9 +67,9 @@ export default function DeleteSalaryDialog({ salary, onClose }: DeleteSalaryDial
             variant="destructive"
             size="md"
             onClick={handleConfirm}
-            disabled={deleteSalary.isPending}
+            disabled={deleteSalary.isPending || (hasAdvances && !forceConfirmed)}
           >
-            {deleteSalary.isPending ? 'Deleting\u2026' : 'Delete'}
+            {deleteSalary.isPending ? 'Deleting\u2026' : hasAdvances ? 'Hard Delete' : 'Delete'}
           </Button>
         </>
       }
@@ -93,6 +97,27 @@ export default function DeleteSalaryDialog({ salary, onClose }: DeleteSalaryDial
             Status: {salary.status.charAt(0).toUpperCase() + salary.status.slice(1)}
           </div>
         </div>
+
+        {hasAdvances && (
+          <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+            This record has {salary.advances.length} advance(s) totalling{' '}
+            {formatCurrency(salary.advances.reduce((sum, a) => sum + a.amount, 0))}. Deletion is
+            blocked by default — use the hard delete only to correct a mistaken entry (e.g. a wrong
+            paid amount). The record and all its advances will be permanently removed.
+          </div>
+        )}
+
+        <label className="flex items-start gap-2 text-sm text-slate-600">
+          <input
+            type="checkbox"
+            checked={forceConfirmed}
+            onChange={(e) => setForceConfirmed(e.target.checked)}
+            className="mt-0.5 h-4 w-4 rounded border-slate-300 text-red-600 focus:ring-red-500"
+          />
+          <span>
+            I understand this will permanently delete the record{hasAdvances ? ' and its advances' : ''}. This action cannot be undone.
+          </span>
+        </label>
 
         <p className="text-xs text-red-500">
           This will permanently delete this salary record. This action cannot be undone.

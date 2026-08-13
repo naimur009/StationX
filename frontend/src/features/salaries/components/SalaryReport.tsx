@@ -29,6 +29,11 @@ function formatCurrency(amount: number): string {
   return `৳${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
+function formatDate(dateStr?: string): string {
+  if (!dateStr) return '—';
+  return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
 export default function SalaryReport() {
   const now = new Date();
   const [monthFilter, setMonthFilter] = useState<number>(now.getMonth() + 1);
@@ -137,14 +142,14 @@ export default function SalaryReport() {
         </div>
       ) : (
         <>
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-5">
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
             <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
               <span className="text-xs text-slate-500">Employees</span>
               <p className="mt-1 text-xl sm:text-2xl font-bold text-slate-800">{report.employeeCount}</p>
             </div>
             <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-              <span className="text-xs text-slate-500">Total Salary</span>
-              <p className="mt-1 text-xl sm:text-2xl font-bold text-slate-800">{formatCurrency(report.grandTotalBaseSalary)}</p>
+              <span className="text-xs text-slate-500">Total Paid</span>
+              <p className="mt-1 text-xl sm:text-2xl font-bold text-green-600">{formatCurrency(report.grandTotalPaid)}</p>
             </div>
             <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
               <span className="text-xs text-slate-500">Total Bonus</span>
@@ -165,11 +170,11 @@ export default function SalaryReport() {
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-50 text-xs font-semibold uppercase text-slate-500">
                   <th className="px-4 py-3">Employee</th>
-                  <th className="px-4 py-3">Base Salary</th>
+                  <th className="px-4 py-3">Salary Paid</th>
                   <th className="px-4 py-3">Bonus</th>
                   <th className="px-4 py-3">Cut</th>
                   <th className="px-4 py-3">Net</th>
-                  <th className="px-4 py-3">Paid</th>
+                  <th className="px-4 py-3">Paid Date</th>
                   <th className="px-4 py-3">Status</th>
                 </tr>
               </thead>
@@ -182,8 +187,8 @@ export default function SalaryReport() {
                   filteredEmployees.map((emp, idx) => (
                     <tr key={emp.employeeId + '-' + idx} className="transition-colors hover:bg-slate-50">
                       <td className="px-4 py-3 font-medium text-slate-800">{emp.employeeName}</td>
-                      <td className="px-4 py-3 font-semibold text-slate-800 whitespace-nowrap">
-                        {emp.baseSalary > 0 ? formatCurrency(emp.baseSalary) : <span className="text-xs text-slate-400">&mdash;</span>}
+                      <td className="px-4 py-3 font-semibold text-green-600 whitespace-nowrap">
+                        {emp.totalPaid > 0 ? formatCurrency(emp.totalPaid) : <span className="text-xs text-slate-400">&mdash;</span>}
                       </td>
                       <td className="px-4 py-3 font-semibold text-green-600 whitespace-nowrap">
                         {emp.totalBonus > 0 ? formatCurrency(emp.totalBonus) : <span className="text-xs text-slate-400">&mdash;</span>}
@@ -194,8 +199,12 @@ export default function SalaryReport() {
                       <td className="px-4 py-3 font-semibold text-slate-800 whitespace-nowrap">
                         {emp.netSalary > 0 ? formatCurrency(emp.netSalary) : <span className="text-xs text-slate-400">&mdash;</span>}
                       </td>
-                      <td className="px-4 py-3 font-semibold text-green-600 whitespace-nowrap">
-                        {emp.totalPaid > 0 ? formatCurrency(emp.totalPaid) : <span className="text-xs text-slate-400">&mdash;</span>}
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        {emp.salaryStatus === 'paid' && emp.paidAt ? (
+                          <span className="text-green-700">{formatDate(emp.paidAt)}</span>
+                        ) : (
+                          <span className="text-xs text-slate-400">&mdash;</span>
+                        )}
                       </td>
                       <td className="px-4 py-3"><StatusBadge status={emp.salaryStatus} /></td>
                     </tr>
@@ -211,7 +220,7 @@ export default function SalaryReport() {
         <div className="space-y-4">
           <h3 className="text-lg font-bold text-slate-800">{empReport.employeeName} — {yearFilter}</h3>
 
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-5">
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
             {(() => {
               let totalBase = 0, totalBonus = 0, totalCut = 0, totalPaid = 0, monthCount = 0;
               for (const m of empReport.months) {
@@ -225,8 +234,8 @@ export default function SalaryReport() {
                     <p className="mt-1 text-xl sm:text-2xl font-bold text-slate-800">{monthCount}/12</p>
                   </div>
                   <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-                    <span className="text-xs text-slate-500">Total Salary</span>
-                    <p className="mt-1 text-xl sm:text-2xl font-bold text-slate-800">{formatCurrency(totalBase)}</p>
+                    <span className="text-xs text-slate-500">Total Paid</span>
+                    <p className="mt-1 text-xl sm:text-2xl font-bold text-green-600">{formatCurrency(totalPaid)}</p>
                   </div>
                   <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
                     <span className="text-xs text-slate-500">Total Bonus</span>
@@ -255,13 +264,13 @@ export default function SalaryReport() {
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-50 text-xs font-semibold uppercase text-slate-500">
                   <th className="px-4 py-3">Month</th>
-                  <th className="px-4 py-3">Salary</th>
+                  <th className="px-4 py-3">Salary Paid</th>
                   <th className="px-4 py-3">Bonus</th>
                   <th className="px-4 py-3">Cut</th>
                   <th className="px-4 py-3">Net</th>
-                  <th className="px-4 py-3">Paid</th>
                   <th className="px-4 py-3">Remaining</th>
                   <th className="px-4 py-3">Status</th>
+                  <th className="px-4 py-3">Paid Date</th>
                   <th className="px-4 py-3">Adjustments</th>
                 </tr>
               </thead>
@@ -269,8 +278,8 @@ export default function SalaryReport() {
                 {empReport.months.map((m) => (
                     <tr key={m.month} className="transition-colors hover:bg-slate-50">
                       <td className="px-4 py-3 font-medium text-slate-800">{MONTHS[m.month - 1]}</td>
-                      <td className="px-4 py-3 font-semibold text-slate-800 whitespace-nowrap">
-                        {m.baseSalary > 0 ? formatCurrency(m.baseSalary) : <span className="text-xs text-slate-400">&mdash;</span>}
+                      <td className="px-4 py-3 font-semibold text-green-600 whitespace-nowrap">
+                        {m.totalPaid > 0 ? formatCurrency(m.totalPaid) : <span className="text-xs text-slate-400">&mdash;</span>}
                       </td>
                       <td className="px-4 py-3 font-semibold text-green-600 whitespace-nowrap">
                         {m.totalBonus > 0 ? formatCurrency(m.totalBonus) : <span className="text-xs text-slate-400">&mdash;</span>}
@@ -280,9 +289,6 @@ export default function SalaryReport() {
                       </td>
                       <td className="px-4 py-3 font-semibold text-slate-800 whitespace-nowrap">
                         {m.netSalary > 0 ? formatCurrency(m.netSalary) : <span className="text-xs text-slate-400">&mdash;</span>}
-                      </td>
-                      <td className="px-4 py-3 font-semibold text-green-600 whitespace-nowrap">
-                        {m.totalPaid > 0 ? formatCurrency(m.totalPaid) : <span className="text-xs text-slate-400">&mdash;</span>}
                       </td>
                       <td className="px-4 py-3 font-semibold whitespace-nowrap">
                         {m.remainingBalance > 0 ? (
@@ -294,6 +300,13 @@ export default function SalaryReport() {
                         )}
                       </td>
                       <td className="px-4 py-3"><StatusBadge status={m.status} /></td>
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        {m.status === 'paid' && m.paidAt ? (
+                          <span className="text-green-700">{formatDate(m.paidAt)}</span>
+                        ) : (
+                          <span className="text-xs text-slate-400">&mdash;</span>
+                        )}
+                      </td>
                       <td className="px-4 py-3 max-w-[200px]">
                         {m.adjustments.length > 0 ? (
                           <div className="flex flex-col gap-1">

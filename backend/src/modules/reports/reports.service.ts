@@ -127,14 +127,17 @@ export async function getReport(type: string, query: ReportQueryDto) {
         { $sort: { employeeName: 1 } },
       ]);
 
-      const totalSalary = salaryData.reduce((sum, r) => sum + (r.baseSalary || 0), 0);
+      const totalPaid = salaryData.reduce(
+        (sum: number, r) => sum + (r.advances || []).reduce((s: number, a: { amount: number }) => s + (a.amount || 0), 0),
+        0
+      );
       const byEmployee = salaryData.map((r) => ({
         employeeName: r.employeeName,
-        baseSalary: r.baseSalary || 0,
+        totalPaid: (r.advances || []).reduce((s: number, a: { amount: number }) => s + (a.amount || 0), 0),
         status: r.status,
       }));
 
-      const profit = totalRevenue + totalMiscIncome - totalExpenses - totalSalary;
+      const profit = totalRevenue + totalMiscIncome - totalExpenses - totalPaid;
 
       const endDate = new Date(dateRange.to);
       endDate.setDate(endDate.getDate() - 1);
@@ -158,7 +161,7 @@ export async function getReport(type: string, query: ReportQueryDto) {
           byCategory: expenseData.byCategory || [],
         },
         salaries: {
-          totalSalary,
+          totalPaid,
           totalRecords: salaryData.length,
           byEmployee,
         },

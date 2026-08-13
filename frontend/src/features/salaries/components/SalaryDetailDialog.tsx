@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { useSalary, useUpdateSalaryStatus, useDeleteSalary, useAdjustmentsList, useDeleteAdjustment, type AdjustmentResponse } from '../api';
+import { useSalary, useDeleteSalary, useAdjustmentsList, useDeleteAdjustment, type AdjustmentResponse } from '../api';
 import { Dialog } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -22,7 +22,6 @@ const MONTHS = [
 
 export default function SalaryDetailDialog({ open, salaryId, onClose }: SalaryDetailDialogProps) {
   const { data: response, isLoading, isError } = useSalary(salaryId ?? '');
-  const updateStatus = useUpdateSalaryStatus();
   const deleteSalary = useDeleteSalary();
   const deleteAdjustment = useDeleteAdjustment();
   const [statusMessage, setStatusMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -66,27 +65,12 @@ export default function SalaryDetailDialog({ open, salaryId, onClose }: SalaryDe
     cancelled: 'red',
   };
 
-  async function handleMarkAsPaid() {
-    if (!salary) return;
-    setStatusMessage(null);
-    try {
-      await updateStatus.mutateAsync({ salaryId: salary.id, status: 'paid' });
-      setStatusMessage({ type: 'success', text: 'Salary marked as paid' });
-    } catch (err) {
-      if (err instanceof AppError) {
-        setStatusMessage({ type: 'error', text: err.message });
-      } else {
-        setStatusMessage({ type: 'error', text: 'Failed to update status' });
-      }
-    }
-  }
-
   async function handleDelete() {
     if (!salary) return;
     if (!confirm(`Delete salary record for ${salary.employeeId?.name ?? 'this employee'}? This cannot be undone.`)) return;
     setStatusMessage(null);
     try {
-      await deleteSalary.mutateAsync(salary.id);
+      await deleteSalary.mutateAsync({ id: salary.id });
       onClose();
     } catch (err) {
       if (err instanceof AppError) {
@@ -191,20 +175,18 @@ export default function SalaryDetailDialog({ open, salaryId, onClose }: SalaryDe
               <div>
                 <span className="text-xs text-slate-500">Paid</span>
                 <p className="text-lg font-bold text-green-600">{formatCurrency(salary.totalPaid)}</p>
+                {salary.status === 'paid' && salary.paidAt && (
+                  <p className="mt-0.5 text-xs text-green-600">Paid on {formatDate(salary.paidAt)}</p>
+                )}
               </div>
             </div>
-            {salary.status === 'active' && salary.remainingBalance === 0 && (
-              <div className="mt-4">
-                <Button variant="success" size="sm" onClick={handleMarkAsPaid} disabled={updateStatus.isPending}>
-                  {updateStatus.isPending ? 'Updating...' : 'Mark as Paid'}
-                </Button>
-              </div>
-            )}
             {salary.advances.length === 0 && (
               <div className="mt-4">
-                <Button variant="destructive" size="sm" onClick={handleDelete} disabled={deleteSalary.isPending}>
-                  {deleteSalary.isPending ? 'Deleting...' : 'Delete Salary'}
-                </Button>
+                <PermissionGate module="salary" action="delete">
+                  <Button variant="destructive" size="sm" onClick={handleDelete} disabled={deleteSalary.isPending}>
+                    {deleteSalary.isPending ? 'Deleting...' : 'Delete Salary'}
+                  </Button>
+                </PermissionGate>
               </div>
             )}
           </div>
@@ -270,7 +252,7 @@ export default function SalaryDetailDialog({ open, salaryId, onClose }: SalaryDe
                         <p className="mt-0.5 text-xs text-slate-400">Recorded by {adj.createdBy.name}</p>
                       )}
                     </div>
-                    <PermissionGate module="expenses" action="edit">
+                    <PermissionGate module="salary" action="edit">
                       <button
                         onClick={() => setEditingAdjustment(adj)}
                         className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-primary"
@@ -279,7 +261,7 @@ export default function SalaryDetailDialog({ open, salaryId, onClose }: SalaryDe
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                       </button>
                     </PermissionGate>
-                    <PermissionGate module="expenses" action="delete">
+                    <PermissionGate module="salary" action="delete">
                       <button
                         onClick={() => handleDeleteAdjustment(adj.id)}
                         className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-red-500"

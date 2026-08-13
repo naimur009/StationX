@@ -23,6 +23,63 @@
 
 ## Log
 
+### [—] Profit Report Deducts Paid Salary Amounts, Not Full Base — 2026-08-13
+
+**Open item resolved:** N/A — follow-up to "Salary Report Shows Paid Amounts" (same date); the owner reported the profit report still showed the full base salary.
+
+**Decision:** `GET /reports/profit` now deducts the **paid** salary amounts from profit instead of the full contracted base salaries. `salaries.totalSalary` is renamed `salaries.totalPaid` and computed as the sum of all advances on the matched salary records; `salaries.byEmployee[].baseSalary` becomes `byEmployee[].totalPaid` (advance sum per record, with `employeeName` and `status` unchanged). The PDF export (`report-template.ts`) metric card is renamed "Total Paid", its per-employee table column "Base Salary" → "Salary Paid" (`key: totalPaid`), and the profit breakdown line reads "- Salaries Paid". The FE profit report (`ReportSummaryCards.tsx`, `ProfitReportView.tsx`) shows "Total Paid" / "Salaries Paid" with `salaries.totalPaid`. Example: a ৳10,000 base salary with ৳5,000 paid reduces profit by ৳5,000, not ৳10,000.
+
+**Doc(s) updated:**
+- `API.md` §22 (profit response shape + formula)
+- `TEST_CASES.md` §19 (`REP-CALC-01` formula)
+- `decision.md` (this entry)
+
+**Files changed:**
+- `backend/src/modules/reports/reports.service.ts` (`totalPaid` from advances, `byEmployee[].totalPaid`, profit formula)
+- `backend/src/modules/reports/report-template.ts` (PDF labels + columns)
+- `frontend/src/features/reports/api.ts` (`ProfitSalaries` / `SalaryEmployeeEntry` types)
+- `frontend/src/features/reports/components/ReportSummaryCards.tsx` ("Total Paid" card)
+- `frontend/src/features/reports/components/ProfitReportView.tsx` ("Salaries Paid" line)
+
+**Reasoning:** Profit is cash-based: only money actually paid out of the business reduces cash. Treating the full contracted base as an expense overstated salary costs whenever salaries are paid in installments (advances), making profit look worse than reality. Salary records are matched by their `createdAt` within the period, as before — only the summed value changed from `baseSalary` to the advance total.
+
+### [—] Salary Report Shows Paid Amounts, Not Full Base Salary — 2026-08-13
+
+**Open item resolved:** N/A — display fix requested by the owner (report previously showed the full contracted base salary, which misled when only part was paid).
+
+**Decision:** The salary report page (`SalaryReport.tsx`) is now paid-focused. The "Base Salary" column in the month report table shows the amount actually paid (sum of advances) and is renamed "Salary Paid"; the separate "Paid" column is merged into it. The summary "Total Salary" card is replaced by a "Total Paid" card (grand total of paid amounts); the redundant "Total Paid" card is removed (5 cards). The per-employee month-by-month table and its summary cards follow the same change ("Salary Paid" + "Total Paid"), keeping the existing "Remaining" (base − paid) column. Example: base ৳10,000 with ৳5,000 paid today → the report shows ৳5,000, not ৳10,000. The backend response is unchanged (`grandTotalBaseSalary` etc. still returned); only the report's presentation changed. Net, Bonus, Cut, Status, and Paid Date columns are untouched.
+
+**Doc(s) updated:**
+- `decision.md` (this entry)
+
+**Files changed:**
+- `frontend/src/features/salaries/components/SalaryReport.tsx` (tables + summary cards, paid-focused)
+
+**Reasoning:** The owner reported the report "shows the full base salary" when only a part had been paid, making the numbers read as money already paid out. Making the report paid-focused shows what was actually disbursed as of the report date; the remaining obligation stays visible per-employee via the "Remaining" column and the status badge. No new features — the data was already computed; this only changes which figure the report displays.
+
+### [—] Salary Hard Delete (Force) — 2026-08-13
+
+**Open item resolved:** N/A — extends `DELETE /salaries/:id` with an explicit hard-delete path for correcting mistaken entries.
+
+**Decision:** `DELETE /salaries/:id` accepts an optional `?force=true` query param (validated, `true`/`false` only). Without it, the `409 SALARY_HAS_ADVANCES` guard is unchanged. With `force=true`, a salary record is deleted even when it has advances — the record and all its advances are permanently removed. The FE delete dialog now shows a "Hard Delete" flow (title, warning box listing the advance count/total, and a confirmation checkbox that must be checked before the button enables) whenever the record has advances, mirroring how a wrong `paidAmount` entry (e.g. 10000 typed instead of 1000) would otherwise be stuck forever because its auto-created first advance blocks deletion.
+
+**Doc(s) updated:**
+- `API.md` §17 (DELETE row), §26 (`SALARY_HAS_ADVANCES` description)
+- `database.md` §3.12 (guard note), §5 rule 10 (reference to the force exception)
+- `TEST_CASES.md` §20 (new `SAL-H-09`, `SAL-V-05`)
+- `decision.md` (this entry)
+
+**Files changed:**
+- `backend/src/modules/salaries/salaries.service.ts` (`deleteSalary(id, force = false)`)
+- `backend/src/modules/salaries/salaries.controller.ts` (parses `force` from query)
+- `backend/src/modules/salaries/salaries.validation.ts` (`deleteSalaryQuerySchema`)
+- `backend/src/modules/salaries/salaries.routes.ts` (query validation wired)
+- `frontend/src/features/salaries/api.ts` (`useDeleteSalary` accepts `{ id, force }`)
+- `frontend/src/features/salaries/components/DeleteSalaryDialog.tsx` (hard-delete confirmation flow)
+- `frontend/src/features/salaries/components/SalaryDetailDialog.tsx` (call-site updated for new mutation signature)
+
+**Reasoning:** The `SALARY_HAS_ADVANCES` guard protects reports from silently losing paid history, but it also traps mistaken entries — creating a salary with a wrong `paidAmount` immediately creates an advance, making the record undeletable. A deliberate, user-confirmed force path fixes mistakes without weakening the default guard. `force` is restricted to `'true'`/`'false'` at the API boundary so the guard cannot be bypassed accidentally, and the UI requires explicit checkbox acknowledgment before the hard delete executes.
+
 ### [—] Salary Over-Payment Guard — 2026-08-05
 
 **Open item resolved:** N/A — closes a validation gap in the Salaries module.
@@ -724,3 +781,92 @@ Pulling table management into v1 was low-risk because `architecture.md`'s Future
 - `frontend/src/features/expenses/components/ExpenseList.tsx` / `frontend/src/features/incomes/components/IncomeList.tsx` (unused `dateQueryString` removed; payment-filter state typed)
 
 **Reasoning:** The Expense hard-delete behavior and the `paidBy → Employee` reference both predate and contradict parts of the docs, and both were already the de-facto contract in `API.md` §15 and the implementation — per the review discipline the docs were amended to state the implemented behavior rather than reshaping code to a stale spec. The remaining code changes align the modules with already-documented contracts (socket trigger, error-code reference, shared pagination helper) and remove the `as never` escape hatch, mirroring the earlier Tasks module reconciliation.
+
+### [—] Employees & Customers — Code-Review Reconciliation — 2026-08-13
+
+**Open item resolved:** Three §12 flags from the Employees & Customers code review: (1) `API.md` §14.5 still documented the superseded employee-on-`User` design (role-based filtering, POST creating a `User`, email placeholder, DELETE removing the `User` document) while `DATABASE.md` §3.19, the NID decision (2026-08-05), and the implementation all use a standalone `Employee` collection; (2) `POST /customers/save-or-find` was implemented and referenced by `review-pos-orders-coupons.md` as "§21" but was missing from the `API.md` §21 route table; (3) the dead FE `useSaveOrFindCustomer` hook documented as "deleted" in `review-pos-orders-coupons.md:67` was still present and unused.
+
+**Decision:**
+1. **`API.md` §14.5 rewritten to the Employee-collection contract** — role/email/`isActive`/User-creation text removed; POST/DELETE semantics documented as "does not create a `User` account" / "cascade-deletes Attendance, Salary, SalaryAdjustment, SalarySummary in one Mongo transaction (`DATABASE.md` §5), never touches a `User`". Code unchanged — it already matched `DATABASE.md` §3.19.
+2. **`POST /customers/save-or-find` documented** — added to the `API.md` §21 route table (`customers:create`), with a contract note (find by phone, return existing unchanged, or create with required `name`), the cross-module POS note updated to name the exact endpoints, and `TEST_CASES.md` §15 gained CUST-H-12/H-13/CUST-V-01.
+3. **Dead FE hook removed** — `useSaveOrFindCustomer` deleted from `frontend/src/features/customers/api.ts`, matching the documented resolution in `review-pos-orders-coupons.md:67`.
+4. **Code aligned with shared conventions (Rule 3/§4/§8)** — `listEmployeesSchema`/`listCustomersSchema` now spread `paginationSchema.shape`; `listEmployees`/`listCustomers` use `paginate()`; `employees.service.ts` uses the shared `escapeRegex`; `customers.service.ts` sanitizes the `$text` search term (strips `"`, guards empty); `createEmployeeSchema` gained `.strict()`; `objectIdParam` moved from `employees.routes.ts` into `employees.validation.ts`; FE `baseSalary` gained `.multipleOf(0.01)`; `EmployeeList` uses the shared `lib/format` `formatCurrency`; `CustomerList` action buttons wrapped in `PermissionGate` (matching `EmployeeList`); dead `isActive` params removed from `useCustomersList`/`useUpdateCustomer`.
+5. **Stale test-case wording corrected** — `TEST_CASES.md` XMOD-03 reworded from "Delete (soft) a Customer" to hard delete, with the order detail resolving via `customerName`/`customerPhone` snapshot fields.
+
+**Doc(s) updated:**
+- `API.md` §14.5 (rewritten), §21 (save-or-find row + notes)
+- `TEST_CASES.md` §15 (CUST-H-12/H-13, CUST-V-01), §22 (XMOD-03)
+- `decision.md` (this entry)
+
+**Files changed:**
+- `backend/src/modules/employees/employees.validation.ts` (`.strict()`, `paginationSchema` spread, `objectIdParam` moved in)
+- `backend/src/modules/employees/employees.routes.ts` (import `objectIdParam` from validation; dropped inline `z` schema)
+- `backend/src/modules/employees/employees.service.ts` (shared `escapeRegex` + `paginate()`)
+- `backend/src/modules/customers/customers.validation.ts` (`paginationSchema` spread)
+- `backend/src/modules/customers/customers.service.ts` (shared `paginate()`; `$text` term sanitized)
+- `frontend/src/features/customers/api.ts` (dead `useSaveOrFindCustomer` removed; dead `isActive` params removed)
+- `frontend/src/features/employees/schema.ts` (`.multipleOf(0.01)` on `baseSalary`)
+- `frontend/src/features/employees/components/EmployeeList.tsx` (shared `formatCurrency`)
+- `frontend/src/features/customers/components/CustomerList.tsx` (`PermissionGate` on edit/delete buttons)
+
+**Reasoning:** The `API.md` §14.5 text described the pre-NID-decision employee-on-`User` design and was the sole contract doc contradicting the settled standalone-Employee collection — per the review discipline it was amended to state the implemented behavior rather than reshaping code to a stale spec (same treatment as the earlier Settings and Income & Expenses reconciliations). The remaining changes are mechanical alignments with already-established shared conventions (`paginationSchema`/`paginate`/`escapeRegex`, `.strict()` parity, `.multipleOf(0.01)`, `PermissionGate`, shared `formatCurrency`), plus removal of code the docs already claimed was gone.
+
+### [—] Attendance — Code-Review Reconciliation — 2026-08-13
+
+**Open item resolved:** Flags from the Attendance code review: (1) `POST /attendance/batch` emitted `attendance:marked` with an off-contract `{ batch: true, date, count }` payload (`API.md` §23 defines `{ employeeId, date, status }`), and no FE component subscribed to the attendance events, so the documented "live attendance view" never refreshed across terminals; (2) attendance reimplemented pagination inline instead of the shared `paginationSchema`/`paginate()`; (3) `normalizeDate` built **local** midnight while `database.md` §3.11 specifies "normalized to midnight UTC", and `TodayResponse.date`/event dates were serialized with `toISOString()` while record `date`s used a local-date string — on any non-UTC server the serialized date shifted to the previous calendar day; (4) attendance status colors were absent from `theme.md` §12's authoritative badge mapping, and the FE invented solid-fill treatments (`bg-green-500 text-white`, solid calendar cells) contradicting §12's "never a solid fill" and §1's "never solid-color text-on-color"; (5) `AttendanceHistoryList`/`AttendanceCorrectionForm` remained on disk after decision [—] 2026-07-10 removed the History section (only the page tab was removed), leaving the module's only form (RHF-free, Zod-free, manual `useState` payloads) unreachable and `schema.ts` unreferenced; (6) `tryEmit` used a lazy `require('../../config/socket')` instead of the static `getIO` import every other service uses; (7) `date`/`from`/`to` query params were unvalidated `z.string()` — a malformed value produced an Invalid Date and a 500 instead of a 400; (8) §12 doc conflict — `AI_rules` §3/§8 list Attendance among modules using the shared `?range=&from=&to=` shape, but `API.md` §14 defines the attendance list as `?from=&to=`-only and the strict schema rejects `range`.
+
+**Decision:**
+1. **Batch event contract fixed** — `POST /attendance/batch` now emits one `attendance:marked` per successfully created record with the exact §23 payload `{ employeeId, date, status }`; records that failed (write errors) are skipped. No §23 contract change needed.
+2. **Live view wired** — `TodayAttendanceSheet` subscribes to `attendance:marked`/`attendance:updated` and invalidates `['attendance']` queries (same listener pattern as the Tables floor grid), fulfilling §23's "Live attendance view" consumer.
+3. **Shared pagination** — `listAttendanceQuerySchema` now spreads `paginationSchema.shape`; `listAttendance` uses `paginate()`.
+4. **UTC-midnight dates** — `normalizeDate` now builds `Date.UTC(...)` midnight per `database.md` §3.11; `formatLocalDate` replaced with `formatDate` (UTC getters); `TodayResponse.date` and both event payloads serialize the calendar-day string (`YYYY-MM-DD`), consistent with record `date`s in every timezone.
+5. **Attendance statuses registered in `theme.md` §12** (present→green, absent→red, late→yellow, half-day→blue); the FE converted to the tinted §12 treatment (tinted bg + dark text, solid only in the §12 dot positions); the calendar's "today" ring now uses the `--ring` token instead of `ring-blue-400`.
+6. **Dead code removed** — `AttendanceHistoryList.tsx` and `AttendanceCorrectionForm.tsx` deleted, completing decision [—] 2026-07-10's "History section removed" (which had only removed the page tab). `schema.ts` is retained as the template-required FE/backend shape record; the RHF/Zod gap is resolved by removal — the surviving UI (quick-mark buttons, calendar, filters) contains no forms.
+7. **Static socket import** — `tryEmit`'s lazy `require` replaced with the top-level `getIO` import and inline try/catch, matching the other services.
+8. **Date params validated** — `date`/`from`/`to` must match `YYYY-MM-DD` (`400 VALIDATION_ERROR` instead of a 500 from an Invalid Date).
+9. **§12 flag resolved — attendance keeps `?from=&to=` date filtering** — its list is a record-history filter, not a report date range; `API.md` §14's shape predates the shared `?range=` shape and the strict schema rejects `range`. `AI_rules` §8 amended to drop Attendance from the shared-hook list with a pointer to this entry.
+
+**Doc(s) updated:**
+- `theme.md` §12 (Attendance status rows)
+- `AI_rules.md` §8 (date-range hook list — Attendance exception noted)
+- `decision.md` (this entry)
+
+**Files changed:**
+- `backend/src/modules/attendance/attendance.validation.ts` (`paginationSchema` spread; `date`/`from`/`to` `YYYY-MM-DD` regex)
+- `backend/src/modules/attendance/attendance.service.ts` (per-record batch emits; `paginate()`; UTC-midnight `normalizeDate` + UTC `formatDate`; static `getIO`; off-contract `id` dropped from the update emit; unused `BatchAttendanceRecord` import removed)
+- `frontend/src/features/attendance/components/TodayAttendanceSheet.tsx` (socket listener; tinted §12 status buttons)
+- `frontend/src/features/attendance/components/AttendanceCalendar.tsx` (tinted §12 status cells; `--ring` today ring)
+- `frontend/src/features/attendance/components/AttendanceHistoryList.tsx` (deleted — dead since decision [—] 2026-07-10)
+- `frontend/src/features/attendance/components/AttendanceCorrectionForm.tsx` (deleted — dead since decision [—] 2026-07-10)
+
+**Reasoning:** The date normalization was reshaped to `database.md` §3.11's documented "midnight UTC" contract — the previous local-midnight storage was only equivalent on a UTC server, and the mixed serialization (ISO for today/events, calendar string for records) made the same day render differently depending on consumer timezone. The event deviations were code-side fixes because §23's `{ employeeId, date, status }` shape is the binding contract and the batch shape was never documented. The History-section deletion completes a settled decision rather than inventing new behavior, and the `?from=&to=` retention is documented as an explicit exception to `AI_rules` §8 rather than silently left as a conflict.
+
+### [—] Tables — Code-Review Reconciliation — 2026-08-13
+
+**Open item resolved:** Seven flags from the Tables code review: (1) FE `tables/page.tsx` passed an `onDelete` prop that `TableGridProps` never defined (the repo's only FE typecheck errors — TS2322/TS7006), and the grid rendered no delete control, so table deletion was unreachable from the UI despite decision [—] 2026-07-24 keeping Delete available; (2) `GET /tables` re-implemented pagination inline with a 50-row default that silently truncated the floor grid (`tableCount` max 100, API.md §11 documents "List all tables"); (3) §12 docs conflict on delete semantics — `API.md` §11/§26 and `database.md` §3.3/§5.10 said "blocked if `currentOrderId` is non-null" while PRD §5 / decision [—] 2026-07-23 and the code implement "blocked while a live order references it"; (4) `TABLE_NUMBER_IN_USE` thrown by the code but absent from `API.md` §26; (5) the manual-override socket emit carried an undocumented `source` field; (6) stale `TEST_CASES.md` tables rows using the pre-settlement field names (`label`/`area`/`orderId`), code `TABLE_HAS_ACTIVE_ORDER`, `reason`, and a nonexistent `/warn` response field; (7) dead code — `CreateTableDialog.tsx` (and its sole consumer, `useCreateTable`) plus the unused `TABLE_STATUS_CONFIG` export.
+
+**Decision:**
+1. **Delete control restored on the grid** — `TableGrid` gains an `onDelete` prop and a `PermissionGate tables/delete` trash button per tile; `DeleteTableDialog`'s destructive confirm is gated with `PermissionGate tables/delete` (matching the coupons-review pattern); both tsc errors in `tables/page.tsx` are resolved.
+2. **`GET /tables` is unpaginated** — returns the full table set sorted by `tableNumber` (numeric collation) as `{ data }`, matching `API.md` §11's "List all tables ... for the floor-plan grid"; `listTablesSchema` keeps only the `status` filter; FE `TableListResponse` drops `meta`. (A fixed 50-row default silently truncated the floor grid once `tableCount` exceeded 50.)
+3. **Delete semantics doc-amended (§12)** — `API.md` §11/§26 and `database.md` §3.3/§5.10 now state the implemented behavior: deletion is blocked while a live (non-completed, non-cancelled) order references the table (`409 TABLE_IN_USE`); a stale `currentOrderId` pointing at a completed/cancelled order no longer blocks deletion (historical orders stay intact via `tableLabelSnapshot`). Code unchanged.
+4. **`TABLE_NUMBER_IN_USE` documented** — added to `API.md` §26 (409, duplicate `tableNumber` on POST/PUT), matching the code and TBL-V-05; `updateTable` now maps a raced E11000 to the same 409 instead of a raw 500 (the pre-check remains as a fast path).
+5. **`table:statusChanged` payload cleaned** — the manual-toggle emit no longer carries the undocumented `source` field, matching `API.md` §25's `{ tableId, tableNumber, status, orderId? }`. (The unresolved L2 `source` extras on the POS/Orders emits remain tracked in `review-pos-orders-coupons.md:192` — separate review scope.)
+6. **Rule 1 cleanup** — `(err as any).code` typed as `(err as { code?: number }).code`; unused `escapeRegex` import removed from `tables.service.ts`.
+7. **Doc cleanups** — `API.md` §11 `GET /tables/:id` wording corrected to the implemented string-id response; `theme.md` §17b order-indicator pill updated to the implemented "In Use" label, and the empty-state guidance to the Settings-driven message; `TEST_CASES.md` tables rows rewritten to settled names/codes; dead `CreateTableDialog.tsx` deleted and unused `TABLE_STATUS_CONFIG`/`useCreateTable` removed.
+
+**Doc(s) updated:**
+- `API.md` §11 (GET /tables unpaginated + status filter, GET /tables/:id wording, DELETE semantics), §26 (`TABLE_IN_USE` wording, `TABLE_NUMBER_IN_USE` added)
+- `database.md` §3.3, §5.10 (delete-guard semantics)
+- `theme.md` §17b (order pill "In Use", empty-state guidance)
+- `TEST_CASES.md` §24 (tables section rewritten)
+- `decision.md` (this entry)
+
+**Files changed:**
+- `backend/src/modules/tables/tables.validation.ts` (pagination fields dropped from `listTablesSchema`)
+- `backend/src/modules/tables/tables.service.ts` (unpaginated `listTables`; E11000 → 409 in `updateTable`; typed err cast; `source` removed from emit; unused import removed)
+- `frontend/src/features/tables/api.ts` (`TableListResponse`/`TableListParams` unpaginated; `TABLE_STATUS_CONFIG` and `useCreateTable` removed)
+- `frontend/src/features/tables/components/TableGrid.tsx` (`onDelete` prop + `PermissionGate tables/delete` trash button per tile)
+- `frontend/src/features/tables/components/DeleteTableDialog.tsx` (confirm gated with `PermissionGate tables/delete`)
+- `frontend/src/features/tables/components/CreateTableDialog.tsx` (deleted — dead since decision [—] 2026-07-24)
+
+**Reasoning:** The delete-guard semantics conflict was resolved by amending the docs to the implemented, decision-anchored behavior (PRD §5 + decision [—] 2026-07-23) — a stale `currentOrderId` pointing at a completed/cancelled order is a residue reference, not an in-use table, and `tableLabelSnapshot` already protects historical bills. Everything else is mechanical: restoring the grid delete control the decision promised (the review's only High finding, and the repo's only FE tsc errors), unpaginating a list whose contract is "all tables" for a grid capped at 100 rows, documenting codes the code already threw, and deleting code that has been dead since the 2026-07-24 decision removed the Add Table button.

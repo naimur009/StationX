@@ -16,8 +16,6 @@ export const updateTableStatusSchema = z.object({
 }).strict();
 
 export const listTablesSchema = z.object({
-  page: z.coerce.number().int().positive().max(1000).default(1).optional(),
-  limit: z.coerce.number().int().positive().max(100).optional(),
   status: z.enum(['available', 'booked']).optional(),
 });
 

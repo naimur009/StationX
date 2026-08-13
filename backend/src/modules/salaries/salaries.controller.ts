@@ -96,7 +96,8 @@ export async function handleDeleteSalary(
   next: NextFunction
 ): Promise<void> {
   try {
-    const result = await salaryService.deleteSalary(req.params.id);
+    const force = req.query.force === 'true';
+    const result = await salaryService.deleteSalary(req.params.id, force);
     res.status(200).json({ data: result });
   } catch (error) {
     next(error);

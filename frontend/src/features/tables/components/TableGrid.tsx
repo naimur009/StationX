@@ -5,11 +5,12 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useTableList, type TableResponse } from '../api';
 import { getSocket } from '@/lib/socket';
 import { cn } from '@/lib/utils';
-import { Pencil, Hand, Loader2 } from 'lucide-react';
+import { Pencil, Hand, Trash2, Loader2 } from 'lucide-react';
 import PermissionGate from '@/components/shared/PermissionGate';
 
 interface TableGridProps {
   onEdit?: (table: TableResponse) => void;
+  onDelete?: (table: TableResponse) => void;
   onOverride?: (table: TableResponse) => void;
   onSelect?: (table: TableResponse) => void;
   selectable?: boolean;
@@ -18,6 +19,7 @@ interface TableGridProps {
 
 export default function TableGrid({
   onEdit,
+  onDelete,
   onOverride,
   onSelect,
   selectable,
@@ -127,6 +129,15 @@ export default function TableGrid({
                     title="Edit"
                   >
                     <Pencil className="h-3.5 w-3.5" />
+                  </button>
+                </PermissionGate>
+                <PermissionGate module="tables" action="delete">
+                  <button
+                    onClick={(e) => { e.stopPropagation(); onDelete?.(table); }}
+                    className="rounded-md p-1 text-slate-400 transition-colors hover:bg-white/60 hover:text-red-600"
+                    title="Delete"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
                   </button>
                 </PermissionGate>
               </div>

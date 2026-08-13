@@ -86,12 +86,12 @@ export interface ProfitExpenses {
 
 export interface SalaryEmployeeEntry {
   employeeName: string;
-  baseSalary: number;
+  totalPaid: number;
   status: string;
 }
 
 export interface ProfitSalaries {
-  totalSalary: number;
+  totalPaid: number;
   totalRecords: number;
   byEmployee: SalaryEmployeeEntry[];
 }

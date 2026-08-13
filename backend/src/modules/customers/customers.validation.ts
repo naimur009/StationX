@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { paginationSchema } from '../../lib/pagination';
 
 export const createCustomerSchema = z.object({
   name: z.string().min(1, 'Name is required').max(100).trim(),
@@ -14,9 +15,7 @@ export const updateCustomerSchema = z.object({
   address: z.string().max(500).trim().optional().or(z.literal('')),
 }).strict();
 
-export const listCustomersSchema = z.object({
-  page: z.coerce.number().int().positive('Page must be a positive number').max(1000, 'Page number must not exceed 1000').default(1),
-  limit: z.coerce.number().int().positive('Limit must be a positive number').max(100, 'Limit must not exceed 100').default(20),
+export const listCustomersSchema = paginationSchema.extend({
   search: z.string().max(100).optional(),
 });
 

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { paginationSchema } from '../../lib/pagination';
 
 const objectIdRegex = /^[0-9a-fA-F]{24}$/;
 
@@ -19,18 +20,20 @@ export const updateSalaryStatusSchema = z.object({
   status: z.enum(['active', 'paid', 'cancelled']),
 }).strict();
 
-export const listSalariesQuerySchema = z.object({
+export const listSalariesQuerySchema = paginationSchema.extend({
   month: z.coerce.number().int().min(1).max(12).optional(),
   year: z.coerce.number().int().min(2000).max(2100).optional(),
   employeeId: z.string().regex(objectIdRegex, 'Invalid employee ID format').optional(),
   status: z.enum(['active', 'paid', 'cancelled']).optional(),
-  page: z.coerce.number().int().positive().max(1000).default(1),
-  limit: z.coerce.number().int().positive().max(1000).default(20),
 }).strict();
 
 export const objectIdParam = z.object({
   id: z.string().regex(objectIdRegex, 'Invalid salary ID format'),
 });
+
+export const deleteSalaryQuerySchema = z.object({
+  force: z.enum(['true', 'false']).optional(),
+}).strict();
 
 export const createAdjustmentSchema = z.object({
   employeeId: z.string().regex(objectIdRegex, 'Invalid employee ID format'),
@@ -43,14 +46,12 @@ export const createAdjustmentSchema = z.object({
   year: z.number().int().min(2000, 'Invalid year').max(2100, 'Invalid year'),
 }).strict();
 
-export const listAdjustmentsQuerySchema = z.object({
+export const listAdjustmentsQuerySchema = paginationSchema.extend({
   employeeId: z.string().regex(objectIdRegex, 'Invalid employee ID format').optional(),
   salaryId: z.string().regex(objectIdRegex, 'Invalid salary ID format').optional(),
   type: z.enum(['bonus', 'cut']).optional(),
   month: z.coerce.number().int().min(1).max(12).optional(),
   year: z.coerce.number().int().min(2000).max(2100).optional(),
-  page: z.coerce.number().int().positive().max(1000).default(1),
-  limit: z.coerce.number().int().positive().max(1000).default(20),
 }).strict();
 
 export const salarySummaryQuerySchema = z.object({
@@ -71,9 +72,7 @@ export const updateAdjustmentSchema = z.object({
 export const salaryReportQuerySchema = z.object({
   month: z.coerce.number().int().min(1).max(12).optional(),
   year: z.coerce.number().int().min(2000).max(2100),
-}).strict().refine((data) => data.month !== undefined || data.year !== undefined, {
-  message: 'At least year is required',
-});
+}).strict();
 
 export type CreateSalaryDto = z.infer<typeof createSalarySchema>;
 export type AddAdvanceDto = z.infer<typeof addAdvanceSchema>;
@@ -85,9 +84,13 @@ export type UpdateAdjustmentDto = z.infer<typeof updateAdjustmentSchema>;
 export type SalaryReportQuery = z.infer<typeof salaryReportQuerySchema>;
 export type SalarySummaryQuery = z.infer<typeof salarySummaryQuerySchema>;
 
-export const employeeReportQuerySchema = z.object({
+export const employeeReportParamsSchema = z.object({
   employeeId: z.string().regex(objectIdRegex, 'Invalid employee ID format'),
+}).strict();
+
+export const employeeReportQuerySchema = z.object({
   year: z.coerce.number().int().min(2000).max(2100),
 }).strict();
 
-export type EmployeeReportQuery = z.infer<typeof employeeReportQuerySchema>;
+export type EmployeeReportParams = z.infer<typeof employeeReportParamsSchema>;
+export type EmployeeReportQuery = z.infer<typeof employeeReportQuerySchema> & EmployeeReportParams;

@@ -14,6 +14,7 @@ export interface ISalary extends Document {
   year: number;
   advances: ISalaryAdvance[];
   status: 'active' | 'paid' | 'cancelled';
+  paidAt?: Date;
   createdBy: Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
@@ -41,6 +42,7 @@ const salarySchema = new Schema<ISalary>(
       enum: ['active', 'paid', 'cancelled'],
       default: 'active',
     },
+    paidAt: { type: Date },
     createdBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },
   },
   { timestamps: true, toJSON: { versionKey: false } }

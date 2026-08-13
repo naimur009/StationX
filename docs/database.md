@@ -115,7 +115,7 @@ Tracks restaurant tables for live floor status. A table is either **available** 
 
 **Indexes:** `tableNumber` (unique), `status`.
 
-> **Hard delete:** Tables are hard-deleted, not soft-deleted. Deletion is blocked at the service layer if `currentOrderId` is non-null (i.e., an active unpaid order still references the table). This mirrors the "can't delete an in-use entity" pattern used elsewhere (see §5 rules for Vendor/Product referential protection).
+> **Hard delete:** Tables are hard-deleted, not soft-deleted. Deletion is blocked at the service layer while a live (non-completed, non-cancelled) order references the table (via `currentOrderId`) — a stale reference to a completed/cancelled order does not block deletion; historical orders stay intact via `Order.tableLabelSnapshot`. This mirrors the "can't delete an in-use entity" pattern used elsewhere (see §5 rules for Vendor/Product referential protection).
 >
 > **Status derivations:**
 > - `status: booked, bookedBy: order, currentOrderId: <id>` — table occupied by an active dine-in order.
@@ -311,12 +311,13 @@ Monthly salary records for employees, with advance tracking. `baseSalary` is fix
 
 | Field | Type | Required | Notes |
 |---|---|---|---|
-| `employeeId` | ObjectId → User | ✓ | The employee whose salary this is |
+| `employeeId` | ObjectId → Employee | ✓ | The employee whose salary this is |
 | `baseSalary` | Number | ✓ | Monthly base salary amount |
 | `month` | Number | ✓ | 1–12 |
 | `year` | Number | ✓ | e.g. 2026 |
 | `advances` | Array of `SalaryAdvance` | — | Partial salary payments made during the month |
 | `status` | String enum `active \| paid \| cancelled` | ✓ (default `active`) | `paid` when total advances = base salary |
+| `paidAt` | Date | — | Set when the record transitions to `paid` — on creation with full `paidAmount`, when advances complete the base salary, or via `PATCH /salaries/:id/status` → `paid` |
 
 **Embedded `SalaryAdvance`:** `{ amount: Number, date: Date, note?: String, createdBy: ObjectId → User }`
 
@@ -327,7 +328,7 @@ Monthly salary records for employees, with advance tracking. `baseSalary` is fix
 > **Guard:**
 > - A salary record with `status !== 'active'` cannot receive new advances.
 > - An advance that would exceed `remainingBalance` is rejected.
-> - A salary record with existing advances cannot be hard-deleted.
+> - A salary record with existing advances cannot be hard-deleted (unless the delete is forced via `?force=true` on `DELETE /salaries/:id` — the documented hard-delete path for correcting mistaken entries such as a wrong paid amount).
 > - `status: 'cancelled'` is only allowed when `advances` is empty.
 
 ### 3.13 SalaryAdjustment
@@ -350,7 +351,7 @@ Records bonuses and salary cuts (deductions) for employees. Each adjustment is a
 
 ### 3.14 SalarySummary
 
-Monthly salary summary per employee, computed from the salary record and all adjustments. Auto-created on first query if it doesn't exist, and can be regenerated on demand.
+Monthly salary summary per employee, computed from the salary record and all adjustments. Recomputed and upserted on every query (`GET /salary-summary`), so it always reflects the latest salary record and adjustments.
 
 | Field | Type | Required | Notes |
 |---|---|---|---|
@@ -502,7 +503,7 @@ All `isActive`-bearing collections additionally get an index on `isActive` where
 7. **Table booking is part of the order-creation transaction:** when a dine-in POS order is created with a `tableId`, the Mongo multi-document transaction (rule 1) gains an additional step — `Table.findByIdAndUpdate(tableId, { status: 'booked', currentOrderId, bookedBy: 'order', bookedAt: now })`. This is not a separate sequential write; per AI_rules.md §6, new steps join the existing transaction atomically alongside the Counter increment, Order insert, Coupon `$inc`, and ActivityLog write.
 8. **Table unbooking on payment capture or cancellation:** when `Order.paymentStatus` transitions to `paid` (payment captured) or `Order.status` transitions to `cancelled` (order cancelled before payment), the table is unbooked as a side-effect of those existing code paths — `Table.findByIdAndUpdate(order.tableId, { status: 'available', currentOrderId: null, bookedBy: null, bookedAt: null })`. No new transaction is needed; the unbooking runs in the same write operation as the status transition.
 9. **A `booked` table cannot be assigned to a different new order:** if a dine-in POS order targets a `Table` whose `status` is `booked`, the service layer must reject the request with a dedicated error code (to be defined in `API.md`, e.g. `TABLE_ALREADY_BOOKED`) rather than silently overwriting `currentOrderId`. The check happens inside the order-creation transaction *before* the table-update step, so two concurrent orders racing for the same table cannot both succeed.
-10. **Table deletion guard:** hard-deleting a `Table` with a non-null `currentOrderId` is blocked at the service layer. This mirrors the existing pattern in rule 5 (referential integrity for in-use entities) and is consistent with how Salary deletion is blocked when advances exist (§3.12 guards).
+10. **Table deletion guard:** hard-deleting a `Table` is blocked at the service layer while a live (non-completed, non-cancelled) order references it via `currentOrderId`; a stale reference to a completed/cancelled order does not block deletion. This mirrors the existing pattern in rule 5 (referential integrity for in-use entities) and is consistent with how Salary deletion is blocked when advances exist (§3.12 guards) — the only Salary exception is the explicit hard delete via `?force=true`, intended for correcting mistaken entries (e.g. a wrong paid amount).
 11. **Settings data-management operations** (`POST /settings/reset`, `POST /settings/restore`, `API.md` §23) are the **sole exceptions** to the never-hard-delete rule for `Order`/`Expense`/`ActivityLog`: reset wipes them by design, and restore replaces them with the backup contents. Both operations are deliberately **non-transactional** (per-collection `deleteMany` + re-insert, `ordered: false` for restore) — a failure partway leaves a partially-wiped database, and re-running the same operation with the same inputs completes the intended end state. `reset` preserves admin accounts; `restore` requires the backup to contain at least one active admin and replaces all users.
 
 ---

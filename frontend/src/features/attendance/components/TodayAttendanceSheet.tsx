@@ -1,11 +1,13 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { CheckSquare, Loader2, Users, Calendar, Clock, XCircle, AlertTriangle, Moon } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useTodayStaff, useMarkAttendance, useBatchMarkAttendance, type StaffAttendanceItem } from '../api';
+import { getSocket } from '@/lib/socket';
 import { AppError } from '@/lib/utils';
 
 function getDateString(d?: Date): string {
@@ -18,25 +20,25 @@ function getDateString(d?: Date): string {
 
 const statusConfig: Record<string, { active: string; inactive: string; icon: React.ElementType; label: string }> = {
   present: {
-    active: 'bg-green-500 text-white shadow-green-500/30 ring-1 ring-green-600/20',
+    active: 'bg-green-100 text-green-700 shadow-green-500/30 ring-1 ring-green-600/30',
     inactive: 'bg-green-50 text-green-700 hover:bg-green-100 hover:text-green-800 active:bg-green-200',
     icon: CheckSquare,
     label: 'Present',
   },
   absent: {
-    active: 'bg-red-500 text-white shadow-red-500/30 ring-1 ring-red-600/20',
+    active: 'bg-red-100 text-red-700 shadow-red-500/30 ring-1 ring-red-600/30',
     inactive: 'bg-red-50 text-red-700 hover:bg-red-100 hover:text-red-800 active:bg-red-200',
     icon: XCircle,
     label: 'Absent',
   },
   late: {
-    active: 'bg-amber-500 text-white shadow-amber-500/30 ring-1 ring-amber-600/20',
+    active: 'bg-amber-100 text-amber-700 shadow-amber-500/30 ring-1 ring-amber-600/30',
     inactive: 'bg-amber-50 text-amber-700 hover:bg-amber-100 hover:text-amber-800 active:bg-amber-200',
     icon: Clock,
     label: 'Late',
   },
   'half-day': {
-    active: 'bg-blue-500 text-white shadow-blue-500/30 ring-1 ring-blue-600/20',
+    active: 'bg-blue-100 text-blue-700 shadow-blue-500/30 ring-1 ring-blue-600/30',
     inactive: 'bg-blue-50 text-blue-700 hover:bg-blue-100 hover:text-blue-800 active:bg-blue-200',
     icon: Moon,
     label: 'Half Day',
@@ -47,6 +49,7 @@ const statuses = ['present', 'absent', 'late', 'half-day'] as const;
 
 export default function TodayAttendanceSheet() {
   const [selectedDate, setSelectedDate] = useState(getDateString());
+  const queryClient = useQueryClient();
   const { data, isLoading, isError, refetch } = useTodayStaff(selectedDate);
   const markMutation = useMarkAttendance();
   const batchMutation = useBatchMarkAttendance();
@@ -54,6 +57,19 @@ export default function TodayAttendanceSheet() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    const socket = getSocket();
+    const handler = () => {
+      queryClient.invalidateQueries({ queryKey: ['attendance'] });
+    };
+    socket.on('attendance:marked', handler);
+    socket.on('attendance:updated', handler);
+    return () => {
+      socket.off('attendance:marked', handler);
+      socket.off('attendance:updated', handler);
+    };
+  }, [queryClient]);
 
   const showTempMessage = (msg: string, isError = false) => {
     if (isError) {

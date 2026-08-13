@@ -5,6 +5,7 @@ import { Search, ChevronLeft, ChevronRight, Edit3, Trash2, DollarSign } from 'lu
 import { useEmployeesList, type EmployeeResponse } from '../api';
 import { Button } from '@/components/ui/button';
 import PermissionGate from '@/components/shared/PermissionGate';
+import { formatCurrency } from '@/lib/format';
 
 interface EmployeeListProps {
   onEdit: (employee: EmployeeResponse) => void;
@@ -46,10 +47,6 @@ export default function EmployeeList({ onEdit, onDelete }: EmployeeListProps) {
   }
 
   const totalPages = data ? Math.ceil(data.meta.total / data.meta.limit) : 0;
-
-  function formatCurrency(amount: number): string {
-    return `৳${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-  }
 
   return (
     <div className="space-y-4">

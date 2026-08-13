@@ -3,7 +3,6 @@ import Table, { ITable } from '../../models/Table';
 import Order from '../../models/Order';
 import { createError } from '../../middleware/errorHandler';
 import { getIO } from '../../config/socket';
-import { escapeRegex } from '../../lib/escapeRegex';
 import type { CreateTableDto, UpdateTableDto, UpdateTableStatusDto, ListTablesDto } from './tables.validation';
 
 function toResponse(table: ITable) {
@@ -28,25 +27,13 @@ export async function listTables(query: ListTablesDto) {
     filter.status = query.status;
   }
 
-  const page = query.page ?? 1;
-  const limit = query.limit ?? 50;
-  const skip = limit > 0 ? (page - 1) * limit : 0;
-
-  const [tables, total] = await Promise.all([
-    Table.find(filter)
-      .sort({ tableNumber: 1 })
-      .collation({ locale: 'en', numericOrdering: true })
-      .skip(skip)
-      .limit(limit)
-      .lean(),
-    Table.countDocuments(filter),
-  ]);
-
-  const data = tables.map((t) => toResponse(t as unknown as ITable));
+  const tables = await Table.find(filter)
+    .sort({ tableNumber: 1 })
+    .collation({ locale: 'en', numericOrdering: true })
+    .lean();
 
   return {
-    data,
-    meta: { total, page, limit },
+    data: tables.map((t) => toResponse(t as unknown as ITable)),
   };
 }
 
@@ -65,7 +52,7 @@ export async function createTable(dto: CreateTableDto) {
     const table = await Table.create(dto);
     return { data: toResponse(table) };
   } catch (err) {
-    if (err instanceof mongoose.Error && (err as any).code === 11000) {
+    if (err instanceof mongoose.Error && (err as { code?: number }).code === 11000) {
       throw createError(409, 'TABLE_NUMBER_IN_USE', 'A table with this number already exists');
     }
     throw err;
@@ -90,13 +77,20 @@ export async function updateTable(id: string, dto: UpdateTableDto) {
   if (dto.tableNumber !== undefined) updates.tableNumber = dto.tableNumber;
   if (dto.capacity !== undefined) updates.capacity = dto.capacity;
 
-  const updated = await Table.findByIdAndUpdate(id, { $set: updates }, { new: true, runValidators: true });
+  try {
+    const updated = await Table.findByIdAndUpdate(id, { $set: updates }, { new: true, runValidators: true });
 
-  if (!updated) {
-    throw createError(404, 'NOT_FOUND', 'Table not found');
+    if (!updated) {
+      throw createError(404, 'NOT_FOUND', 'Table not found');
+    }
+
+    return { data: toResponse(updated) };
+  } catch (err) {
+    if (err instanceof mongoose.Error && (err as { code?: number }).code === 11000) {
+      throw createError(409, 'TABLE_NUMBER_IN_USE', 'A table with this number already exists');
+    }
+    throw err;
   }
-
-  return { data: toResponse(updated) };
 }
 
 export async function updateTableStatus(id: string, dto: UpdateTableStatusDto) {
@@ -139,7 +133,6 @@ export async function updateTableStatus(id: string, dto: UpdateTableStatusDto) {
       tableNumber: updated.tableNumber,
       status: updated.status,
       orderId: updated.currentOrderId?.toString() ?? null,
-      source: 'manual',
     });
   } catch {
     // socket not available

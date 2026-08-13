@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useDeleteTable, type TableResponse } from '../api';
 import { Dialog } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import PermissionGate from '@/components/shared/PermissionGate';
 import { AppError } from '@/lib/utils';
 
 interface DeleteTableDialogProps {
@@ -38,13 +39,15 @@ export default function DeleteTableDialog({ open, table, onClose }: DeleteTableD
           <Button variant="secondary" onClick={onClose}>
             Cancel
           </Button>
-          <Button
-            variant="destructive"
-            onClick={handleDelete}
-            disabled={deleteTable.isPending}
-          >
-            {deleteTable.isPending ? 'Deleting...' : 'Delete'}
-          </Button>
+          <PermissionGate module="tables" action="delete">
+            <Button
+              variant="destructive"
+              onClick={handleDelete}
+              disabled={deleteTable.isPending}
+            >
+              {deleteTable.isPending ? 'Deleting...' : 'Delete'}
+            </Button>
+          </PermissionGate>
         </>
       }
     >

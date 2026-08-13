@@ -4,6 +4,7 @@ import Employee from '../../models/Employee';
 import SalaryAdjustment, { ISalaryAdjustment } from '../../models/SalaryAdjustment';
 import SalarySummary from '../../models/SalarySummary';
 import { createError } from '../../middleware/errorHandler';
+import { paginate } from '../../lib/pagination';
 import type {
   CreateSalaryDto,
   AddAdvanceDto,
@@ -45,6 +46,7 @@ interface SalaryData {
   totalPaid: number;
   remainingBalance: number;
   status: string;
+  paidAt?: Date;
   createdBy: PopulatedCreator;
   createdAt: Date;
   updatedAt: Date;
@@ -71,6 +73,7 @@ function toData(salary: Record<string, unknown>): SalaryData {
     totalPaid,
     remainingBalance: Math.max(0, baseSalary - totalPaid),
     status: salary.status as string,
+    paidAt: salary.paidAt as Date | undefined,
     createdBy: salary.createdBy as PopulatedCreator,
     createdAt: salary.createdAt as Date,
     updatedAt: salary.updatedAt as Date,
@@ -87,7 +90,7 @@ export async function listSalaries(query: ListSalariesQuery) {
   }
   if (query.status) filter.status = query.status;
 
-  const skip = (query.page - 1) * query.limit;
+  const { skip, limit } = paginate(query.page, query.limit);
 
   const [salaries, total] = await Promise.all([
     Salary.find(filter)
@@ -96,7 +99,7 @@ export async function listSalaries(query: ListSalariesQuery) {
       .populate('createdBy', 'name')
       .populate('advances.createdBy', 'name')
       .skip(skip)
-      .limit(query.limit)
+      .limit(limit)
       .lean(),
     Salary.countDocuments(filter),
   ]);
@@ -158,15 +161,26 @@ export async function createSalary(dto: CreateSalaryDto, userId: string) {
   const totalPaid = dto.paidAmount;
   const status = totalPaid >= baseSalary ? 'paid' : 'active';
 
-  const salary = await Salary.create({
-    employeeId: dto.employeeId,
-    baseSalary,
-    month: dto.month,
-    year: dto.year,
-    advances,
-    status,
-    createdBy: userId,
-  });
+  let salary;
+  try {
+    salary = await Salary.create({
+      employeeId: dto.employeeId,
+      baseSalary,
+      month: dto.month,
+      year: dto.year,
+      advances,
+      status,
+      paidAt: status === 'paid' ? new Date() : undefined,
+      createdBy: userId,
+    });
+  } catch (error: unknown) {
+    const mongoError = error as { code?: number; keyValue?: Record<string, unknown> };
+    if (mongoError.code === 11000) {
+      console.error('[E11000] Duplicate salary key. employeeId:', dto.employeeId, 'month:', dto.month, 'year:', dto.year, 'keyValue:', JSON.stringify(mongoError.keyValue));
+      throw createError(409, 'SALARY_ALREADY_EXISTS', 'Salary record for this employee/month/year already exists');
+    }
+    throw error;
+  }
 
   const populated = await Salary.findById(salary._id)
     .populate('employeeId', 'name')
@@ -203,6 +217,7 @@ export async function addAdvance(salaryId: string, dto: AddAdvanceDto, userId: s
   const newTotal = totalPaid + dto.amount;
   if (Math.abs(newTotal - salary.baseSalary) < 0.01) {
     salary.status = 'paid';
+    salary.paidAt = new Date();
   }
 
   await salary.save();
@@ -223,11 +238,18 @@ export async function updateSalaryStatus(salaryId: string, dto: UpdateSalaryStat
     throw createError(404, 'NOT_FOUND', 'Salary record not found');
   }
 
+  if (salary.status !== 'active') {
+    throw createError(400, 'INVALID_SALARY_STATUS', 'Can only transition a salary record from active status');
+  }
+
   if (dto.status === 'cancelled' && salary.advances.length > 0) {
     throw createError(400, 'HAS_ADVANCES', 'Cannot cancel a salary record with advances');
   }
 
   salary.status = dto.status;
+  if (dto.status === 'paid') {
+    salary.paidAt = new Date();
+  }
   await salary.save();
 
   const populated = await Salary.findById(salary._id)
@@ -239,12 +261,18 @@ export async function updateSalaryStatus(salaryId: string, dto: UpdateSalaryStat
   return toData(populated! as unknown as Record<string, unknown>);
 }
 
-export async function deleteSalary(id: string) {
-  const salary = await Salary.findByIdAndDelete(id);
+export async function deleteSalary(id: string, force = false) {
+  const salary = await Salary.findById(id);
 
   if (!salary) {
     throw createError(404, 'NOT_FOUND', 'Salary record not found');
   }
+
+  if (!force && salary.advances.length > 0) {
+    throw createError(409, 'SALARY_HAS_ADVANCES', 'Cannot delete a salary record that has advances');
+  }
+
+  await salary.deleteOne();
 
   return { success: true };
 }
@@ -299,14 +327,14 @@ export async function listAdjustments(query: ListAdjustmentsQuery) {
   if (query.month) filter.month = query.month;
   if (query.year) filter.year = query.year;
 
-  const skip = (query.page - 1) * query.limit;
+  const { skip, limit } = paginate(query.page, query.limit);
 
   const [adjustments, total] = await Promise.all([
     SalaryAdjustment.find(filter)
       .sort({ date: -1, createdAt: -1 })
       .populate('createdBy', 'name')
       .skip(skip)
-      .limit(query.limit)
+      .limit(limit)
       .lean(),
     SalaryAdjustment.countDocuments(filter),
   ]);
@@ -344,6 +372,10 @@ export async function createAdjustment(dto: CreateAdjustmentDto, userId: string)
     }
   }
 
+  if (dto.type === 'cut' && dto.amount > employee.baseSalary) {
+    throw createError(400, 'ADJUSTMENT_EXCEEDS_SALARY', 'Cut amount cannot exceed the employee base salary');
+  }
+
   const adjustment = await SalaryAdjustment.create({
     employeeId: dto.employeeId,
     salaryId: dto.salaryId || undefined,
@@ -374,6 +406,22 @@ export async function deleteAdjustment(id: string) {
 }
 
 export async function updateAdjustment(id: string, dto: UpdateAdjustmentDto) {
+  const existing = await SalaryAdjustment.findById(id);
+
+  if (!existing) {
+    throw createError(404, 'NOT_FOUND', 'Adjustment not found');
+  }
+
+  const finalType = dto.type ?? existing.type;
+  const finalAmount = dto.amount ?? existing.amount;
+
+  if (finalType === 'cut') {
+    const employee = await Employee.findById(existing.employeeId);
+    if (employee && finalAmount > employee.baseSalary) {
+      throw createError(400, 'ADJUSTMENT_EXCEEDS_SALARY', 'Cut amount cannot exceed the employee base salary');
+    }
+  }
+
   const allowedFields: Array<keyof UpdateAdjustmentDto> = ['type', 'amount', 'reason', 'date'];
   const updateData: Record<string, unknown> = {};
 
@@ -432,16 +480,6 @@ export async function getOrCreateSalarySummary(query: SalarySummaryQuery) {
     throw createError(404, 'EMPLOYEE_NOT_FOUND', 'Referenced employee not found');
   }
 
-  const existing = await SalarySummary.findOne({
-    employeeId: query.employeeId,
-    month: query.month,
-    year: query.year,
-  }).lean();
-
-  if (existing) {
-    return toSummaryData(existing as unknown as Record<string, unknown>);
-  }
-
   const salary = await Salary.findOne({
     employeeId: query.employeeId,
     month: query.month,
@@ -466,18 +504,19 @@ export async function getOrCreateSalarySummary(query: SalarySummaryQuery) {
     : 0;
   const netSalary = totalSalary + totalBonus - totalCut;
 
-  const summary = await SalarySummary.create({
-    employeeId: query.employeeId,
-    month: query.month,
-    year: query.year,
-    totalSalary,
-    totalBonus,
-    totalCut,
-    totalPaid,
-    netSalary,
-  });
+  const summary = await SalarySummary.findOneAndUpdate(
+    {
+      employeeId: query.employeeId,
+      month: query.month,
+      year: query.year,
+    },
+    {
+      $set: { totalSalary, totalBonus, totalCut, totalPaid, netSalary },
+    },
+    { upsert: true, new: true }
+  ).lean();
 
-  return toSummaryData(summary.toObject() as unknown as Record<string, unknown>);
+  return toSummaryData(summary as unknown as Record<string, unknown>);
 }
 
 // ---- Salary Report ----
@@ -491,6 +530,7 @@ interface EmployeeReportEntry {
   netSalary: number;
   totalPaid: number;
   salaryStatus: string;
+  paidAt?: Date;
 }
 
 interface SalaryReportData {
@@ -575,6 +615,7 @@ export async function getSalaryReport(query: SalaryReportQuery) {
       netSalary,
       totalPaid,
       salaryStatus: (s?.status as string) ?? 'no_salary',
+      paidAt: (s?.paidAt as Date) ?? undefined,
     });
   }
 
@@ -633,6 +674,7 @@ export async function getEmployeeReport(query: EmployeeReportQuery) {
     totalPaid: number;
     remainingBalance: number;
     status: string;
+    paidAt?: Date;
     adjustments: Array<{ id: string; type: 'bonus' | 'cut'; amount: number; reason: string; date: Date }>;
   }> = [];
 
@@ -657,6 +699,7 @@ export async function getEmployeeReport(query: EmployeeReportQuery) {
       totalPaid,
       remainingBalance: salary ? Math.max(0, salary.baseSalary - totalPaid) : 0,
       status: salary?.status ?? 'no_salary',
+      paidAt: salary?.paidAt ?? undefined,
       adjustments: adj?.adjustments ?? [],
     });
   }

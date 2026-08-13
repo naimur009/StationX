@@ -2,6 +2,7 @@ import Customer, { ICustomer } from '../../models/Customer';
 import Order from '../../models/Order';
 import { createError } from '../../middleware/errorHandler';
 import { escapeRegex } from '../../lib/escapeRegex';
+import { paginate } from '../../lib/pagination';
 import type {
   CreateCustomerDto,
   UpdateCustomerDto,
@@ -45,17 +46,18 @@ export async function listCustomers(query: ListCustomersDto) {
   const filter: Record<string, unknown> = {};
 
   if (query.search) {
-    const escaped = escapeRegex(query.search);
-    filter.$or = [
-      { $text: { $search: query.search } },
-      { phone: { $regex: escaped, $options: 'i' } },
-    ];
+    const term = query.search.trim().replace(/"/g, '');
+    const or: Array<Record<string, unknown>> = [{ phone: { $regex: escapeRegex(query.search), $options: 'i' } }];
+    if (term) {
+      or.unshift({ $text: { $search: term } });
+    }
+    filter.$or = or;
   }
 
-  const skip = (query.page - 1) * query.limit;
+  const { skip, limit } = paginate(query.page, query.limit);
 
   const [customers, total] = await Promise.all([
-    Customer.find(filter).sort({ createdAt: -1 }).skip(skip).limit(query.limit).lean(),
+    Customer.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
     Customer.countDocuments(filter),
   ]);
 

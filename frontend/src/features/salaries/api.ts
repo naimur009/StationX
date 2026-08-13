@@ -21,6 +21,7 @@ export interface SalaryResponse {
   totalPaid: number;
   remainingBalance: number;
   status: 'active' | 'paid' | 'cancelled';
+  paidAt?: string;
   createdBy: { _id: string; name: string };
   createdAt: string;
   updatedAt: string;
@@ -125,8 +126,8 @@ export function useDeleteSalary() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (id: string) =>
-      apiClient<{ data: { success: boolean } }>(`/salaries/${id}`, {
+    mutationFn: ({ id, force }: { id: string; force?: boolean }) =>
+      apiClient<{ data: { success: boolean } }>(`/salaries/${id}${force ? '?force=true' : ''}`, {
         method: 'DELETE',
       }),
     onSuccess: () => {
@@ -266,6 +267,7 @@ export interface EmployeeReportEntry {
   netSalary: number;
   totalPaid: number;
   salaryStatus: string;
+  paidAt?: string;
 }
 
 export interface SalaryReportResponse {
@@ -310,6 +312,7 @@ export interface EmployeeMonthData {
   totalPaid: number;
   remainingBalance: number;
   status: string;
+  paidAt?: string;
   adjustments: Array<{
     id: string;
     type: 'bonus' | 'cut';

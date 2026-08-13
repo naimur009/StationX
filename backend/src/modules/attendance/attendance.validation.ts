@@ -1,6 +1,9 @@
 import { z } from 'zod';
+import { paginationSchema } from '../../lib/pagination';
 
 const attendanceStatusEnum = z.enum(['present', 'absent', 'late', 'half-day']);
+
+const dateString = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be in YYYY-MM-DD format');
 
 const recordSchema = z.object({
   employeeId: z.string().min(1, 'employeeId is required'),
@@ -30,17 +33,15 @@ export const updateAttendanceSchema = z.object({
 );
 
 export const todayQuerySchema = z.object({
-  date: z.string().optional(),
+  date: dateString.optional(),
 }).strict();
 
-export const listAttendanceQuerySchema = z.object({
+export const listAttendanceQuerySchema = paginationSchema.extend({
   employeeId: z.string().optional(),
   status: attendanceStatusEnum.optional(),
-  from: z.string().optional(),
-  to: z.string().optional(),
+  from: dateString.optional(),
+  to: dateString.optional(),
   search: z.string().optional(),
-  page: z.coerce.number().int().positive().max(1000).default(1),
-  limit: z.coerce.number().int().positive().max(100).default(20),
 }).strict();
 
 export const objectIdParam = z.object({

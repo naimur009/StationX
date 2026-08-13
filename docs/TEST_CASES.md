@@ -462,6 +462,9 @@ These apply to **every** module below; listed once here and referenced by ID rat
 | CUST-CROSS-03 | Integration | POS order created with `customerPhone` links `customerId` on the Order | Fetching the Order returns `customerId` populated with the auto-created/updated Customer |
 | CUST-CROSS-04 | Integration | After POS order creation, customers list auto-refreshes | React Query `['customers']` key invalidated — list updates without manual refresh |
 | CUST-E-02 | Edge | `PUT /customers/:id` with no field changes (same values) | No history entries added — only actually-changed fields produce a history entry |
+| CUST-H-12 | Happy | `POST /customers/save-or-find` with an existing phone | `200`, the existing customer returned — no new document created |
+| CUST-H-13 | Happy | `POST /customers/save-or-find` with a new phone + name | `200`, new customer created with `orderCount: 0` |
+| CUST-V-01 | Validation | `POST /customers/save-or-find` with a new phone but no `name` | `400 VALIDATION_ERROR` — name is required to create a new customer |
 
 ---
 
@@ -546,7 +549,7 @@ These apply to **every** module below; listed once here and referenced by ID rat
 | REP-V-01 | Validation | `type` outside `sales|profit` | `400 INVALID_REPORT_TYPE` |
 | REP-E-01 | Edge | Export requested for a range with zero data | PDF still generates (e.g. "No data for this period."), doesn't error |
 | REP-AUTH-01 | Security | User has `reports:view` but not `reports:create` | On-screen `GET /reports/:type` succeeds; `GET /reports/:type/export` returns `403 FORBIDDEN` |
-| REP-CALC-01 | Integration | Profit report calculation | `profit = totalRevenue + totalMiscIncome - totalExpenses - totalSalary` for the same range |
+| REP-CALC-01 | Integration | Profit report calculation | `profit = totalRevenue + totalMiscIncome - totalExpenses - totalPaid` for the same range, where `totalPaid` is the sum of paid salary amounts (advances), not full base salaries |
 | REP-CALC-02 | Integration | Profit report includes misc income from Incomes module | `income.totalMiscIncome` matches sum of Income records in range, `income.byMiscCategory` provides category breakdown |
 | REP-CALC-03 | Edge | No Income records exist for the selected range | `totalMiscIncome: 0`, `miscEntries: 0`, `byMiscCategory: []` — profit calculation still works with only Order revenue |
 | REP-PERF-01 | Performance | Export for a full year of data (`range=custom`, 12-month span) | PDF generation completes within an acceptable time bound (define SLA in feature spec); no timeout on the Puppeteer render |
@@ -562,7 +565,7 @@ These apply to **every** module below; listed once here and referenced by ID rat
 | SAL-V-02 | Validation | Negative `paidAmount` | `400 VALIDATION_ERROR` |
 | SAL-V-03 | Validation | `month` outside 1–12 | `400 VALIDATION_ERROR` |
 | SAL-E-01 | Error | Duplicate `{employeeId, month, year}` | `409 SALARY_ALREADY_EXISTS` |
-| SAL-E-02 | Error | `employeeId` references nonexistent user | `404 USER_NOT_FOUND` |
+| SAL-E-02 | Error | `employeeId` references nonexistent employee | `404 EMPLOYEE_NOT_FOUND` |
 | SAL-H-01b | Happy | `POST /salaries` with `paidAmount` equal to Employee's baseSalary | `201`, status auto-set to `paid`, one advance created |
 | SAL-E-07 | Error | `POST /salaries` with `paidAmount` above Employee's baseSalary | `400 EXCEEDS_SALARY`, no record created; extra pay must use bonus adjustment |
 | SAL-H-02 | Happy | `PATCH /salaries/:id/advance` within remaining balance | `200`, advance added, `totalPaid` and `remainingBalance` updated |
@@ -570,11 +573,14 @@ These apply to **every** module below; listed once here and referenced by ID rat
 | SAL-V-04 | Validation | `PATCH /salaries/:id/advance` with negative amount | `400 VALIDATION_ERROR` |
 | SAL-E-03 | Error | Advance exceeds remaining balance | `400 EXCEEDS_SALARY` |
 | SAL-E-04 | Error | Advance on a `paid`/`cancelled` salary record | `400 INVALID_SALARY_STATUS` |
-| SAL-H-04 | Happy | `PATCH /salaries/:id/status` → `paid` | `200`, status updated |
+| SAL-H-04 | Happy | `PATCH /salaries/:id/status` → `paid` (from `active`) | `200`, status updated |
 | SAL-H-05 | Happy | `PATCH /salaries/:id/status` → `cancelled` (only when no advances) | `200`, status updated |
 | SAL-E-05 | Error | Cancel salary record with advances | `400 HAS_ADVANCES` |
+| SAL-E-08 | Error | `PATCH /salaries/:id/status` on a `paid`/`cancelled` record (e.g. revert to `active`) | `400 INVALID_SALARY_STATUS` |
 | SAL-H-06 | Happy | `DELETE /salaries/:id` with no advances | `200`, record deleted |
 | SAL-E-06 | Error | `DELETE /salaries/:id` with advances | `409 SALARY_HAS_ADVANCES` |
+| SAL-H-09 | Happy | `DELETE /salaries/:id?force=true` with advances | `200`, record and its advances permanently removed (hard delete) |
+| SAL-V-05 | Validation | `DELETE /salaries/:id?force=yes` | `400 VALIDATION_ERROR` (`force` must be `true`/`false`) |
 | SAL-H-07 | Happy | `GET /salaries?month=&year=` | Correctly filtered list |
 | SAL-H-08 | Happy | `GET /salaries/:id` | Detail with advance history |
 
@@ -593,6 +599,8 @@ These apply to **every** module below; listed once here and referenced by ID rat
 | ADJ-H-04 | Happy | `GET /salary-adjustments/:id` | Single adjustment detail |
 | ADJ-H-05 | Happy | `DELETE /salary-adjustments/:id` | Hard delete succeeds |
 | ADJ-E-02 | Error | `DELETE /salary-adjustments/:id` nonexistent | `404 NOT_FOUND` |
+| ADJ-E-03 | Error | `POST /salary-adjustments` cut amount above employee's baseSalary | `400 ADJUSTMENT_EXCEEDS_SALARY` |
+| ADJ-E-04 | Error | `PATCH /salary-adjustments/:id` updating a cut above employee's baseSalary | `400 ADJUSTMENT_EXCEEDS_SALARY` |
 
 ## 22. Salary Summary
 
@@ -603,7 +611,7 @@ These apply to **every** module below; listed once here and referenced by ID rat
 | SUM-V-01 | Validation | Missing `employeeId` | `400 VALIDATION_ERROR` |
 | SUM-V-02 | Validation | Missing `month` | `400 VALIDATION_ERROR` |
 | SUM-E-01 | Error | `employeeId` references nonexistent employee | `404 EMPLOYEE_NOT_FOUND` |
-| SUM-H-03 | Happy | Auto-creation on first query | Summary document created in DB, subsequent queries return cached version |
+| SUM-H-03 | Happy | Summary refresh on re-query | Summary recomputed + upserted on every `GET /salary-summary`; a bonus added after the first query is reflected on the next query |
 
 ## 23. Employees
 
@@ -634,34 +642,35 @@ These apply to **every** module below; listed once here and referenced by ID rat
 
 | ID | Type | Case | Expected |
 |---|---|---|---|
-| TBL-H-01 | Happy | `POST /tables` with label, capacity, area | `201`, Table created with `status: available`, `bookedBy: null`, `orderId: null` |
-| TBL-H-02 | Happy | `POST /tables` with label only (minimal) | `201`, Table created; `capacity` and `area` are `undefined`/omitted |
-| TBL-H-03 | Happy | `GET /tables` default list | `200`, paginated list of all tables, each with `label`, `capacity`, `area`, `status`, `bookedBy`, `orderId` |
+| TBL-H-01 | Happy | `POST /tables` with `tableNumber`, `capacity` | `201`, Table created with `status: available`, `bookedBy: null`, `currentOrderId: null` |
+| TBL-H-02 | Happy | `POST /tables` with `tableNumber` only (minimal) | `201`, Table created; `capacity` omitted |
+| TBL-H-03 | Happy | `GET /tables` default list | `200`, full (unpaginated) list of all tables, each with `tableNumber`, `capacity`, `status`, `bookedBy`, `currentOrderId` |
 | TBL-H-04 | Happy | `GET /tables?status=available` filtered | `200`, list contains only `available` tables |
-| TBL-H-05 | Happy | `GET /tables/:id` single | `200`, full table document |
-| TBL-H-06 | Happy | `PUT /tables/:id` updating label, capacity, area | `200`, fields updated; `status`/`bookedBy`/`orderId` unchanged |
-| TBL-H-07 | Happy | `PUT /tables/:id` label only (partial update) | `200`, only label changed, other fields preserved |
-| TBL-H-08 | Happy | `DELETE /tables/:id` where table has no active order | `200`, table document removed |
-| TBL-V-01 | Validation | `POST /tables` missing `label` | `400 VALIDATION_ERROR` |
-| TBL-V-02 | Validation | `POST /tables` label empty string | `400 VALIDATION_ERROR` |
-| TBL-V-03 | Validation | `POST /tables` label exceeds max length | `400 VALIDATION_ERROR` |
+| TBL-H-05 | Happy | `GET /tables/:id` single | `200`, full table document with the referencing `currentOrderId` (ObjectId string) if booked |
+| TBL-H-06 | Happy | `PUT /tables/:id` updating `tableNumber`, `capacity` | `200`, fields updated; `status`/`bookedBy`/`currentOrderId` unchanged |
+| TBL-H-07 | Happy | `PUT /tables/:id` `tableNumber` only (partial update) | `200`, only `tableNumber` changed, other fields preserved |
+| TBL-H-08 | Happy | `DELETE /tables/:id` where table has no live order | `200`, table document removed |
+| TBL-V-01 | Validation | `POST /tables` missing `tableNumber` | `400 VALIDATION_ERROR` |
+| TBL-V-02 | Validation | `POST /tables` `tableNumber` empty string | `400 VALIDATION_ERROR` |
+| TBL-V-03 | Validation | `POST /tables` `tableNumber` exceeds max length | `400 VALIDATION_ERROR` |
 | TBL-V-04 | Validation | `POST /tables` capacity negative or non-integer | `400 VALIDATION_ERROR` |
-| TBL-V-05 | Validation | `POST /tables` duplicate label | `409 TABLE_NUMBER_IN_USE` |
-| TBL-V-06 | Validation | `PUT /tables/:id` setting `status` or `bookedBy` directly via body (these are system-managed or use a dedicated endpoint) | `400 VALIDATION_ERROR` — fields stripped/rejected by schema; table status is only changeable via the dedicated status endpoint |
-| TBL-E-01 | Error | `DELETE /tables/:id` where table has an active (non-completed, non-cancelled) order | `409 TABLE_HAS_ACTIVE_ORDER`; table document unchanged |
+| TBL-V-05 | Validation | `POST /tables` duplicate `tableNumber` | `409 TABLE_NUMBER_IN_USE` |
+| TBL-V-06 | Validation | `PUT /tables/:id` setting `status` or `bookedBy` directly via body (these are system-managed or use a dedicated endpoint) | `400 VALIDATION_ERROR` — fields rejected by the strict schema; table status is only changeable via `PATCH /tables/:id/status` |
+| TBL-E-01 | Error | `DELETE /tables/:id` while a live (non-completed, non-cancelled) order references the table | `409 TABLE_IN_USE`; table document unchanged |
 | TBL-E-02 | Error | `GET /tables/:id` nonexistent ID | `404 NOT_FOUND` |
 | TBL-E-03 | Error | `PUT /tables/:id` nonexistent ID | `404 NOT_FOUND` |
 | TBL-E-04 | Error | `DELETE /tables/:id` nonexistent ID | `404 NOT_FOUND` |
-| TBL-CROSS-01 | Integration | POS order created with `tableId` pointing to an `available` table | `201`, Order has `tableId` populated; Table transitions to `status: booked`, `bookedBy: order`, `orderId: <newOrderId>` |
+| TBL-E-05 | Error | `PATCH /tables/:id/status → booked` while the table is already booked by an active order (`bookedBy: order`) | `409 TABLE_ALREADY_BOOKED` |
+| TBL-CROSS-01 | Integration | POS order created with `tableId` pointing to an `available` table | `201`, Order has `tableId` populated; Table transitions to `status: booked`, `bookedBy: order`, `currentOrderId: <newOrderId>` |
 | TBL-CROSS-02 | Integration | POS order created with `tableId` pointing to a `booked` table (different active order) | `409 TABLE_ALREADY_BOOKED`; Order not created; Table unchanged |
-| TBL-CROSS-03 | Integration | Payment captured on an order that has a `tableId` (paymentStatus → `paid`) | Order marked `paid`; linked Table transitions to `status: available`, `bookedBy: null`, `orderId: null` |
-| TBL-CROSS-04 | Integration | Order cancelled before payment (`status → cancelled`, `paymentStatus` unchanged from `unpaid`) | Order cancelled; linked Table transitions to `status: available`, `bookedBy: null`, `orderId: null` |
-| TBL-CROSS-05 | Edge | Order cancelled *after* staff manually freed its table via `PATCH /tables/:id/status → available` (table already has `status: available`, `orderId: null` at the moment the cancel hook runs) | Cancel succeeds, no double-processing error; the hook is a no-op for the table (already free). The `tableLabelSnapshot` on the Order preserves the label for the historical bill. |
-| TBL-CROSS-06 | Edge | `PATCH /tables/:id/status` with `{ status: available, reason: "moving party" }` while the table has `bookedBy: order` and a live `orderId` | **Allowed** — table is decoupled from the order: `status → available`, `bookedBy → null`, `orderId → null`. The Order retains its `tableId` reference (now pointing to an available table) and `tableLabelSnapshot` for billing. A `table:statusChanged` event fires. The response includes a warning body field `/warn` signalling the decoupling occurred. |
-| TBL-CROSS-07 | Concurrency | Two POS terminals submit orders targeting the same `available` table simultaneously | Exactly one order succeeds (Table goes `booked`); the second gets `409 TABLE_ALREADY_BOOKED` — the booking is guarded by an atomic conditional update (`findOneAndUpdate` with filter `status: available`) or equivalent locking, never checked-then-written in two operations |
-| TBL-RT-01 | Real-time | Table status transitions via POS order (create → cancel) | `table:statusChanged` fired: `{ tableId, status: 'booked' }` on create, `{ tableId, status: 'available' }` on cancel. Exactly one event per transition. |
-| TBL-RT-02 | Real-time | Table status transitions via manual override (`PATCH /tables/:id/status`) | `table:statusChanged` fired once with the new `status` and `source: 'manual'` distinguisher. Event is emitted **after** the DB write commits, never optimistically before the write. |
-| TBL-RT-03 | Real-time | Table created via `POST /tables` | No `table:statusChanged` event — the create action is not a status *transition*. A separate `table:created` event may be used for live grid refresh; if so, document and add one case. (Per current docs: not emitted — grid relies on manual refresh or the next list poll.) |
+| TBL-CROSS-03 | Integration | Payment captured on an order that has a `tableId` (paymentStatus → `paid`) | Order marked `paid`; linked Table transitions to `status: available`, `bookedBy: null`, `currentOrderId: null` |
+| TBL-CROSS-04 | Integration | Order cancelled before payment (`status → cancelled`, `paymentStatus` unchanged from `unpaid`) | Order cancelled; linked Table transitions to `status: available`, `bookedBy: null`, `currentOrderId: null` |
+| TBL-CROSS-05 | Edge | Order cancelled *after* staff manually freed its table via `PATCH /tables/:id/status → available` (table already has `status: available`, `currentOrderId: null` at the moment the cancel hook runs) | Cancel succeeds, no double-processing error; the hook is a no-op for the table (already free). The `tableLabelSnapshot` on the Order preserves the label for the historical bill. |
+| TBL-CROSS-06 | Edge | `PATCH /tables/:id/status` with `{ status: available, notes: "moving party" }` while the table has `bookedBy: order` and a live `currentOrderId` | **Allowed** — table is decoupled from the order: `status → available`, `bookedBy → null`, `currentOrderId → null`. The Order retains its `tableId` reference and `tableLabelSnapshot` for billing. A `table:statusChanged` event fires. |
+| TBL-CROSS-07 | Concurrency | Two POS terminals submit orders targeting the same `available` table simultaneously | Exactly one order succeeds (Table goes `booked`); the second gets `409 TABLE_ALREADY_BOOKED` — the booking is guarded inside the order-creation transaction (per `DATABASE.md` §5.7), never checked-then-written in two operations |
+| TBL-RT-01 | Real-time | Table status transitions via POS order (create → cancel) | `table:statusChanged` fired: `{ tableId, tableNumber, status: 'booked', orderId }` on create, `{ tableId, tableNumber, status: 'available', orderId: null }` on cancel. Exactly one event per transition. |
+| TBL-RT-02 | Real-time | Table status transitions via manual override (`PATCH /tables/:id/status`) | `table:statusChanged` fired once with the new `status` and `orderId` per `API.md` §25. Event is emitted **after** the DB write commits, never optimistically before the write. |
+| TBL-RT-03 | Real-time | Table created via `POST /tables` | No `table:statusChanged` event — the create action is not a status *transition*. (Grid refresh relies on query invalidation.) |
 | TBL-AUTH-01 | Security | User lacks `tables:view` | `403 FORBIDDEN` on `GET /tables`, `GET /tables/:id` |
 | TBL-AUTH-02 | Security | User lacks `tables:create` | `403 FORBIDDEN` on `POST /tables` |
 | TBL-AUTH-03 | Security | User lacks `tables:edit` | `403 FORBIDDEN` on `PUT /tables/:id`, `PATCH /tables/:id/status` |
@@ -692,7 +701,7 @@ These verify rules that span multiple collections/modules and are easy to silent
 |---|---|---|---|
 | XMOD-01 | Integrity | Edit a Product's `price` after orders referencing it exist | Past orders' `priceSnapshot`/`lineTotal`/`grandTotal` remain unchanged; only future orders use the new price |
 | XMOD-02 | Integrity | Edit a Product's `name` after orders exist | Past orders' `nameSnapshot` remains the old name on receipts/reports |
-| XMOD-03 | Integrity | Delete (soft) a Customer, then view an old Order that references them | Order detail still resolves customer name/info via the stored reference, doesn't break or 404 |
+| XMOD-03 | Integrity | Hard-delete a Customer, then view an old Order that references them | Order detail still resolves customer name/info via the stored `customerName`/`customerPhone` snapshot fields, doesn't break or 404 |
 | XMOD-04 | Integrity | Coupon hard-deleted (only possible if `usageCount: 0`) — confirm no Order ever ends up with a dangling `couponId` | Verify by attempting hard delete on a coupon, then never being able to orphan a referencing Order, since zero-usage coupons by definition have no Order referencing them |
 | XMOD-05 | Integrity | Full financial trace: create an Order with a coupon → check Dashboard, Income, and Reports all reflect it identically for the same range | All three modules' numbers must agree — they share the same aggregation helper and cancelled-exclusion rule |
 | XMOD-06 | Integrity | Cancel a `completed` order after it was already counted in a previously-viewed Dashboard snapshot | New Dashboard fetch (post-cancel) excludes it; verify `dashboard:metricsInvalidate` actually triggers a refetch on the open Dashboard tab |
