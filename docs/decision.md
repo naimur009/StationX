@@ -136,6 +136,8 @@ Profit formula updated from `totalRevenue - totalExpenses - totalSalary` to `tot
 
 6. **Non-cash payment `transactionId` validation** (`ORD-FIX-02`): Zod refine requiring `transactionId` when `payment.method !== 'cash'`; service-layer check prevents `null` transactionId from persisting.
 
+> **Superseded (2026-08-13, follow-up review):** `transactionId` is now **optional** for non-cash payments (`card`/`bkash`/`nagad`) — the Zod refines in `orders.validation.ts` and the service-layer guards in `orders.service.ts` were removed. A `transactionId`, when provided, is still persisted on the `payment` object; a missing one is no longer rejected. The `Coupon.usageCount` `$inc` was also moved from the payment-capture path (`PATCH /orders/:id/status`) back into the order-creation transaction (`POST /pos/orders`), where it is reserved atomically at order placement via the same conditional `findOneAndUpdate` guard; payment capture no longer touches the counter, and `DELETE /orders/:id` now rejects any order with a `couponId` (usage recorded at creation), per `API.md` §10/§28.1.
+
 7. **Salary report filtering** (`REP-FIX-01`): Changed from `createdAt` date range to `month`/`year` integer fields.
 
 8. **Tightened POS catalog auth** (`CM-FIX-04`): `GET /pos/products` authorization narrowed from `authorize(['pos', 'orders'], 'view')` to `authorize('pos', 'view')`.

@@ -204,7 +204,7 @@ Name-only staff list (`[{ "id": "...", "name": "..." }]`, sorted by name, capped
 
 `maxDiscountAmount` (`number | null`) is the coupon's cap for percentage discounts (the server applies `min(rawPercentageDiscount, maxDiscountAmount)`); the POS preview mirrors this cap so the displayed discount matches what will be charged. `null` means no cap.
 
-This is a **read-only preview** — `Coupon.usageCount` is *not* incremented here, even though the cart may call this endpoint multiple times as items change. The actual increment happens exactly once, atomically, inside the payment-capture transaction (`PATCH /orders/:id/status`, §10) — orders are always created `unpaid` (§9.3) — per `DATABASE.md` §5.2's race-condition handling. Calling this endpoint is purely advisory for the POS UI.
+This is a **read-only preview** — `Coupon.usageCount` is *not* incremented here, even though the cart may call this endpoint multiple times as items change. The actual increment happens exactly once, atomically, inside the order-creation transaction (`POST /pos/orders`, §9.3), per `DATABASE.md` §5.2's race-condition handling. Calling this endpoint is purely advisory for the POS UI.
 
 ### 9.3 Order Creation
 `POST /pos/orders`
@@ -221,7 +221,7 @@ This is where `ARCHITECTURE.md` §4's `pos.service.ts` ("order total calc, coupo
 }
 ```
 
-Orders are always created with `paymentStatus: 'unpaid'` and `status: 'pending'` — neither is client-settable (a `payment` block is **not** accepted at creation, no quick-checkout path; `POST /pos/orders` is creation-only). Status transitions — including `completed`/`cancelled` — happen exclusively via `PATCH /orders/:id/status` (§10), where the `Coupon.usageCount` `$inc` and table-unbooking side-effects run inside the same transaction.
+Orders are always created with `paymentStatus: 'unpaid'` and `status: 'pending'` — neither is client-settable (a `payment` block is **not** accepted at creation, no quick-checkout path; `POST /pos/orders` is creation-only). If a coupon is applied, its `usageCount` is incremented atomically inside this creation transaction (usage is reserved at order placement, not at payment). Status transitions — including `completed`/`cancelled` — happen exclusively via `PATCH /orders/:id/status` (§10), where the payment-capture and table-unbooking side-effects run inside the same transaction.
 
 ```json
 // Response 201
@@ -234,7 +234,7 @@ Orders are always created with `paymentStatus: 'unpaid'` and `status: 'pending'`
 } }
 ```
 
-Internally this delegates to the transaction described in `DATABASE.md` §5.1 (`Counter` increment, `Order` insert, `ActivityLog` write) — POS is the route, not a separate code path. `Coupon.usageCount` `$inc` is deferred to a separate transaction at payment capture time. On success it also emits `order:created`, `dashboard:metricsInvalidate`, and `table:statusChanged` (if a `tableId` was provided) (§25).
+Internally this delegates to the transaction described in `DATABASE.md` §5.1 (`Counter` increment, `Order` insert, `Coupon.usageCount` `$inc` when a coupon is applied, `ActivityLog` write) — POS is the route, not a separate code path. On success it also emits `order:created`, `dashboard:metricsInvalidate`, and `table:statusChanged` (if a `tableId` was provided) (§25).
 
 Errors: `400 VALIDATION_ERROR`, `409 PRODUCT_UNAVAILABLE` (a submitted `productId` was deactivated between catalog load and submit).
 

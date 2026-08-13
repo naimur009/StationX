@@ -242,6 +242,26 @@ export async function createOrder(dto: CreateOrderDto, userId: string) {
       }
     }
 
+    if (couponId) {
+      const incremented = await Coupon.findOneAndUpdate(
+        {
+          _id: couponId,
+          $expr: {
+            $or: [
+              { $eq: ['$usageLimit', null] },
+              { $lt: ['$usageCount', '$usageLimit'] },
+            ],
+          },
+        },
+        { $inc: { usageCount: 1 } },
+        { session, new: true }
+      );
+
+      if (!incremented) {
+        throw createError(409, 'COUPON_USAGE_LIMIT_REACHED', 'Coupon usage limit reached');
+      }
+    }
+
     const seq = await getNextSequence('orderNumber', session);
 
     const padded = seq.toString().padStart(6, '0');

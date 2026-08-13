@@ -553,9 +553,6 @@ export async function updateOrder(id: string, dto: UpdateOrderDto) {
   }
 
   if (dto.payment) {
-    if (dto.payment.method && dto.payment.method !== 'cash' && !dto.payment.transactionId) {
-      throw createError(400, 'VALIDATION_ERROR', 'Transaction ID is required for non-cash payments');
-    }
     const oldPayment = order.payment;
     const oldMethod = oldPayment?.method;
     const newMethod = dto.payment.method;
@@ -732,8 +729,6 @@ export async function updateOrderStatus(id: string, dto: UpdateOrderStatusDto, a
       if (cashTendered == null || cashTendered < grandTotal) {
         throw createError(400, 'VALIDATION_ERROR', 'Cash tendered must cover the grand total');
       }
-    } else if (!dto.payment.transactionId) {
-      throw createError(400, 'VALIDATION_ERROR', 'Transaction ID is required for non-cash payments');
     }
 
     await withTransaction(async (session) => {
@@ -754,31 +749,6 @@ export async function updateOrderStatus(id: string, dto: UpdateOrderStatusDto, a
       }
 
       await Order.findByIdAndUpdate(id, { $set: setFields }, { session });
-
-      if (order.couponId) {
-        const incremented = await Coupon.findOneAndUpdate(
-          {
-            _id: order.couponId,
-            $expr: {
-              $or: [
-                { $eq: ['$usageLimit', null] },
-                { $lt: ['$usageCount', '$usageLimit'] },
-              ],
-            },
-          },
-          { $inc: { usageCount: 1 } },
-          { session, new: true }
-        );
-
-        if (!incremented) {
-          const coupon = await Coupon.findById(order.couponId, null, { session });
-          if (!coupon) {
-            // coupon deleted after the order was created — nothing to count
-          } else {
-            throw createError(409, 'COUPON_USAGE_LIMIT_REACHED', 'Coupon usage limit reached');
-          }
-        }
-      }
 
       await ActivityLog.create([{
         actor: new mongoose.Types.ObjectId(actorId),
@@ -941,7 +911,7 @@ export async function deleteOrder(id: string) {
     throw createError(409, 'ORDER_NOT_DELETABLE', 'Only orders created today can be deleted');
   }
 
-  if (order.couponId && order.paymentStatus === 'paid') {
+  if (order.couponId) {
     throw createError(
       409,
       'ORDER_NOT_DELETABLE',
