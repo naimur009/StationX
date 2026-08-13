@@ -217,7 +217,7 @@ This is where `ARCHITECTURE.md` §4's `pos.service.ts` ("order total calc, coupo
 }
 ```
 
-`payment` is optional at creation. When omitted, the order is created with `paymentStatus: 'unpaid'`. When provided, the order is created with `paymentStatus: 'paid'` (legacy quick-checkout path).
+Orders are always created with `paymentStatus: 'unpaid'` — a `payment` block is **not** accepted at creation (no quick-checkout path; `POST /pos/orders` is creation-only). Payment is captured exclusively via `PATCH /orders/:id/status` (§10), where the `Coupon.usageCount` `$inc` and table-unbooking side-effects run inside the same transaction.
 
 ```json
 // Response 201

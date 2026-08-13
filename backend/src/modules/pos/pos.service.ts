@@ -135,8 +135,7 @@ export async function saveOrFindCustomer(dto: CreateCustomerDto) {
 }
 
 export async function createOrder(dto: CreateOrderDto, userId: string) {
-  const { items: itemDtos, payment, couponCode, ...rest } = dto;
-  const paymentMethod = payment?.method;
+  const { items: itemDtos, couponCode, ...rest } = dto;
 
   const productIds = [...new Set(itemDtos.map((i) => i.productId))];
   const products = await Product.find({ _id: { $in: productIds }, isActive: true });
@@ -242,24 +241,11 @@ export async function createOrder(dto: CreateOrderDto, userId: string) {
     }
   }
 
-  let cashTendered: number | undefined;
-  let changeAmount: number | undefined;
-  if (payment && rest.cashTendered != null) {
-    cashTendered = rest.cashTendered;
-    changeAmount = round2(Math.max(0, cashTendered - grandTotal));
-  }
-
   let tableLabelSnapshot: string | undefined;
   if (rest.tableId) {
     const table = await Table.findById(rest.tableId);
     if (!table) {
       throw createError(400, 'TABLE_NOT_FOUND', 'Referenced table not found');
-    }
-    if (table.status === 'booked' && table.currentOrderId) {
-      const activeOrder = await Order.findById(table.currentOrderId).select('status');
-      if (activeOrder && activeOrder.status !== 'cancelled' && activeOrder.status !== 'completed') {
-        throw createError(409, 'TABLE_ALREADY_BOOKED', 'This table is already booked by another active order');
-      }
     }
     tableLabelSnapshot = table.tableNumber;
   }
@@ -287,15 +273,6 @@ export async function createOrder(dto: CreateOrderDto, userId: string) {
         taxAmount: totalTaxAmount,
         subtotal: computedSubtotal,
         grandTotal,
-        cashTendered,
-        changeAmount,
-        ...(payment ? {
-          payment: {
-            method: paymentMethod!,
-            ...(payment.transactionId ? { transactionId: payment.transactionId } : {}),
-          },
-          paymentStatus: 'paid',
-        } : {}),
         status: rest.status || 'pending',
         createdBy: userId,
         ...(rest.status === 'completed' ? { completedAt: new Date() } : {}),
@@ -310,17 +287,28 @@ export async function createOrder(dto: CreateOrderDto, userId: string) {
         action: 'pos.order_created',
         targetId: order[0]._id.toString(),
         targetType: 'Order',
-        description: `Created order ${on} for BDT ${grandTotal.toFixed(2)}${paymentMethod ? ` — ${paymentMethod}` : ''}, ${rest.status || 'pending'}`,
+        description: `Created order ${on} for BDT ${grandTotal.toFixed(2)}, ${rest.status || 'pending'}`,
       }],
       { session }
     );
 
     if (rest.tableId) {
-      await Table.findByIdAndUpdate(
-        rest.tableId,
-        { status: 'booked', currentOrderId: order[0]._id, bookedBy: 'order', bookedAt: new Date() },
-        { session }
-      );
+      let bookedTable: { _id: unknown } | null = null;
+      try {
+        bookedTable = await Table.findByIdAndUpdate(
+          { _id: rest.tableId, status: 'available' },
+          { status: 'booked', currentOrderId: order[0]._id, bookedBy: 'order', bookedAt: new Date() },
+          { session }
+        );
+      } catch (error) {
+        if ((error as { codeName?: string }).codeName === 'WriteConflict') {
+          throw createError(409, 'TABLE_ALREADY_BOOKED', 'This table is already booked by another active order');
+        }
+        throw error;
+      }
+      if (!bookedTable) {
+        throw createError(409, 'TABLE_ALREADY_BOOKED', 'This table is already booked by another active order');
+      }
     }
 
     return {
