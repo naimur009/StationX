@@ -16,22 +16,20 @@ export default function IncomesPage() {
 
   return (
     <PermissionGate module="incomes" action="view">
-      <div className="space-y-6">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="space-y-5 sm:space-y-6">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h1 className="text-xl sm:text-2xl font-bold text-slate-800">Incomes</h1>
+            <h1 className="text-xl font-bold text-slate-800 sm:text-2xl">Incomes</h1>
             <p className="mt-1 text-sm text-slate-500">
               Track miscellaneous income (scrap sales, recycling, etc.)
             </p>
           </div>
-          <div className="flex items-center gap-2">
-            <PermissionGate module="incomes" action="create">
-              <Button variant="primary" size="md" onClick={() => setCreateOpen(true)}>
-                <Plus className="mr-1.5 h-4 w-4" />
-                Record Income
-              </Button>
-            </PermissionGate>
-          </div>
+          <PermissionGate module="incomes" action="create">
+            <Button variant="primary" size="md" className="self-start sm:self-auto" onClick={() => setCreateOpen(true)}>
+              <Plus className="mr-1.5 h-4 w-4" />
+              Record Income
+            </Button>
+          </PermissionGate>
         </div>
 
         <IncomeList

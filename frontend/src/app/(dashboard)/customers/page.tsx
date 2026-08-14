@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import PermissionGate from '@/components/shared/PermissionGate';
 import CustomerList from '@/features/customers/components/CustomerList';
@@ -15,8 +16,8 @@ export default function CustomersPage() {
 
   return (
     <PermissionGate module="customers" action="view">
-      <div className="space-y-6">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="space-y-5 sm:space-y-6">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="text-xl sm:text-2xl font-bold text-slate-800">Customers</h1>
             <p className="mt-1 text-sm text-slate-500">
@@ -24,7 +25,8 @@ export default function CustomersPage() {
             </p>
           </div>
           <PermissionGate module="customers" action="create">
-            <Button variant="primary" size="md" onClick={() => setCreateOpen(true)}>
+            <Button variant="primary" size="md" className="self-start sm:self-auto" onClick={() => setCreateOpen(true)}>
+              <Plus className="mr-1.5 h-4 w-4" />
               Create Customer
             </Button>
           </PermissionGate>

@@ -1,10 +1,10 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { Search, ChevronLeft, ChevronRight, Eye, Edit3, Trash2 } from 'lucide-react';
+import { Search, ChevronLeft, ChevronRight, Eye, Edit3, Trash2, Building2, X } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useVendorsList, type VendorResponse } from '../api';
-import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import PermissionGate from '@/components/shared/PermissionGate';
 
 interface VendorListProps {
@@ -53,19 +53,35 @@ export default function VendorList({ onEdit, onDelete }: VendorListProps) {
 
   const totalPages = data ? Math.ceil(data.meta.total / data.meta.limit) : 0;
 
+  function clearSearch() {
+    setSearch('');
+  }
+
   return (
     <div className="space-y-4">
-      <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-3">
-        <div className="relative flex-1 min-w-[200px]">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-          <input
-            type="text"
+      {/* Search */}
+      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+        <div className="relative">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+          <Input
             placeholder="Search vendors..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full rounded-xl border border-slate-300 bg-white py-2.5 pl-10 pr-3.5 text-sm text-slate-800 placeholder-slate-400 ring-ring focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring"
+            className="pl-9"
           />
         </div>
+        {search && (
+          <div className="mt-2 flex justify-end">
+            <button
+              type="button"
+              onClick={clearSearch}
+              className="inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-medium text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700"
+            >
+              <X className="h-3.5 w-3.5" />
+              Clear search
+            </button>
+          </div>
+        )}
       </div>
 
       {isLoading ? (
@@ -77,34 +93,53 @@ export default function VendorList({ onEdit, onDelete }: VendorListProps) {
           Failed to load vendors
         </div>
       ) : data && data.data.length === 0 ? (
-        <div className="rounded-2xl border border-slate-200 bg-white px-4 py-12 text-center text-sm text-slate-400 shadow-sm">
-          No vendors found. Create your first vendor to get started.
+        <div className="rounded-2xl border border-slate-200 bg-white px-4 py-12 text-center shadow-sm">
+          <Building2 className="mx-auto h-8 w-8 text-slate-300" />
+          <p className="mt-3 text-sm text-slate-400">No vendors found. Create your first vendor to get started.</p>
         </div>
       ) : (
         <>
-          {/* Mobile card layout */}
-          <div className="grid gap-3 md:hidden">
+          {/* Mobile & tablet card layout */}
+          <div className="grid gap-3 sm:grid-cols-2 md:hidden">
             {data?.data.map((vendor) => (
               <div
                 key={vendor.id}
-                className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
+                className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm transition-shadow hover:shadow-md"
               >
-                <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0 flex-1">
-                    <button
-                      onClick={() => goToDetail(vendor)}
-                      className="truncate text-left font-medium text-slate-800 hover:text-primary"
-                    >
-                      {vendor.name}
-                    </button>
-                    {vendor.contactPerson && (
-                      <p className="truncate text-sm text-slate-500">{vendor.contactPerson}</p>
+                <button
+                  type="button"
+                  className="w-full px-4 py-3 text-left transition-colors hover:bg-slate-50"
+                  onClick={() => goToDetail(vendor)}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex min-w-0 items-start gap-2.5">
+                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-indigo-100 text-indigo-600">
+                        <Building2 className="h-4 w-4" />
+                      </span>
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-semibold text-slate-800">{vendor.name}</p>
+                        {vendor.contactPerson && (
+                          <p className="truncate text-xs text-slate-400">{vendor.contactPerson}</p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mt-3 flex items-center justify-between border-t border-dashed border-slate-200 pt-3">
+                    <span className="truncate text-xs text-slate-500">
+                      {vendor.phone || vendor.email || 'No contact info'}
+                    </span>
+                    {vendor.itemsSupplied.length > 0 && (
+                      <span className="shrink-0 text-xs text-slate-400">
+                        {vendor.itemsSupplied.length} item{vendor.itemsSupplied.length !== 1 ? 's' : ''}
+                      </span>
                     )}
                   </div>
-                </div>
-                {vendor.itemsSupplied.length > 0 && (
-                  <div className="mt-2 flex flex-wrap gap-1">
-                    {vendor.itemsSupplied.slice(0, 2).map((tag) => (
+                </button>
+
+                <div className="flex items-center justify-between border-t border-slate-100 bg-slate-50/60 px-4 py-2">
+                  <span className="truncate text-xs text-slate-500">
+                    {vendor.itemsSupplied.slice(0, 1).map((tag) => (
                       <span
                         key={tag}
                         className="inline-flex items-center gap-1 rounded-full bg-indigo-50 px-2 py-0.5 text-xs font-medium text-indigo-700"
@@ -112,76 +147,83 @@ export default function VendorList({ onEdit, onDelete }: VendorListProps) {
                         {tag}
                       </span>
                     ))}
-                    {vendor.itemsSupplied.length > 2 && (
-                      <span className="text-xs text-slate-400">+{vendor.itemsSupplied.length - 2} more</span>
+                    {vendor.itemsSupplied.length > 1 && (
+                      <span className="ml-1.5 text-slate-400">+{vendor.itemsSupplied.length - 1} more</span>
                     )}
-                  </div>
-                )}
-                <div className="mt-3 flex items-center justify-end gap-1.5">
-                  <button
-                    onClick={() => goToDetail(vendor)}
-                    className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-primary"
-                    title="View vendor"
-                  >
-                    <Eye className="h-4 w-4" />
-                  </button>
-                  <PermissionGate module="vendors" action="edit">
+                  </span>
+                  <div className="flex items-center gap-1">
                     <button
-                      onClick={() => onEdit(vendor)}
+                      onClick={() => goToDetail(vendor)}
                       className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-primary"
-                      title="Edit vendor"
+                      title="View vendor"
                     >
-                      <Edit3 className="h-4 w-4" />
+                      <Eye className="h-4 w-4" />
                     </button>
-                  </PermissionGate>
-                  <PermissionGate module="vendors" action="delete">
-                    <Button variant="destructive" size="xs" onClick={() => onDelete(vendor)}>
-                      <Trash2 className="mr-1 h-3.5 w-3.5" />
-                      Delete
-                    </Button>
-                  </PermissionGate>
+                    <PermissionGate module="vendors" action="edit">
+                      <button
+                        onClick={() => onEdit(vendor)}
+                        className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-primary"
+                        title="Edit vendor"
+                      >
+                        <Edit3 className="h-4 w-4" />
+                      </button>
+                    </PermissionGate>
+                    <PermissionGate module="vendors" action="delete">
+                      <button
+                        onClick={() => onDelete(vendor)}
+                        className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-red-500"
+                        title="Delete vendor"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </PermissionGate>
+                  </div>
                 </div>
               </div>
             ))}
           </div>
 
-          {/* Table layout */}
-          <div className="hidden md:block overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
+          {/* Table layout — columns reduce progressively on smaller screens */}
+          <div className="hidden overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm md:block">
             <table className="w-full text-left text-sm">
               <thead>
-                <tr className="border-b border-slate-200 bg-slate-50 text-xs font-semibold uppercase text-slate-500">
-                  <th className="px-4 py-3">Name</th>
-                  <th className="px-4 py-3">Contact Person</th>
-                  <th className="px-4 py-3">Phone</th>
-                  <th className="px-4 py-3">Email</th>
-                  <th className="px-4 py-3">Items Supplied</th>
-                  <th className="px-4 py-3 text-right">Actions</th>
+                <tr className="border-b border-slate-200 bg-slate-50 text-xs font-semibold uppercase tracking-wider text-slate-500">
+                  <th className="px-3 py-3 xl:px-4">Name</th>
+                  <th className="px-3 py-3 xl:px-4">Contact Person</th>
+                  <th className="px-3 py-3 xl:px-4">Phone</th>
+                  <th className="hidden px-3 py-3 lg:table-cell xl:px-4">Email</th>
+                  <th className="hidden px-3 py-3 xl:table-cell xl:px-4">Items Supplied</th>
+                  <th className="px-3 py-3 text-right xl:px-4">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {data?.data.map((vendor) => (
                   <tr
                     key={vendor.id}
-                    className="transition-colors hover:bg-slate-50"
+                    onClick={() => goToDetail(vendor)}
+                    className="cursor-pointer transition-colors hover:bg-slate-50"
                   >
-                    <td className="px-4 py-3">
+                    <td className="max-w-[180px] px-3 py-3 xl:max-w-[240px] xl:px-4">
                       <button
-                        onClick={() => goToDetail(vendor)}
-                        className="font-medium text-slate-800 hover:text-primary"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          goToDetail(vendor);
+                        }}
+                        className="block w-full truncate font-medium text-slate-800 hover:text-primary"
                       >
                         {vendor.name}
                       </button>
                     </td>
-                    <td className="px-4 py-3 text-slate-600">
+                    <td className="max-w-[140px] truncate px-3 py-3 text-slate-600 xl:px-4">
                       {vendor.contactPerson || <span className="text-slate-400">&mdash;</span>}
                     </td>
-                    <td className="px-4 py-3 text-slate-600">
+                    <td className="whitespace-nowrap px-3 py-3 text-slate-600 xl:px-4">
                       {vendor.phone || <span className="text-slate-400">&mdash;</span>}
                     </td>
-                    <td className="px-4 py-3 text-slate-600">
+                    <td className="hidden max-w-[160px] truncate px-3 py-3 text-slate-600 lg:table-cell xl:max-w-[200px] xl:px-4">
                       {vendor.email || <span className="text-slate-400">&mdash;</span>}
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="hidden max-w-[220px] px-3 py-3 xl:table-cell xl:px-4">
                       <div className="flex flex-wrap gap-1">
                         {vendor.itemsSupplied.length > 0 ? (
                           <>
@@ -202,7 +244,7 @@ export default function VendorList({ onEdit, onDelete }: VendorListProps) {
                         )}
                       </div>
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-3 py-3 xl:px-4" onClick={(e) => e.stopPropagation()}>
                       <div className="flex items-center justify-end gap-2">
                         <button
                           onClick={() => goToDetail(vendor)}
@@ -221,10 +263,13 @@ export default function VendorList({ onEdit, onDelete }: VendorListProps) {
                           </button>
                         </PermissionGate>
                         <PermissionGate module="vendors" action="delete">
-                          <Button variant="destructive" size="xs" onClick={() => onDelete(vendor)}>
-                            <Trash2 className="mr-1 h-3.5 w-3.5" />
-                            Delete
-                          </Button>
+                          <button
+                            onClick={() => onDelete(vendor)}
+                            className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-red-500"
+                            title="Delete vendor"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
                         </PermissionGate>
                       </div>
                     </td>
@@ -236,28 +281,31 @@ export default function VendorList({ onEdit, onDelete }: VendorListProps) {
         </>
       )}
 
+      {/* Pagination */}
       {data && data.meta.total > 0 && (
-        <div className="flex items-center justify-between text-sm text-slate-500">
-          <span>
-            Showing {Math.min((page - 1) * data.meta.limit + 1, data.meta.total)}&ndash;{Math.min(page * data.meta.limit, data.meta.total)} of{' '}
-            {data.meta.total}
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <span className="text-sm text-slate-500">
+            Showing <span className="font-medium text-slate-700">{Math.min((page - 1) * data.meta.limit + 1, data.meta.total)}&ndash;{Math.min(page * data.meta.limit, data.meta.total)}</span> of{' '}
+            <span className="font-medium text-slate-700">{data.meta.total}</span> entries
           </span>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center justify-between gap-2 sm:justify-end">
             <button
               onClick={() => handlePageChange(page - 1)}
               disabled={page <= 1}
-              className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 disabled:opacity-30 disabled:cursor-not-allowed"
+              className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
             >
               <ChevronLeft className="h-4 w-4" />
+              Previous
             </button>
-            <span className="min-w-[2rem] text-center text-slate-600">
+            <span className="min-w-[3.5rem] text-center text-sm text-slate-600">
               {page} / {totalPages}
             </span>
             <button
               onClick={() => handlePageChange(page + 1)}
               disabled={page >= totalPages}
-              className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 disabled:opacity-30 disabled:cursor-not-allowed"
+              className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
             >
+              Next
               <ChevronRight className="h-4 w-4" />
             </button>
           </div>

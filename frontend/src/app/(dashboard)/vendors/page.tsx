@@ -15,16 +15,16 @@ export default function VendorsPage() {
 
   return (
     <PermissionGate module="vendors" action="view">
-      <div className="space-y-6">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="space-y-5 sm:space-y-6">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h1 className="text-xl sm:text-2xl font-bold text-slate-800">Vendors</h1>
+            <h1 className="text-xl font-bold text-slate-800 sm:text-2xl">Vendors</h1>
             <p className="mt-1 text-sm text-slate-500">
               Manage your suppliers and vendors
             </p>
           </div>
           <PermissionGate module="vendors" action="create">
-            <Button variant="primary" size="md" onClick={() => setCreateOpen(true)}>
+            <Button variant="primary" size="md" className="self-start sm:self-auto" onClick={() => setCreateOpen(true)}>
               Add Vendor
             </Button>
           </PermissionGate>
