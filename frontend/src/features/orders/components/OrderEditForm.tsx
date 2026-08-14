@@ -176,7 +176,7 @@ export default function OrderEditForm({ order, open, onClose, onSaved }: OrderEd
                       <Plus className="h-3 w-3" />
                     </button>
                   </div>
-                  <p className="w-20 text-right text-sm font-semibold text-slate-800">{formatBdt(item.lineTotal)}</p>
+                  <p className="hidden w-20 text-right text-sm font-semibold text-slate-800 xs:block">{formatBdt(item.lineTotal)}</p>
                   <button onClick={() => handleRemoveItem(item.productId)} className="text-slate-400 hover:text-red-500">
                     <Trash2 className="h-4 w-4" />
                   </button>

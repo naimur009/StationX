@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { Download, Eye, Printer } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useOrderBill } from '../api';
 
@@ -12,7 +13,7 @@ interface BillViewProps {
 export default function BillView({ orderId, orderNumber }: BillViewProps) {
   const [mode, setMode] = useState<'preview' | 'print' | 'download'>('preview');
   const { data: htmlBill, isLoading: htmlLoading, isError: htmlError } = useOrderBill(orderId, 'html');
-  const { data: pdfUrl, isLoading: pdfLoading, refetch: fetchPdf } = useOrderBill(orderId, 'pdf');
+  const { isLoading: pdfLoading, refetch: fetchPdf } = useOrderBill(orderId, 'pdf');
 
   const handlePrint = () => {
     if (htmlBill) {
@@ -40,15 +41,16 @@ export default function BillView({ orderId, orderNumber }: BillViewProps) {
   };
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-      <div className="mb-4 flex items-center gap-3">
+    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h2 className="text-base font-bold text-slate-800">Bill</h2>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Button
             variant={mode === 'preview' ? 'primary' : 'secondary'}
             size="sm"
             onClick={() => setMode('preview')}
           >
+            <Eye className="mr-1.5 h-3.5 w-3.5" />
             Preview
           </Button>
           <Button
@@ -57,6 +59,7 @@ export default function BillView({ orderId, orderNumber }: BillViewProps) {
             onClick={() => { setMode('print'); handlePrint(); }}
             disabled={!htmlBill || htmlLoading}
           >
+            <Printer className="mr-1.5 h-3.5 w-3.5" />
             Print
           </Button>
           <Button
@@ -65,6 +68,7 @@ export default function BillView({ orderId, orderNumber }: BillViewProps) {
             onClick={() => { setMode('download'); handleDownload(); }}
             disabled={pdfLoading}
           >
+            <Download className="mr-1.5 h-3.5 w-3.5" />
             Download PDF
           </Button>
         </div>
