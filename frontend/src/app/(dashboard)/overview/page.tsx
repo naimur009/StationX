@@ -46,19 +46,14 @@ export default function OverviewPage() {
           onRetry={metricsQuery.refetch}
         />
 
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-          <div className="lg:col-span-2">
-            <TopItemsList
-              data={topItemsQuery.data}
-              isLoading={topItemsQuery.isLoading}
-              isError={topItemsQuery.isError}
-              onRetry={topItemsQuery.refetch}
-            />
-          </div>
-          <div>
-            <QuickAccess />
-          </div>
-        </div>
+        <TopItemsList
+          data={topItemsQuery.data}
+          isLoading={topItemsQuery.isLoading}
+          isError={topItemsQuery.isError}
+          onRetry={topItemsQuery.refetch}
+        />
+
+        <QuickAccess />
       </div>
     </PermissionGate>
   );

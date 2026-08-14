@@ -26,7 +26,7 @@ export default function QuickAccess() {
   return (
     <div className="space-y-3">
       <h2 className="text-lg font-bold text-slate-800">Quick Access</h2>
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         {visibleLinks.map((link) => {
           const Icon = link.icon;
           return (
