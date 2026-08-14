@@ -25,10 +25,10 @@ Then read these docs relevant to the feature being modified:
 
 ## Feature to Modify
 
-**Module:** <Employee>
+**Module:** <Tables>
 **What to change:**
 
-add a optional field in create employee form and that is NID No. and this is optional
+remove delete option from table scetion and  change the color of maintenance table to yellow
 
 
 ## Scope Boundaries

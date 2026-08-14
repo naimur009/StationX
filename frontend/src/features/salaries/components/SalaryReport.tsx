@@ -39,7 +39,7 @@ export default function SalaryReport() {
   const [monthFilter, setMonthFilter] = useState<number>(now.getMonth() + 1);
   const [yearFilter, setYearFilter] = useState(now.getFullYear());
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>('');
-  const [viewMode, setViewMode] = useState<'all' | number>(0);
+  const [viewMode, setViewMode] = useState<'all' | number>('all');
 
   const years = useMemo(() => {
     const y = now.getFullYear();
@@ -97,7 +97,7 @@ export default function SalaryReport() {
 
         <select
           value={yearFilter}
-          onChange={(e) => { setYearFilter(Number(e.target.value)); setSelectedEmployeeId('') }}
+          onChange={(e) => { setYearFilter(Number(e.target.value)); setSelectedEmployeeId(''); }}
           className="rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-700 ring-ring focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring"
         >
           {years.map((y) => (
@@ -216,16 +216,25 @@ export default function SalaryReport() {
         </>
       )}
 
-      {selectedEmployeeId && empReport && (
-        <div className="space-y-4">
-          <h3 className="text-lg font-bold text-slate-800">{empReport.employeeName} — {yearFilter}</h3>
+      {selectedEmployeeId ? (
+        <div className="space-y-4 pt-4 border-t border-slate-200">
+          <h3 className="text-lg font-bold text-slate-800">
+            {(() => {
+              const name = employees.find(e => e.id === selectedEmployeeId)?.name || empReport?.employeeName;
+              return name && name !== 'Unknown' 
+                ? `${name} — Salary Overview ${yearFilter}` 
+                : 'Employee information unavailable';
+            })()}
+          </h3>
 
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
             {(() => {
               let totalBase = 0, totalBonus = 0, totalCut = 0, totalPaid = 0, monthCount = 0;
-              for (const m of empReport.months) {
-                totalBase += m.baseSalary; totalBonus += m.totalBonus; totalCut += m.totalCut; totalPaid += m.totalPaid;
-                if (m.baseSalary > 0) monthCount++;
+              if (empReport?.months) {
+                for (const m of empReport.months) {
+                  totalBase += m.baseSalary; totalBonus += m.totalBonus; totalCut += m.totalCut; totalPaid += m.totalPaid;
+                  if (m.baseSalary > 0) monthCount++;
+                }
               }
               return (
                 <>
@@ -258,24 +267,24 @@ export default function SalaryReport() {
             <div className="flex items-center justify-center rounded-2xl border border-slate-200 bg-white py-16 shadow-sm">
               <div className="h-10 w-10 animate-spin rounded-full border-4 border-primary border-t-transparent spinner-smooth" />
             </div>
-          ) : (
+          ) : empReport ? (
             <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
-            <table className="w-full text-center text-sm border-collapse [&_th]:border-r [&_th]:border-slate-200 [&_td]:border-r [&_td]:border-slate-200">
-              <thead>
-                <tr className="border-b border-slate-200 bg-slate-50 text-xs font-semibold uppercase text-slate-500">
-                  <th className="px-4 py-3">Month</th>
-                  <th className="px-4 py-3">Salary Paid</th>
-                  <th className="px-4 py-3">Bonus</th>
-                  <th className="px-4 py-3">Cut</th>
-                  <th className="px-4 py-3">Net</th>
-                  <th className="px-4 py-3">Remaining</th>
-                  <th className="px-4 py-3">Status</th>
-                  <th className="px-4 py-3">Paid Date</th>
-                  <th className="px-4 py-3">Adjustments</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {empReport.months.map((m) => (
+              <table className="w-full text-center text-sm border-collapse [&_th]:border-r [&_th]:border-slate-200 [&_td]:border-r [&_td]:border-slate-200">
+                <thead>
+                  <tr className="border-b border-slate-200 bg-slate-50 text-xs font-semibold uppercase text-slate-500">
+                    <th className="px-4 py-3">Month</th>
+                    <th className="px-4 py-3">Salary Paid</th>
+                    <th className="px-4 py-3">Bonus</th>
+                    <th className="px-4 py-3">Cut</th>
+                    <th className="px-4 py-3">Net</th>
+                    <th className="px-4 py-3">Remaining</th>
+                    <th className="px-4 py-3">Status</th>
+                    <th className="px-4 py-3">Paid Date</th>
+                    <th className="px-4 py-3">Adjustments</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {empReport.months.map((m) => (
                     <tr key={m.month} className="transition-colors hover:bg-slate-50">
                       <td className="px-4 py-3 font-medium text-slate-800">{MONTHS[m.month - 1]}</td>
                       <td className="px-4 py-3 font-semibold text-green-600 whitespace-nowrap">
@@ -322,10 +331,19 @@ export default function SalaryReport() {
                       </td>
                     </tr>
                   ))}
-              </tbody>
-            </table>
+                </tbody>
+              </table>
             </div>
-          )}
+          ) : null}
+        </div>
+      ) : (
+        <div className="space-y-4 pt-4 border-t border-slate-200">
+          <h3 className="text-lg font-bold text-slate-800">
+            Annual Salary Overview — {yearFilter}
+          </h3>
+          <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">
+            Select an employee to view their month-by-month annual breakdown.
+          </div>
         </div>
       )}
     </div>

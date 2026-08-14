@@ -136,6 +136,15 @@
   }
 }
 
+@keyframes drawer-right {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
 @keyframes nav-bar {
   0% {
     width: 0%;

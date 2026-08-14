@@ -9,7 +9,7 @@ Fix review findings without changing unrelated code.
 # INPUT
 
 
-
+the table section should auto refetch data, when the payment is capture the table status should update automatically. 
 
 
 # REQUIREMENTS
