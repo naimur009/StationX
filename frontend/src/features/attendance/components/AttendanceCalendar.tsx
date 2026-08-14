@@ -3,18 +3,18 @@
 import { useState, useMemo } from 'react';
 import {
   ChevronLeft, ChevronRight, CalendarDays, User,
-  Loader2, AlertTriangle, Check, X, Clock, Moon,
+  Loader2, AlertTriangle, Check, X, Clock, Moon, TrendingUp,
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Select } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { useEmployeeAttendanceMonth, useTodayStaff } from '../api';
 
-const STATUS_META: Record<string, { label: string; bg: string; text: string; dot: string; icon: React.ElementType }> = {
-  present: { label: 'Present', bg: 'bg-green-100', text: 'text-green-700', dot: 'bg-green-500', icon: Check },
-  absent: { label: 'Absent', bg: 'bg-red-100', text: 'text-red-700', dot: 'bg-red-500', icon: X },
-  late: { label: 'Late', bg: 'bg-amber-100', text: 'text-amber-700', dot: 'bg-amber-500', icon: Clock },
-  'half-day': { label: 'Half Day', bg: 'bg-blue-100', text: 'text-blue-700', dot: 'bg-blue-500', icon: Moon },
+const STATUS_META: Record<string, { label: string; cell: string; text: string; dot: string; icon: React.ElementType }> = {
+  present: { label: 'Present', cell: 'bg-green-50 border-green-200', text: 'text-green-700', dot: 'bg-green-500', icon: Check },
+  absent: { label: 'Absent', cell: 'bg-red-50 border-red-200', text: 'text-red-700', dot: 'bg-red-500', icon: X },
+  late: { label: 'Late', cell: 'bg-amber-50 border-amber-200', text: 'text-amber-700', dot: 'bg-amber-500', icon: Clock },
+  'half-day': { label: 'Half Day', cell: 'bg-blue-50 border-blue-200', text: 'text-blue-700', dot: 'bg-blue-500', icon: Moon },
 };
 
 const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -35,7 +35,7 @@ function todayKey() {
 function isWeekend(i: number) { return i === 0 || i === 6; }
 
 export default function AttendanceCalendar() {
-  const now = new Date();
+  const now = useMemo(() => new Date(), []);
   const [selectedEmployeeId, setSelectedEmployeeId] = useState('');
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth() + 1);
@@ -126,16 +126,35 @@ export default function AttendanceCalendar() {
       </CardHeader>
 
       <CardContent className="p-0">
-        {/* User selector */}
-        <div className="border-b border-border/20 bg-slate-50/50 px-5 py-3">
+        {/* Toolbar: staff selector + month navigation */}
+        <div className="flex flex-col gap-3 border-b border-border/20 bg-slate-50/50 px-4 py-3.5 sm:px-5 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex items-center gap-2.5">
             <User className="h-4 w-4 shrink-0 text-slate-400" />
-            <Select value={selectedEmployeeId} onChange={(e) => setSelectedEmployeeId(e.target.value)} className="w-full sm:w-64 text-sm" placeholder="Select staff">
+            <Select value={selectedEmployeeId} onChange={(e) => setSelectedEmployeeId(e.target.value)} className="w-full lg:w-72 text-sm" placeholder="Select staff">
               <option value="">Select a staff member</option>
               {employees.map((e) => (
                 <option key={e.id} value={e.id}>{e.name}</option>
               ))}
             </Select>
+          </div>
+
+          <div className="flex items-center justify-between gap-2 lg:justify-end">
+            <button type="button" onClick={goPrevMonth}
+              className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-600 transition-all hover:border-slate-300 hover:bg-slate-50 active:scale-95"
+            >
+              <ChevronLeft className="h-4 w-4" />
+              <span className="hidden sm:inline">Prev</span>
+            </button>
+            <div className="min-w-32 text-center">
+              <span className="text-sm font-bold text-slate-800 sm:text-base">{MONTH_NAMES[month - 1]}</span>
+              <span className="ml-1.5 text-sm text-slate-400">{year}</span>
+            </div>
+            <button type="button" onClick={goNextMonth}
+              className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-600 transition-all hover:border-slate-300 hover:bg-slate-50 active:scale-95"
+            >
+              <span className="hidden sm:inline">Next</span>
+              <ChevronRight className="h-4 w-4" />
+            </button>
           </div>
         </div>
 
@@ -163,29 +182,9 @@ export default function AttendanceCalendar() {
         )}
 
         {selectedEmployeeId && !isLoading && !isError && (
-          <div className="p-5">
-            {/* Month nav */}
-            <div className="mb-4 flex items-center justify-between">
-              <button type="button" onClick={goPrevMonth}
-                className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-600 transition-all hover:border-slate-300 hover:bg-slate-50 active:scale-95"
-              >
-                <ChevronLeft className="h-4 w-4" />
-                <span className="hidden sm:inline">Prev</span>
-              </button>
-              <div className="text-center">
-                <span className="text-base font-bold text-slate-800">{MONTH_NAMES[month - 1]}</span>
-                <span className="text-sm text-slate-400 ml-1.5">{year}</span>
-              </div>
-              <button type="button" onClick={goNextMonth}
-                className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-600 transition-all hover:border-slate-300 hover:bg-slate-50 active:scale-95"
-              >
-                <span className="hidden sm:inline">Next</span>
-                <ChevronRight className="h-4 w-4" />
-              </button>
-            </div>
-
+          <div className="space-y-5 p-4 sm:p-5">
             {/* Stats row */}
-            <div className="mb-4 grid grid-cols-5 gap-2">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
               <StatCard label="Present" count={stats.present} total={recordedDays} color="green" icon={Check} />
               <StatCard label="Absent" count={stats.absent} total={recordedDays} color="red" icon={X} />
               <StatCard label="Late" count={stats.late} total={recordedDays} color="amber" icon={Clock} />
@@ -193,48 +192,76 @@ export default function AttendanceCalendar() {
               <StatCard label="Pending" count={stats.unmarked} total={daysInMonth} color="slate" icon={CalendarDays} />
             </div>
 
-            {/* Rate + summary */}
-            <div className="mb-4 flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50/50 px-4 py-2">
-              <div className="flex items-center gap-4 text-xs text-slate-600">
-                <span><span className="font-semibold text-slate-800">{presenceRate}%</span> presence</span>
-                <span className="hidden sm:inline"><span className="font-semibold text-slate-800">{stats.present + stats.late + stats.halfDay}</span> days attended</span>
+            {/* Presence rate */}
+            <div className="flex flex-col gap-3 rounded-2xl border border-border bg-white p-4 shadow-sm md:flex-row md:items-center md:justify-between">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                  <TrendingUp className="h-5 w-5" />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-slate-800">Presence Rate</p>
+                  <p className="text-xs text-slate-500">
+                    {stats.present + stats.late + stats.halfDay} days attended &middot; {recordedDays}/{daysInMonth} days recorded
+                  </p>
+                </div>
               </div>
-              <span className="text-xs text-slate-400">{recordedDays}/{daysInMonth} days recorded</span>
+              <div className="flex items-center gap-3 md:min-w-64">
+                <span className="text-2xl font-bold tabular-nums text-primary sm:text-3xl">{presenceRate}%</span>
+                <div className="h-2.5 flex-1 overflow-hidden rounded-full bg-slate-100">
+                  <div
+                    className="h-full rounded-full bg-gradient-to-r from-primary/70 to-primary transition-all duration-500"
+                    style={{ width: `${presenceRate}%` }}
+                  />
+                </div>
+              </div>
             </div>
 
             {/* Calendar grid */}
             <div>
-              <div className="mb-1 grid grid-cols-7">
+              <div className="mb-1 grid grid-cols-7 gap-1 sm:gap-1.5">
                 {DAY_NAMES.map((name, i) => (
-                  <div key={name} className={`py-1.5 text-center text-xs font-semibold uppercase tracking-wider ${isWeekend(i) ? 'text-slate-300' : 'text-slate-500'}`}>
+                  <div key={name} className={`py-1.5 text-center text-[11px] font-semibold uppercase tracking-wider sm:text-xs ${isWeekend(i) ? 'text-slate-300' : 'text-slate-500'}`}>
                     {name}
                   </div>
                 ))}
               </div>
-              <div className="space-y-0.5">
+              <div className="space-y-1 sm:space-y-1.5">
                 {weeks.map((week, wi) => (
-                  <div key={wi} className="grid grid-cols-7 gap-0.5">
+                  <div key={wi} className="grid grid-cols-7 gap-1 sm:gap-1.5">
                     {week.map((cell, ci) => {
                       if (cell.day === null) return <div key={`e-${wi}-${ci}`} />;
                       const status = cell.rec?.status;
                       const meta = status ? STATUS_META[status] : null;
+                      const dayNumber = meta ? meta.text : cell.isPast ? 'text-slate-400' : 'text-slate-300';
                       return (
                         <div key={cell.day} className="group relative">
                           <div
-                            className={`flex h-9 w-full items-center justify-center rounded-lg text-sm font-semibold transition-all duration-100
-                              ${meta ? `${meta.bg} ${meta.text} shadow-sm` : cell.isPast ? 'bg-slate-100 text-slate-400' : 'bg-white text-slate-300'}
-                              ${cell.isToday && !meta ? 'ring-2 ring-ring ring-offset-1' : ''}
-                              ${cell.isToday && meta ? 'ring-2 ring-white ring-offset-1' : ''}
+                            className={`flex h-10 w-full flex-col items-start justify-between rounded-xl border p-1.5 transition-all sm:h-12 sm:p-2 md:h-14 xl:h-20 xl:p-3
+                              ${meta ? `${meta.cell} shadow-sm` : cell.isPast ? 'border-slate-100 bg-slate-50' : 'border-slate-100 bg-white'}
+                              ${cell.isToday ? 'ring-2 ring-primary ring-offset-1' : ''}
                             `}
                           >
-                            {cell.day}
+                            <span className={`text-xs font-bold sm:text-sm xl:text-base ${dayNumber}`}>{cell.day}</span>
+                            {meta && (
+                              <span className="flex w-full items-center gap-1">
+                                <span className={`hidden h-1.5 w-1.5 shrink-0 rounded-full sm:inline-block ${meta.dot}`} />
+                                <span className={`hidden truncate text-[10px] font-medium sm:block md:text-[11px] xl:text-xs ${meta.text}`}>
+                                  {meta.label}
+                                </span>
+                              </span>
+                            )}
+                            {!meta && cell.isPast && (
+                              <span className="hidden h-1.5 w-1.5 rounded-full bg-slate-200 sm:inline-block" />
+                            )}
                           </div>
                           {cell.rec && (
-                            <div className="absolute left-1/2 z-30 hidden -translate-x-1/2 group-hover:block pointer-events-none" style={{ bottom: 'calc(100% + 4px)' }}>
-                              <div className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs shadow-lg whitespace-nowrap">
+                            <div className="absolute left-1/2 z-30 hidden -translate-x-1/2 group-hover:block pointer-events-none" style={{ bottom: 'calc(100% + 6px)' }}>
+                              <div className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs shadow-lg whitespace-nowrap">
                                 <div className="flex items-center gap-1.5 border-b border-slate-100 pb-1 mb-1">
                                   <span className={`inline-block h-2 w-2 rounded-full ${meta?.dot || 'bg-slate-300'}`} />
                                   <span className="font-semibold text-slate-700">{meta?.label}</span>
+                                  <span className="text-slate-400">·</span>
+                                  <span className="text-slate-400">Day {cell.day}</span>
                                 </div>
                                 {cell.rec.checkInAt && <p className="text-slate-500">In: {new Date(cell.rec.checkInAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</p>}
                                 {cell.rec.checkOutAt && <p className="text-slate-500">Out: {new Date(cell.rec.checkOutAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</p>}
@@ -252,7 +279,7 @@ export default function AttendanceCalendar() {
             </div>
 
             {/* Legend */}
-            <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1.5 border-t border-border/20 pt-3">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 border-t border-border/20 pt-3">
               <span className="text-xs font-medium text-slate-500">Legend</span>
               {Object.entries(STATUS_META).map(([key, val]) => (
                 <div key={key} className="flex items-center gap-1.5">
@@ -263,6 +290,10 @@ export default function AttendanceCalendar() {
               <div className="flex items-center gap-1.5">
                 <span className="inline-block h-2.5 w-2.5 rounded-full bg-slate-200 shadow-sm" />
                 <span className="text-xs text-slate-500">No record</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="inline-block h-2.5 w-2.5 rounded-full border-2 border-primary bg-white shadow-sm" />
+                <span className="text-xs text-slate-500">Today</span>
               </div>
             </div>
           </div>
@@ -275,23 +306,26 @@ export default function AttendanceCalendar() {
 /* ─── Stat card ─────────────────────────────────────── */
 
 function StatCard({ label, count, total, color, icon: Icon }: { label: string; count: number; total: number; color: string; icon: React.ElementType }) {
-  const colors: Record<string, { bg: string; text: string; border: string; iconCls: string }> = {
-    green: { bg: 'bg-green-50', text: 'text-green-700', border: 'border-green-200', iconCls: 'text-green-500' },
-    red: { bg: 'bg-red-50', text: 'text-red-700', border: 'border-red-200', iconCls: 'text-red-500' },
-    amber: { bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200', iconCls: 'text-amber-500' },
-    blue: { bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-blue-200', iconCls: 'text-blue-500' },
-    slate: { bg: 'bg-slate-50', text: 'text-slate-600', border: 'border-slate-200', iconCls: 'text-slate-400' },
+  const colors: Record<string, { tile: string; text: string; border: string }> = {
+    green: { tile: 'bg-green-100 text-green-600', text: 'text-green-700', border: 'border-green-200' },
+    red: { tile: 'bg-red-100 text-red-600', text: 'text-red-700', border: 'border-red-200' },
+    amber: { tile: 'bg-amber-100 text-amber-600', text: 'text-amber-700', border: 'border-amber-200' },
+    blue: { tile: 'bg-blue-100 text-blue-600', text: 'text-blue-700', border: 'border-blue-200' },
+    slate: { tile: 'bg-slate-100 text-slate-500', text: 'text-slate-600', border: 'border-slate-200' },
   };
   const c = colors[color] || colors.slate;
   const pct = total > 0 ? Math.round((count / total) * 100) : 0;
 
   return (
-    <div className={`flex flex-col items-center gap-1 rounded-lg border ${c.border} ${c.bg} px-2 py-2 sm:py-2.5`}>
-      <Icon className={`h-3.5 w-3.5 sm:h-4 sm:w-4 ${c.iconCls}`} />
-      <span className={`text-xs sm:text-sm font-bold tabular-nums ${c.text}`}>{count}</span>
-      <span className={`text-[10px] sm:text-xs ${c.text} opacity-75`}>{pct}%</span>
-      <span className="text-[10px] text-slate-400 -mt-0.5 truncate max-w-full hidden sm:block">{label}</span>
-      <span className="text-[10px] text-slate-400 -mt-0.5 truncate max-w-full sm:hidden">{label}</span>
+    <div className={`flex items-center gap-3 rounded-2xl border ${c.border} bg-white p-3 shadow-sm sm:p-3.5`}>
+      <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${c.tile}`}>
+        <Icon className="h-5 w-5" />
+      </div>
+      <div className="min-w-0">
+        <p className="text-lg font-bold tabular-nums text-slate-800 sm:text-xl">{count}</p>
+        <p className="truncate text-xs font-medium text-slate-500">{label}</p>
+        <p className={`text-[10px] font-medium ${c.text} opacity-80`}>{pct}% of recorded</p>
+      </div>
     </div>
   );
 }

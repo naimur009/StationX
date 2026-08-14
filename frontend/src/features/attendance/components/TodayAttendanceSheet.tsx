@@ -2,7 +2,10 @@
 
 import { useState, useCallback, useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { CheckSquare, Loader2, Users, Calendar, Clock, XCircle, AlertTriangle, Moon } from 'lucide-react';
+import {
+  CheckSquare, Loader2, Users, Calendar, Clock, XCircle, AlertTriangle, Moon,
+  UserCheck, UserX, BadgeCheck,
+} from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -18,30 +21,38 @@ function getDateString(d?: Date): string {
   return `${y}-${m}-${day}`;
 }
 
-const statusConfig: Record<string, { active: string; inactive: string; icon: React.ElementType; label: string }> = {
+const statusConfig: Record<string, { active: string; inactive: string; icon: React.ElementType; label: string; ring: string; chip: string }> = {
   present: {
-    active: 'bg-green-100 text-green-700 shadow-green-500/30 ring-1 ring-green-600/30',
-    inactive: 'bg-green-50 text-green-700 hover:bg-green-100 hover:text-green-800 active:bg-green-200',
+    active: 'bg-green-100 text-green-700 shadow-sm ring-1 ring-green-600/30',
+    inactive: 'bg-white text-slate-500 ring-1 ring-slate-200 hover:bg-green-50 hover:text-green-700 hover:ring-green-300',
     icon: CheckSquare,
     label: 'Present',
+    ring: 'ring-green-500',
+    chip: 'bg-green-50 text-green-700',
   },
   absent: {
-    active: 'bg-red-100 text-red-700 shadow-red-500/30 ring-1 ring-red-600/30',
-    inactive: 'bg-red-50 text-red-700 hover:bg-red-100 hover:text-red-800 active:bg-red-200',
+    active: 'bg-red-100 text-red-700 shadow-sm ring-1 ring-red-600/30',
+    inactive: 'bg-white text-slate-500 ring-1 ring-slate-200 hover:bg-red-50 hover:text-red-700 hover:ring-red-300',
     icon: XCircle,
     label: 'Absent',
+    ring: 'ring-red-500',
+    chip: 'bg-red-50 text-red-700',
   },
   late: {
-    active: 'bg-amber-100 text-amber-700 shadow-amber-500/30 ring-1 ring-amber-600/30',
-    inactive: 'bg-amber-50 text-amber-700 hover:bg-amber-100 hover:text-amber-800 active:bg-amber-200',
+    active: 'bg-amber-100 text-amber-700 shadow-sm ring-1 ring-amber-600/30',
+    inactive: 'bg-white text-slate-500 ring-1 ring-slate-200 hover:bg-amber-50 hover:text-amber-700 hover:ring-amber-300',
     icon: Clock,
     label: 'Late',
+    ring: 'ring-amber-500',
+    chip: 'bg-amber-50 text-amber-700',
   },
   'half-day': {
-    active: 'bg-blue-100 text-blue-700 shadow-blue-500/30 ring-1 ring-blue-600/30',
-    inactive: 'bg-blue-50 text-blue-700 hover:bg-blue-100 hover:text-blue-800 active:bg-blue-200',
+    active: 'bg-blue-100 text-blue-700 shadow-sm ring-1 ring-blue-600/30',
+    inactive: 'bg-white text-slate-500 ring-1 ring-slate-200 hover:bg-blue-50 hover:text-blue-700 hover:ring-blue-300',
     icon: Moon,
     label: 'Half Day',
+    ring: 'ring-blue-500',
+    chip: 'bg-blue-50 text-blue-700',
   },
 };
 
@@ -141,9 +152,9 @@ export default function TodayAttendanceSheet() {
   return (
     <Card className="overflow-hidden">
       <CardHeader className="border-b border-border/50 bg-gradient-to-r from-slate-50 to-white">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-100 text-indigo-600">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-100 text-indigo-600">
               <Users className="h-5 w-5" />
             </div>
             <div>
@@ -174,7 +185,7 @@ export default function TodayAttendanceSheet() {
                 {batchMutation.isPending ? (
                   <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
                 ) : (
-                  <CheckSquare className="mr-1.5 h-4 w-4" />
+                  <BadgeCheck className="mr-1.5 h-4 w-4" />
                 )}
                 Mark All Present
               </Button>
@@ -200,12 +211,12 @@ export default function TodayAttendanceSheet() {
 
         {/* Summary stat bar */}
         {summary && (
-          <div className="mx-4 mt-4 grid grid-cols-2 gap-2 sm:grid-cols-5">
-            <SummaryStat label="Present" count={summary.present} color="green" />
-            <SummaryStat label="Absent" count={summary.absent} color="red" />
-            <SummaryStat label="Late" count={summary.late} color="amber" />
-            <SummaryStat label="Half Day" count={summary.halfDay} color="blue" />
-            <SummaryStat label="Unmarked" count={summary.unmarked} color="slate" className="col-span-2 sm:col-span-1" />
+          <div className="mx-4 mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
+            <SummaryStat label="Present" count={summary.present} color="green" icon={CheckSquare} />
+            <SummaryStat label="Absent" count={summary.absent} color="red" icon={XCircle} />
+            <SummaryStat label="Late" count={summary.late} color="amber" icon={Clock} />
+            <SummaryStat label="Half Day" count={summary.halfDay} color="blue" icon={Moon} />
+            <SummaryStat label="Unmarked" count={summary.unmarked} color="slate" icon={Users} className="col-span-2 sm:col-span-1" />
           </div>
         )}
 
@@ -246,7 +257,7 @@ export default function TodayAttendanceSheet() {
           </div>
         )}
 
-        {/* Staff list — responsive: cards on mobile, table on md+ */}
+        {/* Staff list — cards on mobile, table on md+ */}
         {!isLoading && !isError && staff.length > 0 && (
           <>
             {/* Mobile cards */}
@@ -265,15 +276,12 @@ export default function TodayAttendanceSheet() {
 
             {/* Desktop table */}
             <div className="hidden md:block overflow-x-auto">
-              <table className="w-full text-left text-sm">
+              <table className="w-full min-w-[840px] text-left text-sm">
                 <thead>
-                  <tr className="border-b border-border bg-slate-50/80 text-xs font-semibold uppercase tracking-wider text-slate-500">
+                  <tr className="border-b border-border bg-slate-50/80 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
                     <th className="px-4 py-3.5 pl-6">Staff</th>
                     <th className="px-4 py-3.5">Status</th>
-                    <th className="px-4 py-3.5">In</th>
-                    <th className="px-4 py-3.5">Out</th>
-                    <th className="px-4 py-3.5">Marked By</th>
-                    <th className="px-4 py-3.5 pr-6">Quick</th>
+                    <th className="px-4 py-3.5 pr-6 text-right">Quick</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -300,20 +308,25 @@ export default function TodayAttendanceSheet() {
   );
 }
 
-/* ─── Summary stat pill ─────────────────────────────── */
+/* ─── Summary stat card ─────────────────────────────── */
 
-function SummaryStat({ label, count, color, className }: { label: string; count: number; color: string; className?: string }) {
+function SummaryStat({ label, count, color, icon: Icon, className }: { label: string; count: number; color: string; icon: React.ElementType; className?: string }) {
   const colors: Record<string, string> = {
-    green: 'bg-green-50 text-green-700 border-green-200',
-    red: 'bg-red-50 text-red-700 border-red-200',
-    amber: 'bg-amber-50 text-amber-700 border-amber-200',
-    blue: 'bg-blue-50 text-blue-700 border-blue-200',
-    slate: 'bg-slate-50 text-slate-600 border-slate-200',
+    green: 'bg-green-100 text-green-600',
+    red: 'bg-red-100 text-red-600',
+    amber: 'bg-amber-100 text-amber-600',
+    blue: 'bg-blue-100 text-blue-600',
+    slate: 'bg-slate-100 text-slate-500',
   };
   return (
-    <div className={`flex items-center justify-between gap-2 rounded-lg border px-3 py-2 text-sm ${colors[color]} ${className || ''}`}>
-      <span className="font-medium">{label}</span>
-      <span className="text-base font-bold tabular-nums">{count}</span>
+    <div className={`flex items-center gap-3 rounded-2xl border border-border bg-white p-3.5 shadow-sm sm:p-4 ${className || ''}`}>
+      <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${colors[color]}`}>
+        <Icon className="h-5 w-5" />
+      </div>
+      <div className="min-w-0">
+        <p className="text-lg font-bold tabular-nums text-slate-800 sm:text-xl">{count}</p>
+        <p className="truncate text-xs font-medium text-slate-500">{label}</p>
+      </div>
     </div>
   );
 }
@@ -334,65 +347,64 @@ function StaffRow({
   isPending: boolean;
 }) {
   const currentStatus = item.attendance?.status;
-  const rec = item.attendance;
+  const avatarRing = currentStatus ? statusConfig[currentStatus].ring : 'ring-slate-200';
 
   return (
-    <tr className={`border-b border-slate-100 last:border-0 transition-opacity ${isPending ? 'opacity-50' : 'hover:bg-slate-50/50'}`}>
+    <tr className={`border-b border-slate-100 last:border-0 transition-colors ${isPending ? 'opacity-50' : 'hover:bg-slate-50/60'}`}>
       <td className="px-4 py-3.5 pl-6">
         <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-primary to-primary text-xs font-bold text-white shadow-sm">
+          <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-primary to-primary text-xs font-bold text-white shadow-sm ring-2 ${avatarRing}`}>
             {item.employee.name.charAt(0).toUpperCase()}
           </div>
-          <div>
-            <p className="font-medium text-slate-800">{item.employee.name}</p>
-          </div>
+          <p className="font-medium text-slate-800">{item.employee.name}</p>
         </div>
       </td>
       <td className="px-4 py-3.5">
-        <div className="flex flex-wrap gap-1.5">
+        <div className="flex flex-wrap gap-1.5 whitespace-nowrap">
           {statuses.map((status) => {
             const isActive = currentStatus === status;
             const cfg = statusConfig[status];
+            const Icon = cfg.icon;
             return (
               <button
                 key={status}
                 type="button"
                 disabled={isMutating}
                 onClick={() => onMark(item.employee._id, status)}
-                className={`cursor-pointer rounded-lg px-2.5 py-1.5 text-xs font-semibold transition-all duration-150 disabled:cursor-not-allowed active:scale-95 ${
+                className={`flex cursor-pointer items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold transition-all duration-150 disabled:cursor-not-allowed active:scale-95 ${
                   isActive ? cfg.active : cfg.inactive
                 }`}
               >
+                <Icon className="h-3.5 w-3.5" />
                 {cfg.label}
               </button>
             );
           })}
         </div>
       </td>
-      <td className="px-4 py-3.5 text-slate-500 text-xs">
-        {rec?.checkInAt ? new Date(rec.checkInAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : <span className="text-slate-300">--</span>}
-      </td>
-      <td className="px-4 py-3.5 text-slate-500 text-xs">
-        {rec?.checkOutAt ? new Date(rec.checkOutAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : <span className="text-slate-300">--</span>}
-      </td>
-      <td className="px-4 py-3.5 text-xs text-slate-400">
-        {rec?.markedBy?.name || <span className="text-slate-300">--</span>}
-      </td>
       <td className="px-4 py-3.5 pr-6">
-        <button
-          type="button"
-          disabled={isMutating}
-          onClick={() => onQuickStatus(item.employee._id, currentStatus)}
-          className="cursor-pointer rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-medium text-slate-500 transition-all hover:border-slate-300 hover:bg-slate-50 hover:text-slate-700 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          {isPending ? (
-            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-          ) : currentStatus === 'present' ? (
-            'Mark Absent'
-          ) : (
-            'Mark Present'
-          )}
-        </button>
+        <div className="flex justify-end">
+          <button
+            type="button"
+            disabled={isMutating}
+            onClick={() => onQuickStatus(item.employee._id, currentStatus)}
+            className="flex cursor-pointer items-center gap-1.5 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-medium text-slate-500 transition-all hover:border-slate-300 hover:bg-slate-50 hover:text-slate-700 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {isPending ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : currentStatus === 'present' ? (
+              <>
+                <UserX className="h-3.5 w-3.5" />
+                Mark Absent
+              </>
+            ) : (
+              <>
+                <UserCheck className="h-3.5 w-3.5" />
+                Mark Present
+              </>
+            )}
+          </button>
+        </div>
       </td>
     </tr>
   );
@@ -414,45 +426,51 @@ function StaffCard({
   isPending: boolean;
 }) {
   const currentStatus = item.attendance?.status;
-  const rec = item.attendance;
+  const currentMeta = currentStatus ? statusConfig[currentStatus] : null;
+  const avatarRing = currentMeta ? currentMeta.ring : 'ring-slate-200';
 
   return (
     <div className={`px-4 py-4 transition-opacity ${isPending ? 'opacity-50' : ''}`}>
       {/* Header row */}
-      <div className="mb-3 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-primary to-primary text-sm font-bold text-white shadow-sm">
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-3">
+          <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-primary to-primary text-sm font-bold text-white shadow-sm ring-2 ${avatarRing}`}>
             {item.employee.name.charAt(0).toUpperCase()}
           </div>
-          <div>
-            <p className="font-semibold text-slate-800">{item.employee.name}</p>
+          <div className="min-w-0">
+            <p className="truncate font-semibold text-slate-800">{item.employee.name}</p>
+            {currentMeta && (
+              <span className={`mt-0.5 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium ${currentMeta.chip}`}>
+                <span className={`inline-block h-1.5 w-1.5 rounded-full ${currentMeta.ring}`} />
+                {currentMeta.label}
+              </span>
+            )}
           </div>
         </div>
         <button
           type="button"
           disabled={isMutating}
           onClick={() => onQuickStatus(item.employee._id, currentStatus)}
-          className="cursor-pointer rounded-lg border border-slate-200 px-3 py-2 text-xs font-medium text-slate-600 transition-all hover:border-slate-300 hover:bg-slate-50 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
+          className="flex shrink-0 cursor-pointer items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-xs font-medium text-slate-600 transition-all hover:border-slate-300 hover:bg-slate-50 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {isPending ? (
             <Loader2 className="h-4 w-4 animate-spin" />
           ) : currentStatus === 'present' ? (
-            'Mark Absent'
+            <>
+              <UserX className="h-3.5 w-3.5" />
+              Mark Absent
+            </>
           ) : (
-            'Mark Present'
+            <>
+              <UserCheck className="h-3.5 w-3.5" />
+              Mark Present
+            </>
           )}
         </button>
       </div>
 
-      {/* Times row */}
-      <div className="mb-3 flex gap-4 text-xs text-slate-400">
-        <span>In: {rec?.checkInAt ? new Date(rec.checkInAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '--'}</span>
-        <span>Out: {rec?.checkOutAt ? new Date(rec.checkOutAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '--'}</span>
-        {rec?.markedBy && <span>by {rec.markedBy.name}</span>}
-      </div>
-
-      {/* Status pills — scrollable if needed */}
-      <div className="flex gap-1.5 overflow-x-auto pb-1">
+      {/* Status buttons */}
+      <div className="grid grid-cols-2 gap-2">
         {statuses.map((status) => {
           const isActive = currentStatus === status;
           const cfg = statusConfig[status];
@@ -463,7 +481,7 @@ function StaffCard({
               type="button"
               disabled={isMutating}
               onClick={() => onMark(item.employee._id, status)}
-              className={`flex shrink-0 cursor-pointer items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold transition-all duration-150 disabled:cursor-not-allowed active:scale-95 ${
+              className={`flex cursor-pointer items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold transition-all duration-150 disabled:cursor-not-allowed active:scale-95 ${
                 isActive ? cfg.active : cfg.inactive
               }`}
             >
