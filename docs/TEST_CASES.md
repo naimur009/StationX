@@ -650,6 +650,10 @@ These apply to **every** module below; listed once here and referenced by ID rat
 | TBL-H-06 | Happy | `PUT /tables/:id` updating `tableNumber`, `capacity` | `200`, fields updated; `status`/`bookedBy`/`currentOrderId` unchanged |
 | TBL-H-07 | Happy | `PUT /tables/:id` `tableNumber` only (partial update) | `200`, only `tableNumber` changed, other fields preserved |
 | TBL-H-08 | Happy | `DELETE /tables/:id` where table has no live order | `200`, table document removed |
+| TBL-H-09 | Happy | `PATCH /tables/:id/status → maintenance` on an available table | `200`, status `maintenance`, `currentOrderId: null`, `bookedBy: null` |
+| TBL-H-10 | Happy | `PATCH /tables/:id/status → maintenance` on a booked-by-order table (decouple) | `200`, status `maintenance`, `currentOrderId: null`; order keeps its own reference for billing |
+| TBL-H-11 | Happy | `PATCH /tables/:id/status → available` on a maintenance table | `200`, status `available`, `currentOrderId`/`bookedBy`/`bookedAt` null |
+| TBL-H-12 | Happy | `GET /tables?status=maintenance` filtered | `200`, list contains only `maintenance` tables |
 | TBL-V-01 | Validation | `POST /tables` missing `tableNumber` | `400 VALIDATION_ERROR` |
 | TBL-V-02 | Validation | `POST /tables` `tableNumber` empty string | `400 VALIDATION_ERROR` |
 | TBL-V-03 | Validation | `POST /tables` `tableNumber` exceeds max length | `400 VALIDATION_ERROR` |

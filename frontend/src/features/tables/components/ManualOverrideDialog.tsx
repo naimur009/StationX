@@ -17,7 +17,14 @@ interface ManualOverrideDialogProps {
 
 const STATUS_LABELS: Record<string, string> = {
   available: 'Available (free the table)',
-  booked: 'Booked (block the table)',
+  booked: 'Occupied (block the table)',
+  maintenance: 'Out of Service (mark unavailable)',
+};
+
+const STATUS_STYLE: Record<string, { card: string; dot: string }> = {
+  available: { card: 'border-green-400 bg-green-50 text-green-800', dot: 'border-green-500 bg-green-500' },
+  booked: { card: 'border-red-400 bg-red-50 text-red-800', dot: 'border-red-500 bg-red-500' },
+  maintenance: { card: 'border-slate-400 bg-slate-100 text-slate-800', dot: 'border-slate-500 bg-slate-500' },
 };
 
 export default function ManualOverrideDialog({ open, table, onClose }: ManualOverrideDialogProps) {
@@ -26,7 +33,6 @@ export default function ManualOverrideDialog({ open, table, onClose }: ManualOve
   const isDecoupling = table?.status === 'booked' && table?.bookedBy === 'order' && table?.currentOrderId;
 
   const {
-    register,
     handleSubmit,
     watch,
     setValue,
@@ -41,7 +47,7 @@ export default function ManualOverrideDialog({ open, table, onClose }: ManualOve
   useEffect(() => {
     if (open && table) {
       const opposite = table.status === 'available' ? 'booked' : 'available';
-      reset({ status: opposite, notes: '' });
+      reset({ status: opposite });
       setError(null);
     }
   }, [open, table, reset]);
@@ -50,7 +56,7 @@ export default function ManualOverrideDialog({ open, table, onClose }: ManualOve
     if (!table) return;
     try {
       setError(null);
-      await updateStatus.mutateAsync({ id: table.id, status: data.status, notes: data.notes });
+      await updateStatus.mutateAsync({ id: table.id, status: data.status });
       onClose();
     } catch (e) {
       setError(e instanceof AppError ? e.message : 'Failed to update table status');
@@ -73,16 +79,15 @@ export default function ManualOverrideDialog({ open, table, onClose }: ManualOve
             New Status
           </label>
           <div className="flex flex-col gap-2">
-            {(['available', 'booked'] as const).map((s) => {
+            {(['available', 'booked', 'maintenance'] as const).map((s) => {
               const isCurrent = table?.status === s;
+              const style = STATUS_STYLE[s];
               return (
                 <label
                   key={s}
                   className={`flex cursor-pointer items-center gap-3 rounded-xl border px-3 py-2.5 text-sm transition-colors ${
                     selectedStatus === s
-                      ? s === 'available'
-                        ? 'border-green-400 bg-green-50 text-green-800'
-                        : 'border-red-400 bg-red-50 text-red-800'
+                      ? style.card
                       : 'border-slate-200 text-slate-600 hover:bg-slate-50'
                   }`}
                 >
@@ -95,11 +100,7 @@ export default function ManualOverrideDialog({ open, table, onClose }: ManualOve
                   />
                   <span
                     className={`inline-block h-4 w-4 rounded-full border-2 ${
-                      selectedStatus === s
-                        ? s === 'available'
-                          ? 'border-green-500 bg-green-500'
-                          : 'border-red-500 bg-red-500'
-                        : 'border-slate-300'
+                      selectedStatus === s ? style.dot : 'border-slate-300'
                     }`}
                   />
                   <span className="font-medium">{STATUS_LABELS[s]}</span>
@@ -113,20 +114,6 @@ export default function ManualOverrideDialog({ open, table, onClose }: ManualOve
           )}
         </div>
 
-        <div>
-          <label className="mb-1 block text-xs font-semibold text-slate-500 uppercase tracking-wider">
-            Notes <span className="text-slate-400">(optional)</span>
-          </label>
-          <input
-            {...register('notes')}
-            placeholder="e.g. Blocked for cleaning, Reserved for VIP"
-            className="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring"
-          />
-          {errors.notes && (
-            <p className="mt-1 text-xs text-red-500">{errors.notes.message}</p>
-          )}
-        </div>
-
         {error && <p className="text-xs text-red-500">{error}</p>}
 
         <div className="flex justify-end gap-3">
@@ -135,7 +122,7 @@ export default function ManualOverrideDialog({ open, table, onClose }: ManualOve
           </Button>
           <Button
             type="submit"
-            variant={selectedStatus === 'booked' ? 'warning' : 'primary'}
+            variant={selectedStatus === 'booked' ? 'warning' : selectedStatus === 'maintenance' ? 'secondary' : 'primary'}
             disabled={updateStatus.isPending}
           >
             {updateStatus.isPending ? 'Updating...' : 'Confirm'}

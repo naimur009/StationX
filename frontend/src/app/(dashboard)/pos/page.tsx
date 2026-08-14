@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { usePosStore } from '@/features/pos/store';
 import { useCreateOrder, useEmployees } from '@/features/pos/api';
 import { useTableList } from '@/features/tables/api';
@@ -14,8 +14,10 @@ import { AppError } from '@/lib/utils';
 import { ShoppingCart } from 'lucide-react';
 import PermissionGate from '@/components/shared/PermissionGate';
 import { useUIStore } from '@/stores/ui-store';
+import { useTableStatusSync } from '@/hooks/useTableStatusSync';
 
 export default function PosPage() {
+  useTableStatusSync();
   const items = usePosStore((s) => s.items);
   const customerName = usePosStore((s) => s.customerName);
   const customerPhone = usePosStore((s) => s.customerPhone);
@@ -27,6 +29,7 @@ export default function PosPage() {
   const couponMaxDiscount = usePosStore((s) => s.couponMaxDiscount);
   const discountPercent = usePosStore((s) => s.discountPercent);
   const setSubmitting = usePosStore((s) => s.setSubmitting);
+  const setTableId = usePosStore((s) => s.setTableId);
   const reset = usePosStore((s) => s.reset);
   const sidebarCollapsed = useUIStore((s) => s.sidebarCollapsed);
 
@@ -42,6 +45,12 @@ export default function PosPage() {
   const employees = employeesData?.data ?? [];
 
   const totals = computePosTotals(items, couponDiscount, couponType, couponMaxDiscount, discountPercent);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const table = params.get('table');
+    if (table) setTableId(table);
+  }, [setTableId]);
 
   function handleCheckout() {
     setError('');

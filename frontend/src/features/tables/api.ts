@@ -7,7 +7,7 @@ export interface TableResponse {
   id: string;
   tableNumber: string;
   capacity: number | null;
-  status: 'available' | 'booked';
+  status: 'available' | 'booked' | 'maintenance';
   currentOrderId: string | null;
   bookedBy: 'order' | 'manual' | null;
   bookedAt: string | null;
@@ -21,7 +21,7 @@ interface TableListResponse {
 }
 
 interface TableListParams {
-  status?: 'available' | 'booked';
+  status?: 'available' | 'booked' | 'maintenance';
 }
 
 export function useTableList(params?: TableListParams) {
@@ -34,6 +34,7 @@ export function useTableList(params?: TableListParams) {
     queryKey: ['tables', 'list', qs],
     queryFn: () => apiClient<TableListResponse>(`/tables${qs ? `?${qs}` : ''}`),
     staleTime: 10_000,
+    refetchInterval: 15_000,
   });
 }
 
@@ -66,7 +67,7 @@ export function useUpdateTableStatus() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (data: { id: string; status: 'available' | 'booked'; notes?: string }) =>
+    mutationFn: (data: { id: string; status: 'available' | 'booked' | 'maintenance'; notes?: string }) =>
       apiClient<{ data: TableResponse }>(`/tables/${data.id}/status`, {
         method: 'PATCH',
         body: JSON.stringify({ status: data.status, notes: data.notes }),

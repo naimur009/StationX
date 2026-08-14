@@ -294,6 +294,7 @@ The Badge component (§14) supports exactly five variants — **green / red / ye
 | Coupons | computed `status` | `disabled` | slate |
 | Tables | `status` | `available` | green |
 | Tables | `status` | `booked` | red |
+| Tables | `status` | `maintenance` | yellow |
 | Attendance | `status` | `present` | green |
 | Attendance | `status` | `absent` | red |
 | Attendance | `status` | `late` | yellow |
@@ -498,18 +499,24 @@ Directly applicable to this project's own Attendance module (`PRD.md` Feature 8)
 
 The Tables floor-plan grid (`PRD.md` Feature 5) is the one place the app displays a physical-space layout rather than a tabular list — status badges aren't enough here because staff scan the grid from across the room. The tile styling makes each table's state instantly recognizable.
 
+> **Revision note:** the grid uses **solid-fill (hard) color tiles** per product direction — a table reads at a glance across the floor. This supersedes the earlier light-tint tile treatment for the floor grid; light-tint styling still applies to the status pills/labels on top of the tiles.
+
 | Element | Style |
 |---|---|
-| Available tile (idle, ready to seat) | `bg-green-50 border-2 border-green-200 rounded-xl p-4 shadow-sm` |
-| Booked tile (occupied by an order) | `bg-red-50 border-2 border-red-200 rounded-xl p-4 shadow-sm` |
-| Table number (primary text) | `text-lg font-bold text-slate-800` centered at top of tile |
-| Capacity indicator | `text-xs text-slate-400` below table number — e.g. "Seats 4", omitted when capacity is not set |
-| Order status indicator (when booked via order) | Label "In Use" in `text-xs font-semibold text-slate-600 bg-white/80 rounded-full px-2 py-0.5` at the bottom of the tile |
-| Manual-block indicator (when `bookedBy: manual`) | Label "Blocked" in `text-xs font-semibold text-amber-600 bg-amber-50 rounded-full px-2 py-0.5` — visually distinct from the order-booked red treatment so staff never confuse "occupied by a paying customer" with "taken offline for cleaning" |
-| Manual-override confirmation dialog | Uses the standard `Dialog` component (§13) with `.modal-enter` animation (§9); the confirm button is the `warning` variant (`--warning`, amber) to signal that overriding a table's state is an exceptional action |
-| Tap/click target | `min-h-[72px]` per-table tile, trigger surface ≥44px for all interactive elements within (matches §20 mobile accessibility) |
-| Hover state | `.card-hover` utility (§10) — `translateY(-2px)` + `box-shadow` lift on the whole tile, including its current-color border |
+| Available tile (idle, ready to seat) | solid `bg-green-500` `rounded-xl p-3 shadow-sm`, white text |
+| Booked tile (occupied by an order) | solid `bg-red-500` `rounded-xl p-3 shadow-sm`, white text |
+| Maintenance tile (out of service / unfunctional) | solid `bg-yellow-500` `rounded-xl p-3 shadow-sm`, white text |
+| Table number (primary text) | `text-lg font-bold text-white` centered at top of tile |
+| Capacity indicator | `text-xs text-white/80` below table number — e.g. "Seats 4", omitted when capacity is not set |
+| Booked status indicator (when booked) | Label "In Use" in `text-[10px] font-semibold text-slate-700 bg-white/90 rounded-full px-2.5 py-0.5` at the bottom of the tile |
+| Maintenance status indicator | Label "Out of Service" in `text-[10px] font-semibold text-slate-700 bg-white/90 rounded-full px-2.5 py-0.5` at the bottom of the tile — visually distinct from booked (yellow vs red tile) |
+| Manual-override confirmation dialog | Uses the standard `Dialog` component (§13) with `.modal-enter` animation (§9); the confirm button is the `warning` variant (`--warning`, amber) when overriding to `booked`, `secondary` when setting `maintenance` |
+| Tile actions (edit / override) | White icons (`text-white/80`, `hover:bg-white/25`) top-right of the tile; `PermissionGate`-gated. **No delete action** — the delete option was removed from the tables section (frontend); the API `DELETE /tables/:id` endpoint remains for programmatic use |
+| Tap/click target | `min-h-[88px]` per-table tile, trigger surface ≥44px for all interactive elements within (matches §20 mobile accessibility) |
+| Hover state | `.card-hover` utility (§10) — `translateY(-2px)` + `box-shadow` lift on the whole tile |
+| Click-to-POS | Clicking an **available** tile navigates to `/pos?table=<id>` (seats the party); booked/maintenance tiles are not clickable |
 | Grid layout | `grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3` — responsive, collapses to 2 columns on the narrowest POS tablet view |
+| Legend | A dot+label row above the grid: `green` Available, `red` Occupied, `yellow` Out of Service |
 | Live status (Socket.io) | Tiles react to `table:statusChanged` events (§25) — transitions animate using the 200ms ease timing (§9) for background-color and border-color changes, so a status flip never snaps instantaneously without a visual cue |
 | Empty state (no tables configured) | A centered `bg-slate-50 border-2 border-dashed border-slate-300 rounded-2xl p-12` area with `text-sm text-slate-400` guidance: "No tables configured yet — set the table count in Settings to get started." |
 

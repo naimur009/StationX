@@ -23,6 +23,36 @@
 
 ## Log
 
+### [—] Tables Section — Delete Option Removed & Maintenance Tile Color — 2026-08-14
+
+**Decision:** The delete option is removed from the Tables UI section (the trash icon on floor tiles, the delete dialog wiring, and the `DeleteTableDialog` component). The backend `DELETE /tables/:id` endpoint is left intact — the API contract is unchanged, the option is simply not surfaced in the UI. The `maintenance` (out of service) tile color changes from slate to **yellow** (`bg-yellow-500`) to match product direction; the legend and `theme.md` §12/§17b were updated to match.
+
+**Doc(s) updated:**
+- `theme.md` §12 (Tables `maintenance` → yellow), §17b (maintenance tile `bg-yellow-500`, tile actions edit/override only, legend yellow)
+
+**Files changed:**
+- `frontend/src/features/tables/components/TableGrid.tsx` (removed delete button/`onDelete`, maintenance `bg-yellow-500`)
+- `frontend/src/app/(dashboard)/tables/page.tsx` (removed delete dialog wiring)
+- `frontend/src/features/tables/components/DeleteTableDialog.tsx` (deleted)
+
+### [—] Tables Floor Grid — Solid Color Tiles, Click-to-POS, & Maintenance Status — 2026-08-14
+
+**Decision:** The Tables floor-plan grid moves from light-tint tiles to **solid-fill color tiles** for scan-from-across-the-room readability (available = `bg-green-500`, booked = `bg-red-500`, out of service = `bg-slate-400`, white text + white action icons). Clicking an **available** tile routes to `/pos?table=<id>`, which pre-selects that table in the POS cart. This adds a third table status, `maintenance`, to `Table.status` (`available | booked | maintenance`) — a table out of service is not seatable (POS order creation only matches `status: 'available'`). The maintenance state is set/unset through the existing `PATCH /tables/:id/status` manual-override flow (extended to accept `maintenance`) and the ManualOverrideDialog (adds the option). It is a runtime floor state: `PUT /settings` with a changed `tableCount` recreates all tables as `available`, so maintenance is not persisted across a table-count re-sync.
+
+**Doc(s) updated:**
+- `database.md` §3.3 (Table.status enum + maintenance derivations + re-sync note)
+- `API.md` §11 (`PATCH /tables/:id/status` accepts `maintenance`; maintenance not seatable)
+- `theme.md` §12 (Tables `maintenance` → slate) & §17b (solid tiles, maintenance tile, click-to-POS, legend)
+- `TEST_CASES.md` §24 (TBL-H-09…12 maintenance cases)
+
+**Files changed:**
+- `backend/src/models/Table.ts` (status enum)
+- `backend/src/modules/tables/tables.validation.ts` (status enums)
+- `frontend/src/features/tables/schema.ts`, `api.ts` (status union)
+- `frontend/src/features/tables/components/TableGrid.tsx` (solid tiles, maintenance, legend, click-to-POS)
+- `frontend/src/features/tables/components/ManualOverrideDialog.tsx` (maintenance option)
+- `frontend/src/app/(dashboard)/pos/page.tsx` (pre-select table from `?table=`)
+
 ### [—] Profit Report Deducts Paid Salary Amounts, Not Full Base — 2026-08-13
 
 **Open item resolved:** N/A — follow-up to "Salary Report Shows Paid Amounts" (same date); the owner reported the profit report still showed the full base salary.

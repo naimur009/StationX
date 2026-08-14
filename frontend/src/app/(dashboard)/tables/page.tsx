@@ -4,13 +4,11 @@ import { useState } from 'react';
 import PermissionGate from '@/components/shared/PermissionGate';
 import TableGrid from '@/features/tables/components/TableGrid';
 import EditTableDialog from '@/features/tables/components/EditTableDialog';
-import DeleteTableDialog from '@/features/tables/components/DeleteTableDialog';
 import ManualOverrideDialog from '@/features/tables/components/ManualOverrideDialog';
 import type { TableResponse } from '@/features/tables/api';
 
 export default function TablesPage() {
   const [editTarget, setEditTarget] = useState<TableResponse | null>(null);
-  const [deleteTarget, setDeleteTarget] = useState<TableResponse | null>(null);
   const [overrideTarget, setOverrideTarget] = useState<TableResponse | null>(null);
 
   return (
@@ -20,7 +18,6 @@ export default function TablesPage() {
 
         <TableGrid
           onEdit={(table) => setEditTarget(table)}
-          onDelete={(table) => setDeleteTarget(table)}
           onOverride={(table) => setOverrideTarget(table)}
         />
 
@@ -28,11 +25,6 @@ export default function TablesPage() {
           open={!!editTarget}
           table={editTarget}
           onClose={() => setEditTarget(null)}
-        />
-        <DeleteTableDialog
-          open={!!deleteTarget}
-          table={deleteTarget}
-          onClose={() => setDeleteTarget(null)}
         />
         <ManualOverrideDialog
           open={!!overrideTarget}

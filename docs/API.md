@@ -290,7 +290,7 @@ Base path: `/tables`. **Permission module key:** `tables`.
 | GET | `/tables/:id` | `view` | Single table detail, including the referencing `currentOrderId` (ObjectId string) if booked |
 | POST | `/tables` | `create` | Add a new physical table (`tableNumber`, `capacity`) |
 | PUT | `/tables/:id` | `edit` | Edit `tableNumber` / `capacity` |
-| PATCH | `/tables/:id/status` | `edit` | Manual status override — `{ status: "available" \| "booked", notes? }` |
+| PATCH | `/tables/:id/status` | `edit` | Manual status override — `{ status: "available" \| "booked" \| "maintenance", notes? }` |
 | DELETE | `/tables/:id` | `delete` | Remove a table — **rejects** with `409 TABLE_IN_USE` while a live (non-completed, non-cancelled) order references it |
 
 > `GET /tables` returns the complete table set (no pagination) — the floor grid needs every table, and `tableCount` is capped at 100 (`DATABASE.md` §3.18), so a fixed 50-row default would silently truncate the grid.
@@ -310,7 +310,7 @@ Base path: `/tables`. **Permission module key:** `tables`.
 Creating a dine-in order and transitioning an existing order both affect the `Table` document. These are not separate endpoints on `/tables` — they are side-effects of POS and Orders operations, documented here so the full contract for table state is in one place.
 
 **POS order creation (§9.3) books the table:**
-When `POST /pos/orders` is called with `orderType: "dine-in"` and a `tableId`, the order-creation transaction (per `DATABASE.md` §5.7) atomically sets that table to `{ status: "booked", currentOrderId: <newOrderId>, bookedBy: "order", bookedAt: now }`. If the table's `status` is already `booked` and `currentOrderId` points at a *different* order (not the one being created — a race condition guard), the transaction aborts and returns `409 TABLE_ALREADY_BOOKED`.
+When `POST /pos/orders` is called with `orderType: "dine-in"` and a `tableId`, the order-creation transaction (per `DATABASE.md` §5.7) atomically sets that table to `{ status: "booked", currentOrderId: <newOrderId>, bookedBy: "order", bookedAt: now }`. If the table's `status` is already `booked` and `currentOrderId` points at a *different* order (not the one being created — a race condition guard), the transaction aborts and returns `409 TABLE_ALREADY_BOOKED`. Tables in `maintenance` status are not seatable: POS order creation only matches tables with `status: "available"`, so a `maintenance` table can never be booked through a dine-in order (it surfaces as `TABLE_ALREADY_BOOKED`).
 
 **Order status transition unbooks the table (§10):**
 When `PATCH /orders/:id/status` transitions an order to `paymentStatus: "paid"` (payment captured) or `status: "cancelled"` (cancelled before payment), the service layer additionally clears the referenced table: `{ status: "available", currentOrderId: null, bookedBy: null, bookedAt: null }`. This only fires if `order.tableId` is set and the table's `currentOrderId` still matches this order (defensive — guards against a stale reference after a manual override).

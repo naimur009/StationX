@@ -101,17 +101,17 @@ Authentication identity + embedded permission grants (per `ARCHITECTURE.md` §6,
 
 ### 3.3 Table
 
-Tracks restaurant tables for live floor status. A table is either **available** or **booked**; when booked, it optionally points to the active order occupying it.
+Tracks restaurant tables for live floor status. A table is either **available**, **booked**, or **maintenance**; when booked, it optionally points to the active order occupying it.
 
 | Field | Type | Required | Notes |
 |---|---|---|---|
 | `tableNumber` | String | ✓ | unique human-readable label, e.g. `"1"`, `"12"`, `"VIP-2"` |
 | `capacity` | Number | — | seat count, optional |
-| `status` | String enum `available \| booked` | ✓ (default `available`) | live floor status |
-| `currentOrderId` | ObjectId → Order | — | set when booked via a dine-in order; null when manually booked or available |
-| `bookedBy` | String enum `order \| manual` | — | null when available; explains *why* the table is booked |
+| `status` | String enum `available \| booked \| maintenance` | ✓ (default `available`) | live floor status; `maintenance` = out of service (not seatable) |
+| `currentOrderId` | ObjectId → Order | — | set when booked via a dine-in order; null when manually booked, available, or maintenance |
+| `bookedBy` | String enum `order \| manual` | — | null when not booked; explains *why* the table is booked |
 | `bookedAt` | Date | — | timestamp of the most recent status → booked transition |
-| `notes` | String | — | e.g. `"reserved for 7pm"`, `"blocked for cleaning"` |
+| `notes` | String | — | e.g. `"reserved for 7pm"`, `"blocked for cleaning"`, `"under repair"` |
 
 **Indexes:** `tableNumber` (unique), `status`.
 
@@ -120,7 +120,10 @@ Tracks restaurant tables for live floor status. A table is either **available** 
 > **Status derivations:**
 > - `status: booked, bookedBy: order, currentOrderId: <id>` — table occupied by an active dine-in order.
 > - `status: booked, bookedBy: manual, currentOrderId: null` — manually blocked (cleaning, reserved for VIP, stuck-state fix).
+> - `status: maintenance` — `currentOrderId`, `bookedBy`, and `bookedAt` are all null. Table is out of service and must not be seatable (POS order creation only matches `status: 'available'`).
 > - `status: available` — `bookedBy` and `currentOrderId` are both null.
+
+> **Note (settings re-sync):** `PUT /settings` with a changed `tableCount` recreates the whole table set as `available` (per §5.x). The `maintenance` state is therefore not persisted across a table-count re-sync — it is a runtime floor state, re-applied by staff as needed.
 
 ---
 

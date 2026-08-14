@@ -11,12 +11,12 @@ export const updateTableSchema = z.object({
 }).strict();
 
 export const updateTableStatusSchema = z.object({
-  status: z.enum(['available', 'booked']),
+  status: z.enum(['available', 'booked', 'maintenance']),
   notes: z.string().max(200).optional(),
 }).strict();
 
 export const listTablesSchema = z.object({
-  status: z.enum(['available', 'booked']).optional(),
+  status: z.enum(['available', 'booked', 'maintenance']).optional(),
 });
 
 export const objectIdParam = z.object({

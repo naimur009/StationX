@@ -179,6 +179,7 @@ export function useUpdateOrderStatus() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['orders'] });
+      queryClient.invalidateQueries({ queryKey: ['tables'] });
     },
     onError: (error: unknown) => {
       toast.error(error instanceof Error ? error.message : 'Failed to update order status');

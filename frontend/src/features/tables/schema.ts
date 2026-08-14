@@ -11,8 +11,7 @@ export const updateTableSchema = z.object({
 });
 
 export const manualOverrideSchema = z.object({
-  status: z.enum(['available', 'booked']),
-  notes: z.string().max(200).optional(),
+  status: z.enum(['available', 'booked', 'maintenance']),
 });
 
 export type CreateTableFormData = z.infer<typeof createTableSchema>;
