@@ -9,7 +9,7 @@ import {
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { useTodayStaff, useMarkAttendance, useBatchMarkAttendance, type StaffAttendanceItem } from '../api';
+import { useTodayStaff, useMarkAttendance, useBatchMarkAttendance, useUpdateAttendance, type StaffAttendanceItem } from '../api';
 import { getSocket } from '@/lib/socket';
 import { AppError } from '@/lib/utils';
 
@@ -64,6 +64,7 @@ export default function TodayAttendanceSheet() {
   const { data, isLoading, isError, refetch } = useTodayStaff(selectedDate);
   const markMutation = useMarkAttendance();
   const batchMutation = useBatchMarkAttendance();
+  const updateMutation = useUpdateAttendance();
   const [pendingEmployeeId, setPendingEmployeeId] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -105,10 +106,14 @@ export default function TodayAttendanceSheet() {
     }
   }, [refetch]);
 
-  const handleMark = useCallback(async (employeeId: string, status: 'present' | 'absent' | 'late' | 'half-day') => {
+  const handleMark = useCallback(async (employeeId: string, status: 'present' | 'absent' | 'late' | 'half-day', recordId?: string) => {
     setPendingEmployeeId(employeeId);
     try {
-      await markMutation.mutateAsync({ employeeId, status, date: selectedDate });
+      if (recordId) {
+        await updateMutation.mutateAsync({ id: recordId, status });
+      } else {
+        await markMutation.mutateAsync({ employeeId, status, date: selectedDate });
+      }
       await refreshAfterMutation();
       showTempMessage('Attendance marked successfully');
     } catch (err) {
@@ -117,11 +122,11 @@ export default function TodayAttendanceSheet() {
     } finally {
       setPendingEmployeeId(null);
     }
-  }, [markMutation, selectedDate, refreshAfterMutation]);
+  }, [markMutation, updateMutation, selectedDate, refreshAfterMutation]);
 
-  const handleQuickStatus = useCallback(async (employeeId: string, currentStatus: string | undefined) => {
+  const handleQuickStatus = useCallback(async (employeeId: string, currentStatus: string | undefined, recordId?: string) => {
     const next = currentStatus === 'present' ? 'absent' : 'present';
-    handleMark(employeeId, next as 'present' | 'absent');
+    handleMark(employeeId, next as 'present' | 'absent', recordId);
   }, [handleMark]);
 
   const handleMarkAllPresent = useCallback(async () => {
@@ -341,8 +346,8 @@ function StaffRow({
   isPending,
 }: {
   item: StaffAttendanceItem;
-  onMark: (employeeId: string, status: 'present' | 'absent' | 'late' | 'half-day') => void;
-  onQuickStatus: (employeeId: string, currentStatus: string | undefined) => void;
+  onMark: (employeeId: string, status: 'present' | 'absent' | 'late' | 'half-day', recordId?: string) => void;
+  onQuickStatus: (employeeId: string, currentStatus: string | undefined, recordId?: string) => void;
   isMutating: boolean;
   isPending: boolean;
 }) {
@@ -370,7 +375,7 @@ function StaffRow({
                 key={status}
                 type="button"
                 disabled={isMutating}
-                onClick={() => onMark(item.employee._id, status)}
+                onClick={() => onMark(item.employee._id, status, item.attendance?.id)}
                 className={`flex cursor-pointer items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold transition-all duration-150 disabled:cursor-not-allowed active:scale-95 ${
                   isActive ? cfg.active : cfg.inactive
                 }`}
@@ -387,7 +392,7 @@ function StaffRow({
           <button
             type="button"
             disabled={isMutating}
-            onClick={() => onQuickStatus(item.employee._id, currentStatus)}
+onClick={() => onQuickStatus(item.employee._id, currentStatus, item.attendance?.id)}
             className="flex cursor-pointer items-center gap-1.5 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-medium text-slate-500 transition-all hover:border-slate-300 hover:bg-slate-50 hover:text-slate-700 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {isPending ? (
@@ -420,8 +425,8 @@ function StaffCard({
   isPending,
 }: {
   item: StaffAttendanceItem;
-  onQuickStatus: (employeeId: string, currentStatus: string | undefined) => void;
-  onMark: (employeeId: string, status: 'present' | 'absent' | 'late' | 'half-day') => void;
+  onQuickStatus: (employeeId: string, currentStatus: string | undefined, recordId?: string) => void;
+  onMark: (employeeId: string, status: 'present' | 'absent' | 'late' | 'half-day', recordId?: string) => void;
   isMutating: boolean;
   isPending: boolean;
 }) {
@@ -450,7 +455,7 @@ function StaffCard({
         <button
           type="button"
           disabled={isMutating}
-          onClick={() => onQuickStatus(item.employee._id, currentStatus)}
+          onClick={() => onQuickStatus(item.employee._id, currentStatus, item.attendance?.id)}
           className="flex shrink-0 cursor-pointer items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-xs font-medium text-slate-600 transition-all hover:border-slate-300 hover:bg-slate-50 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {isPending ? (
@@ -480,7 +485,7 @@ function StaffCard({
               key={status}
               type="button"
               disabled={isMutating}
-              onClick={() => onMark(item.employee._id, status)}
+              onClick={() => onMark(item.employee._id, status, item.attendance?.id)}
               className={`flex cursor-pointer items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold transition-all duration-150 disabled:cursor-not-allowed active:scale-95 ${
                 isActive ? cfg.active : cfg.inactive
               }`}
