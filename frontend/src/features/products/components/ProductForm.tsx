@@ -50,8 +50,8 @@ export default function ProductForm({ open, product, onClose }: ProductFormProps
     handleSubmit,
     formState: { errors },
     reset,
-  } = useForm({
-    resolver: zodResolver(schema),
+  } = useForm<ProductFormValues>({
+    resolver: zodResolver(schema as never),
     defaultValues: {
       name: '',
       price: 0,

@@ -3,17 +3,15 @@
 import { Dialog } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import PermissionGate from '@/components/shared/PermissionGate';
+import BillPreview from './BillPreview';
 import type { CartItem } from '@/features/pos/schema';
+import type { PosTotals } from '../totals';
 
 interface OrderConfirmationDialogProps {
   open: boolean;
   onClose: () => void;
   items: CartItem[];
-  subtotal: number;
-  taxAmount: number;
-  totalWithVat: number;
-  totalDiscount: number;
-  grandTotal: number;
+  totals: PosTotals;
   discountPercent: number;
   availableTables: Array<{ id: string; tableNumber: string }>;
   tableId: string;
@@ -25,8 +23,7 @@ interface OrderConfirmationDialogProps {
 }
 
 export default function OrderConfirmationDialog({
-  open, onClose, items, subtotal, taxAmount, totalWithVat, totalDiscount, grandTotal,
-  discountPercent, availableTables, tableId, employees, servedBy, customerName, customerPhone, onConfirm,
+  open, onClose, items, totals, discountPercent, availableTables, tableId, employees, servedBy, customerName, customerPhone, onConfirm,
 }: OrderConfirmationDialogProps) {
   return (
     <Dialog
@@ -56,33 +53,8 @@ export default function OrderConfirmationDialog({
           ))}
         </div>
 
-        <div className="border-t border-border pt-3">
-          <div className="space-y-1 text-sm">
-            <div className="flex justify-between text-muted-foreground">
-              <span>Subtotal</span>
-              <span>BDT {subtotal.toFixed(2)}</span>
-            </div>
-            {taxAmount > 0 && (
-              <div className="flex justify-between text-muted-foreground">
-                <span>VAT</span>
-                <span>BDT {taxAmount.toFixed(2)}</span>
-              </div>
-            )}
-            <div className="flex justify-between text-foreground font-bold">
-              <span>Subtotal + VAT</span>
-              <span>BDT {totalWithVat.toFixed(2)}</span>
-            </div>
-            {totalDiscount > 0 && (
-              <div className="flex justify-between text-green-600 font-bold">
-                <span>Discount {discountPercent > 0 ? `(${discountPercent}%)` : ''}</span>
-                <span>-BDT {totalDiscount.toFixed(2)}</span>
-              </div>
-            )}
-          </div>
-          <div className="mt-2 flex justify-between border-t border-border pt-2 text-base font-bold text-foreground">
-            <span>Total</span>
-            <span>BDT {grandTotal.toFixed(2)}</span>
-          </div>
+        <div className="rounded-xl bg-secondary/60 px-4 py-3">
+          <BillPreview totals={totals} discountPercent={discountPercent} />
         </div>
 
         <div className="rounded-xl bg-secondary px-3 py-2 text-sm text-muted-foreground">
