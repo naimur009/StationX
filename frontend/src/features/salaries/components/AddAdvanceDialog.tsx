@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useAddAdvance, type SalaryResponse } from '../api';
+import { useAddAdvance, useCreateSalary, type SalaryResponse } from '../api';
 import { addAdvanceSchema, type AddAdvanceFormData } from '../schema';
 import { Dialog } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -12,16 +12,37 @@ import { AppError } from '@/lib/utils';
 interface AddAdvanceDialogProps {
   open: boolean;
   salary: SalaryResponse | null;
+  employeeId?: string;
+  employeeName?: string;
+  baseSalary?: number;
+  month?: number;
+  year?: number;
   onClose: () => void;
 }
 
-export default function AddAdvanceDialog({ open, salary, onClose }: AddAdvanceDialogProps) {
+export default function AddAdvanceDialog({
+  open,
+  salary,
+  employeeId,
+  employeeName,
+  baseSalary,
+  month,
+  year,
+  onClose,
+}: AddAdvanceDialogProps) {
   const [error, setError] = useState<string | null>(null);
   const addAdvance = useAddAdvance();
+  const createSalary = useCreateSalary();
+
+  const isCreate = !salary;
+  const effectiveName = salary?.employeeId.name ?? employeeName ?? '';
+  const effectiveBase = salary?.baseSalary ?? baseSalary ?? 0;
+  const isPending = addAdvance.isPending || createSalary.isPending;
 
   const {
     register,
     handleSubmit,
+    watch,
     formState: { errors },
     reset,
   } = useForm<AddAdvanceFormData>({
@@ -32,6 +53,8 @@ export default function AddAdvanceDialog({ open, salary, onClose }: AddAdvanceDi
       note: '',
     },
   });
+
+  const watchedAmount = watch('amount');
 
   useEffect(() => {
     if (open) {
@@ -49,21 +72,34 @@ export default function AddAdvanceDialog({ open, salary, onClose }: AddAdvanceDi
   }
 
   async function onSubmit(data: AddAdvanceFormData) {
-    if (!salary) return;
     setError(null);
 
-    if (data.amount > salary.remainingBalance) {
-      setError(`Advance amount exceeds remaining balance of ${formatCurrency(salary.remainingBalance)}`);
+    if (data.amount > effectiveBase) {
+      setError(`Payment amount cannot exceed base salary of ${formatCurrency(effectiveBase)}`);
       return;
     }
 
     try {
-      await addAdvance.mutateAsync({
-        salaryId: salary.id,
-        amount: data.amount,
-        date: typeof data.date === 'string' ? data.date : data.date.toISOString().split('T')[0],
-        note: data.note || undefined,
-      });
+      if (salary) {
+        if (data.amount > salary.remainingBalance) {
+          setError(`Payment amount exceeds remaining balance of ${formatCurrency(salary.remainingBalance)}`);
+          return;
+        }
+        await addAdvance.mutateAsync({
+          salaryId: salary.id,
+          amount: data.amount,
+          date: typeof data.date === 'string' ? data.date : data.date.toISOString().split('T')[0],
+          note: data.note || undefined,
+        });
+      } else {
+        if (!employeeId || !month || !year) return;
+        await createSalary.mutateAsync({
+          employeeId,
+          paidAmount: data.amount,
+          month,
+          year,
+        });
+      }
       reset();
       onClose();
     } catch (err) {
@@ -72,7 +108,7 @@ export default function AddAdvanceDialog({ open, salary, onClose }: AddAdvanceDi
       } else if (err && typeof err === 'object' && 'message' in err) {
         setError(String((err as { message: string }).message));
       } else {
-        setError('Failed to add advance');
+        setError('Failed to record payment');
       }
     }
   }
@@ -87,7 +123,7 @@ export default function AddAdvanceDialog({ open, salary, onClose }: AddAdvanceDi
     <Dialog
       open={open}
       onClose={handleClose}
-      title={`Add Advance — ${salary?.employeeId.name ?? ''}`}
+      title={`Payments — ${effectiveName}`}
       size="md"
       footer={
         <>
@@ -98,10 +134,10 @@ export default function AddAdvanceDialog({ open, salary, onClose }: AddAdvanceDi
             type="button"
             variant="primary"
             size="md"
-            disabled={addAdvance.isPending}
+            disabled={isPending}
             onClick={() => handleSubmit(onSubmit)()}
           >
-            {addAdvance.isPending ? 'Adding\u2026' : 'Add Advance'}
+            {isPending ? 'Saving\u2026' : 'Add Payment'}
           </Button>
         </>
       }
@@ -112,22 +148,39 @@ export default function AddAdvanceDialog({ open, salary, onClose }: AddAdvanceDi
         </div>
       )}
 
-      {salary && (
-        <div className="mb-5 grid grid-cols-3 gap-4 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm">
-          <div>
-            <span className="text-xs text-slate-500">Base Salary</span>
-            <p className="font-semibold text-slate-800">{formatCurrency(salary.baseSalary)}</p>
-          </div>
-          <div>
-            <span className="text-xs text-slate-500">Paid So Far</span>
-            <p className="font-semibold text-green-600">{formatCurrency(salary.totalPaid)}</p>
-          </div>
-          <div>
-            <span className="text-xs text-slate-500">Remaining</span>
-            <p className="font-semibold text-amber-600">{formatCurrency(salary.remainingBalance)}</p>
-          </div>
+      <div className="mb-5 grid grid-cols-3 gap-4 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm">
+        <div>
+          <span className="text-xs text-slate-500">Base Salary</span>
+          <p className="font-semibold text-slate-800">{formatCurrency(effectiveBase)}</p>
         </div>
-      )}
+        {salary ? (
+          <>
+            <div>
+              <span className="text-xs text-slate-500">Paid So Far</span>
+              <p className="font-semibold text-green-600">{formatCurrency(salary.totalPaid)}</p>
+            </div>
+            <div>
+              <span className="text-xs text-slate-500">Remaining</span>
+              <p className="font-semibold text-amber-600">{formatCurrency(salary.remainingBalance)}</p>
+            </div>
+          </>
+        ) : (
+          <>
+            <div>
+              <span className="text-xs text-slate-500">Remaining After Payment</span>
+              <p className="font-semibold text-amber-600">
+                {formatCurrency(Math.max(0, effectiveBase - (watchedAmount || 0)))}
+              </p>
+            </div>
+            <div>
+              <span className="text-xs text-slate-500">Month / Year</span>
+              <p className="font-semibold text-slate-800">
+                {month ?? '—'} / {year ?? '—'}
+              </p>
+            </div>
+          </>
+        )}
+      </div>
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
         <div>
@@ -148,20 +201,22 @@ export default function AddAdvanceDialog({ open, salary, onClose }: AddAdvanceDi
           {errors.amount && <p className="mt-1 text-xs text-red-500">{errors.amount.message}</p>}
         </div>
 
-        <div>
-          <label htmlFor="advance-date" className="mb-1.5 block text-sm font-medium text-slate-700">
-            Date <span className="text-red-500">*</span>
-          </label>
-          <input
-            id="advance-date"
-            type="date"
-            className={`w-full rounded-xl border bg-white px-3.5 py-2.5 text-sm text-slate-800 ring-ring focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring ${
-              errors.date ? 'border-red-400' : 'border-slate-300'
-            }`}
-            {...register('date')}
-          />
-          {errors.date && <p className="mt-1 text-xs text-red-500">{errors.date.message}</p>}
-        </div>
+        {!isCreate && (
+          <div>
+            <label htmlFor="advance-date" className="mb-1.5 block text-sm font-medium text-slate-700">
+              Date <span className="text-red-500">*</span>
+            </label>
+            <input
+              id="advance-date"
+              type="date"
+              className={`w-full rounded-xl border bg-white px-3.5 py-2.5 text-sm text-slate-800 ring-ring focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring ${
+                errors.date ? 'border-red-400' : 'border-slate-300'
+              }`}
+              {...register('date')}
+            />
+            {errors.date && <p className="mt-1 text-xs text-red-500">{errors.date.message}</p>}
+          </div>
+        )}
 
         <div>
           <label htmlFor="advance-note" className="mb-1.5 block text-sm font-medium text-slate-700">

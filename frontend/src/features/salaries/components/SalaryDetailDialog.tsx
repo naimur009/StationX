@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { useSalary, useDeleteSalary, useAdjustmentsList, useDeleteAdjustment, type AdjustmentResponse } from '../api';
-import { Dialog } from '@/components/ui/dialog';
+import { useSalary, useDeleteSalary, useAdjustmentsList, useDeleteAdjustment, type AdjustmentResponse, type SalaryResponse } from '../api';
+import { Drawer } from '@/components/ui/drawer';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import PermissionGate from '@/components/shared/PermissionGate';
@@ -13,6 +13,7 @@ interface SalaryDetailDialogProps {
   open: boolean;
   salaryId: string | null;
   onClose: () => void;
+  onAddAdvance?: (salary: SalaryResponse) => void;
 }
 
 const MONTHS = [
@@ -20,7 +21,7 @@ const MONTHS = [
   'July', 'August', 'September', 'October', 'November', 'December',
 ];
 
-export default function SalaryDetailDialog({ open, salaryId, onClose }: SalaryDetailDialogProps) {
+export default function SalaryDetailDialog({ open, salaryId, onClose, onAddAdvance }: SalaryDetailDialogProps) {
   const { data: response, isLoading, isError } = useSalary(salaryId ?? '');
   const deleteSalary = useDeleteSalary();
   const deleteAdjustment = useDeleteAdjustment();
@@ -103,26 +104,39 @@ export default function SalaryDetailDialog({ open, salaryId, onClose }: SalaryDe
     }
   }, [open]);
 
+  const remaining = salary ? Math.max(0, salary.remainingBalance) : 0;
+  const isFullyPaid = salary?.status === 'paid';
+
   return (
-    <Dialog
+    <Drawer
       open={open}
       onClose={onClose}
       title="Salary Details"
-      size="lg"
       footer={
-        <Button type="button" variant="ghost" size="md" onClick={onClose}>
-          Close
-        </Button>
+        <>
+          {onAddAdvance && !isFullyPaid && (
+            <PermissionGate module="salary" action="edit">
+              <Button type="button" variant="success" size="md" onClick={() => salary && onAddAdvance(salary)}>
+                Payment
+              </Button>
+            </PermissionGate>
+          )}
+          <Button type="button" variant="ghost" size="md" onClick={onClose}>
+            Close
+          </Button>
+        </>
       }
     >
       {isLoading ? (
-        <div className="py-8 text-center text-sm text-slate-400">Loading...</div>
+        <div className="flex items-center justify-center py-16">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 spinner-smooth" />
+        </div>
       ) : isError ? (
         <div className="py-8 text-center text-sm text-red-500">Failed to load salary details</div>
       ) : !salary ? (
         <div className="py-8 text-center text-sm text-slate-400">Salary record not found</div>
       ) : (
-        <div className="space-y-5">
+        <div className="space-y-6">
           {statusMessage && (
             <div
               className={`rounded-xl border px-4 py-3 text-sm ${
@@ -134,6 +148,7 @@ export default function SalaryDetailDialog({ open, salaryId, onClose }: SalaryDe
               {statusMessage.text}
             </div>
           )}
+
           <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
               <div>
@@ -155,45 +170,78 @@ export default function SalaryDetailDialog({ open, salaryId, onClose }: SalaryDe
                 <p className="font-semibold text-slate-800">{salary.advances.length}</p>
               </div>
             </div>
-            <div className="mt-4 grid grid-cols-3 gap-4 border-t border-slate-200 pt-4 sm:grid-cols-5">
+            <div className="mt-4 grid grid-cols-3 gap-4 border-t border-slate-200 pt-4">
               <div>
                 <span className="text-xs text-slate-500">Base Salary</span>
-                <p className="text-lg font-bold text-slate-800">{formatCurrency(salary.baseSalary)}</p>
-              </div>
-              <div>
-                <span className="text-xs text-slate-500">Bonus</span>
-                <p className="text-lg font-bold text-green-600">{formatCurrency(totalBonus)}</p>
-              </div>
-              <div>
-                <span className="text-xs text-slate-500">Cut</span>
-                <p className="text-lg font-bold text-red-500">{formatCurrency(totalCut)}</p>
-              </div>
-              <div>
-                <span className="text-xs text-slate-500">Net Salary</span>
-                <p className="text-lg font-bold text-slate-800">{formatCurrency(netSalary)}</p>
+                <p className="mt-0.5 text-lg font-bold text-slate-800">{formatCurrency(salary.baseSalary)}</p>
               </div>
               <div>
                 <span className="text-xs text-slate-500">Paid</span>
-                <p className="text-lg font-bold text-green-600">{formatCurrency(salary.totalPaid)}</p>
-                {salary.status === 'paid' && salary.paidAt && (
-                  <p className="mt-0.5 text-xs text-green-600">Paid on {formatDate(salary.paidAt)}</p>
-                )}
+                <p className="mt-0.5 text-lg font-bold text-green-600">{formatCurrency(salary.totalPaid)}</p>
+              </div>
+              <div>
+                <span className="text-xs text-slate-500">Remaining</span>
+                <p className={`mt-0.5 text-lg font-bold ${remaining > 0 ? 'text-amber-600' : 'text-slate-800'}`}>
+                  {formatCurrency(remaining)}
+                </p>
               </div>
             </div>
-            {salary.advances.length === 0 && (
-              <div className="mt-4">
+          </div>
+
+          {/* Salary breakdown */}
+          <div>
+            <h3 className="mb-3 text-sm font-semibold text-slate-700">Salary Breakdown</h3>
+            <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+              <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3 text-sm">
+                <span className="text-slate-500">Base Salary</span>
+                <span className="font-semibold text-slate-800">{formatCurrency(salary.baseSalary)}</span>
+              </div>
+              <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3 text-sm">
+                <span className="text-slate-500">Bonus</span>
+                <span className="font-semibold text-green-600">
+                  {totalBonus > 0 ? `+${formatCurrency(totalBonus)}` : formatCurrency(totalBonus)}
+                </span>
+              </div>
+              <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3 text-sm">
+                <span className="text-slate-500">Deductions</span>
+                <span className="font-semibold text-red-500">
+                  {totalCut > 0 ? `-${formatCurrency(totalCut)}` : formatCurrency(totalCut)}
+                </span>
+              </div>
+              <div className="flex items-center justify-between bg-slate-50 px-4 py-3 text-sm">
+                <span className="font-semibold text-slate-700">Net Salary</span>
+                <span className="font-bold text-slate-900">{formatCurrency(netSalary)}</span>
+              </div>
+            </div>
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              {onAddAdvance && !isFullyPaid && (
+                <PermissionGate module="salary" action="edit">
+                  <Button variant="outline" size="sm" onClick={() => onAddAdvance(salary)}>
+                    Payments
+                  </Button>
+                </PermissionGate>
+              )}
+              {salary.advances.length === 0 && (
                 <PermissionGate module="salary" action="delete">
                   <Button variant="destructive" size="sm" onClick={handleDelete} disabled={deleteSalary.isPending}>
                     {deleteSalary.isPending ? 'Deleting...' : 'Delete Salary'}
                   </Button>
                 </PermissionGate>
-              </div>
-            )}
+              )}
+            </div>
           </div>
 
-          {salary.advances.length > 0 ? (
-            <div>
-              <h3 className="mb-3 text-sm font-semibold text-slate-700">Advance History</h3>
+          {/* Payment history */}
+          <div>
+            <h3 className="mb-3 text-sm font-semibold text-slate-700">
+              Payment History
+              {salary.advances.length > 0 && (
+                <span className="ml-2 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-500">
+                  {salary.advances.length}
+                </span>
+              )}
+            </h3>
+            {salary.advances.length > 0 ? (
               <div className="space-y-2">
                 {salary.advances.map((advance) => (
                   <div
@@ -217,12 +265,12 @@ export default function SalaryDetailDialog({ open, salaryId, onClose }: SalaryDe
                   </div>
                 ))}
               </div>
-            </div>
-          ) : (
-            <div className="rounded-xl border border-slate-200 bg-white px-4 py-8 text-center text-sm text-slate-400">
-              No advances recorded yet
-            </div>
-          )}
+            ) : (
+              <div className="rounded-xl border border-slate-200 bg-white px-4 py-8 text-center text-sm text-slate-400">
+                No payments recorded yet
+              </div>
+            )}
+          </div>
 
           {adjustments.length > 0 ? (
             <div>
@@ -287,6 +335,6 @@ export default function SalaryDetailDialog({ open, salaryId, onClose }: SalaryDe
         editAdjustment={editingAdjustment}
         onClose={() => { setEditingAdjustment(null); refetchAdjustments(); }}
       />
-    </Dialog>
+    </Drawer>
   );
 }
