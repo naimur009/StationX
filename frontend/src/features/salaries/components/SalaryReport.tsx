@@ -85,7 +85,7 @@ export default function SalaryReport() {
   const employees = useMemo(() => {
     if (!employeesData?.data) return [];
     return employeesData.data
-      .map((e) => ({ id: e.id, name: e.name }))
+      .map((e) => ({ id: e.id, name: e.name, createdAt: e.createdAt }))
       .sort((a, b) => a.name.localeCompare(b.name));
   }, [employeesData]);
 
@@ -205,7 +205,7 @@ export default function SalaryReport() {
           {/* Employee Summary */}
           <section className="space-y-3">
             <SectionHeading>Employee Summary</SectionHeading>
-            <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
+            <div className="hidden overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm lg:block">
               <table className="w-full text-left text-sm">
                 <thead className="bg-slate-50 [&_tr>th:first-child]:rounded-tl-2xl [&_tr>th:last-child]:rounded-tr-2xl">
                   <tr className="text-xs font-semibold uppercase text-slate-500">
@@ -261,6 +261,60 @@ export default function SalaryReport() {
                 </tbody>
               </table>
             </div>
+
+            {/* Mobile / tablet cards */}
+            <div className="space-y-3 lg:hidden">
+              {filteredEmployees.length === 0 ? (
+                <div className="rounded-2xl border border-slate-200 bg-white px-4 py-10 text-center text-sm text-slate-400 shadow-sm">
+                  No employees match the filter
+                </div>
+              ) : (
+                filteredEmployees.map((emp) => (
+                  <div key={emp.employeeId} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                    <div className="flex items-center gap-3">
+                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-100 text-xs font-bold text-slate-500">
+                        {emp.employeeName
+                          .split(' ')
+                          .filter(Boolean)
+                          .slice(0, 2)
+                          .map((part) => part[0]?.toUpperCase() ?? '')
+                          .join('') || '?'}
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate font-medium text-slate-800">{emp.employeeName}</p>
+                      </div>
+                      <Badge variant={statusBadge(emp.salaryStatus).variant}>{statusBadge(emp.salaryStatus).label}</Badge>
+                    </div>
+                    <div className="mt-3 grid grid-cols-2 gap-3 border-t border-slate-100 pt-3 sm:grid-cols-4">
+                      <div>
+                        <span className="text-xs text-slate-500">Paid</span>
+                        <p className="font-semibold text-green-600">
+                          {emp.totalPaid > 0 ? formatCurrency(emp.totalPaid) : <span className="text-xs font-normal text-slate-400">&mdash;</span>}
+                        </p>
+                      </div>
+                      <div>
+                        <span className="text-xs text-slate-500">Bonus</span>
+                        <p className="font-semibold text-green-600">
+                          {emp.totalBonus > 0 ? formatCurrency(emp.totalBonus) : <span className="text-xs font-normal text-slate-400">&mdash;</span>}
+                        </p>
+                      </div>
+                      <div>
+                        <span className="text-xs text-slate-500">Cut</span>
+                        <p className="font-semibold text-red-500">
+                          {emp.totalCut > 0 ? formatCurrency(emp.totalCut) : <span className="text-xs font-normal text-slate-400">&mdash;</span>}
+                        </p>
+                      </div>
+                      <div>
+                        <span className="text-xs text-slate-500">Net</span>
+                        <p className="font-semibold text-slate-800">
+                          {emp.netSalary > 0 ? formatCurrency(emp.netSalary) : <span className="text-xs font-normal text-slate-400">&mdash;</span>}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
           </section>
         </>
       )}
@@ -279,59 +333,146 @@ export default function SalaryReport() {
           <div className="flex items-center justify-center rounded-2xl border border-slate-200 bg-white py-16 shadow-sm">
             <div className="h-10 w-10 animate-spin rounded-full border-4 spinner-smooth" />
           </div>
-        ) : empReport ? (
-          <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
-            <table className="w-full text-left text-sm">
-              <thead className="bg-slate-50 [&_tr>th:first-child]:rounded-tl-2xl [&_tr>th:last-child]:rounded-tr-2xl">
-                <tr className="text-xs font-semibold uppercase text-slate-500">
-                  <th className="px-5 py-3.5">Month</th>
-                  <th className="px-5 py-3.5 text-right">Net Salary</th>
-                  <th className="px-5 py-3.5 text-right">Paid</th>
-                  <th className="px-5 py-3.5 text-right">Remaining</th>
-                  <th className="px-5 py-3.5">Status</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 [&_tr:last-child>td:first-child]:rounded-bl-2xl [&_tr:last-child>td:last-child]:rounded-br-2xl">
-                {empReport.months.map((m) => {
-                  const badge = statusBadge(m.status);
-                  const isClickable = m.baseSalary > 0 || m.adjustments.length > 0 || m.totalPaid > 0;
-                  return (
-                    <tr
-                      key={m.month}
-                      onClick={() => isClickable && setSelectedMonth(m)}
-                      className={`transition-colors ${isClickable ? 'cursor-pointer hover:bg-slate-50' : ''}`}
-                    >
-                      <td className="px-5 py-3.5 font-medium text-slate-800">
-                        {MONTHS[m.month - 1]}
-                        {isClickable && (
-                          <span className="ml-2 text-xs text-slate-400">View</span>
-                        )}
-                      </td>
-                      <td className="px-5 py-3.5 text-right font-semibold text-slate-800 whitespace-nowrap">
-                        {m.netSalary > 0 ? formatCurrency(m.netSalary) : <span className="text-xs font-normal text-slate-400">&mdash;</span>}
-                      </td>
-                      <td className="px-5 py-3.5 text-right font-semibold text-green-600 whitespace-nowrap">
-                        {m.totalPaid > 0 ? formatCurrency(m.totalPaid) : <span className="text-xs font-normal text-slate-400">&mdash;</span>}
-                      </td>
-                      <td className="px-5 py-3.5 text-right font-semibold whitespace-nowrap">
-                        {m.remainingBalance > 0 ? (
-                          <span className="text-amber-600">{formatCurrency(m.remainingBalance)}</span>
-                        ) : m.baseSalary > 0 ? (
-                          <span className="text-green-600">0</span>
-                        ) : (
-                          <span className="text-xs font-normal text-slate-400">&mdash;</span>
-                        )}
-                      </td>
-                      <td className="px-5 py-3.5">
-                        <Badge variant={badge.variant}>{badge.label}</Badge>
-                      </td>
+        ) : empReport ? (() => {
+          const joinedAt = employees.find((e) => e.id === selectedEmployeeId)?.createdAt;
+          const joinedMonth = joinedAt ? new Date(joinedAt).getMonth() + 1 : 1;
+          const joinedYear = joinedAt ? new Date(joinedAt).getFullYear() : yearFilter;
+
+          const inRangeMonths = empReport.months.filter((m) => {
+            if (joinedYear > yearFilter) return false;
+            if (joinedYear < yearFilter) return true;
+            return m.month >= joinedMonth;
+          });
+
+          const activeMonths = inRangeMonths.filter(
+            (m) => m.baseSalary > 0 || m.adjustments.length > 0 || m.totalPaid > 0
+          );
+          const emptyMonths = inRangeMonths.length - activeMonths.length;
+
+          if (activeMonths.length === 0) {
+            return (
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-10 text-center">
+                <p className="text-sm text-slate-500">
+                  No salary data available for this employee in {yearFilter}
+                </p>
+              </div>
+            );
+          }
+
+          return (
+            <>
+              <div className="hidden overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm lg:block">
+                <table className="w-full text-left text-sm">
+                  <thead className="bg-slate-50 [&_tr>th:first-child]:rounded-tl-2xl [&_tr>th:last-child]:rounded-tr-2xl">
+                    <tr className="text-xs font-semibold uppercase text-slate-500">
+                      <th className="px-5 py-3.5">Month</th>
+                      <th className="px-5 py-3.5 text-right">Net Salary</th>
+                      <th className="px-5 py-3.5 text-right">Paid</th>
+                      <th className="px-5 py-3.5 text-right">Remaining</th>
+                      <th className="px-5 py-3.5">Status</th>
                     </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 [&_tr:last-child>td:first-child]:rounded-bl-2xl [&_tr:last-child>td:last-child]:rounded-br-2xl">
+                    {activeMonths.map((m) => {
+                      const badge = statusBadge(m.status);
+                      const isClickable = m.baseSalary > 0 || m.adjustments.length > 0 || m.totalPaid > 0;
+                      return (
+                        <tr
+                          key={m.month}
+                          onClick={() => isClickable && setSelectedMonth(m)}
+                          className={`transition-colors ${isClickable ? 'cursor-pointer hover:bg-slate-50' : ''}`}
+                        >
+                          <td className="px-5 py-3.5 font-medium text-slate-800">
+                            {MONTHS[m.month - 1]}
+                            {isClickable && (
+                              <span className="ml-2 text-xs text-slate-400">View</span>
+                            )}
+                          </td>
+                          <td className="px-5 py-3.5 text-right font-semibold text-slate-800 whitespace-nowrap">
+                            {m.netSalary > 0 ? formatCurrency(m.netSalary) : <span className="text-xs font-normal text-slate-400">&mdash;</span>}
+                          </td>
+                          <td className="px-5 py-3.5 text-right font-semibold text-green-600 whitespace-nowrap">
+                            {m.totalPaid > 0 ? formatCurrency(m.totalPaid) : <span className="text-xs font-normal text-slate-400">&mdash;</span>}
+                          </td>
+                          <td className="px-5 py-3.5 text-right font-semibold whitespace-nowrap">
+                            {m.remainingBalance > 0 ? (
+                              <span className="text-amber-600">{formatCurrency(m.remainingBalance)}</span>
+                            ) : m.baseSalary > 0 ? (
+                              <span className="text-green-600">0</span>
+                            ) : (
+                              <span className="text-xs font-normal text-slate-400">&mdash;</span>
+                            )}
+                          </td>
+                          <td className="px-5 py-3.5">
+                            <Badge variant={badge.variant}>{badge.label}</Badge>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+                {emptyMonths > 0 && (
+                  <div className="border-t border-slate-200 bg-slate-50 px-5 py-3 text-xs text-slate-400">
+                    {emptyMonths} month{emptyMonths > 1 ? 's' : ''} with no salary records
+                  </div>
+                )}
+              </div>
+
+              {/* Mobile / tablet cards */}
+              <div className="space-y-3 lg:hidden">
+                {activeMonths.map((m) => {
+                  const badge = statusBadge(m.status);
+                  return (
+                    <div
+                      key={m.month}
+                      onClick={() => setSelectedMonth(m)}
+                      className="cursor-pointer rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition-colors hover:bg-slate-50"
+                    >
+                      <div className="flex items-center justify-between">
+                        <p className="font-medium text-slate-800">
+                          {MONTHS[m.month - 1]}
+                          <span className="ml-2 text-xs text-slate-400">View</span>
+                        </p>
+                        <Badge variant={badge.variant}>{badge.label}</Badge>
+                      </div>
+                      <div className="mt-3 grid grid-cols-3 gap-2 border-t border-slate-100 pt-3 text-sm">
+                        <div>
+                          <span className="text-xs text-slate-500">Net Salary</span>
+                          <p className="font-semibold text-slate-800">
+                            {m.netSalary > 0 ? formatCurrency(m.netSalary) : <span className="text-xs font-normal text-slate-400">&mdash;</span>}
+                          </p>
+                        </div>
+                        <div>
+                          <span className="text-xs text-slate-500">Paid</span>
+                          <p className="font-semibold text-green-600">
+                            {m.totalPaid > 0 ? formatCurrency(m.totalPaid) : <span className="text-xs font-normal text-slate-400">&mdash;</span>}
+                          </p>
+                        </div>
+                        <div>
+                          <span className="text-xs text-slate-500">Remaining</span>
+                          <p className="font-semibold">
+                            {m.remainingBalance > 0 ? (
+                              <span className="text-amber-600">{formatCurrency(m.remainingBalance)}</span>
+                            ) : m.baseSalary > 0 ? (
+                              <span className="text-green-600">0</span>
+                            ) : (
+                              <span className="text-xs font-normal text-slate-400">&mdash;</span>
+                            )}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
                   );
                 })}
-              </tbody>
-            </table>
-          </div>
-        ) : (
+                {emptyMonths > 0 && (
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs text-slate-400">
+                    {emptyMonths} month{emptyMonths > 1 ? 's' : ''} with no salary records
+                  </div>
+                )}
+              </div>
+            </>
+          );
+        })() : (
           <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-10 text-center">
             <p className="text-sm text-slate-500">
               No salary data available for this employee in {yearFilter}
