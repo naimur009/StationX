@@ -5,6 +5,7 @@ import { Search, ChevronLeft, ChevronRight, Edit3, ImageOff, Trash2 } from 'luci
 import { useProductList, type ProductResponse } from '../api';
 import { useCategoriesList } from '@/features/categories/api';
 import { Button } from '@/components/ui/button';
+import PermissionGate from '@/components/shared/PermissionGate';
 import { formatCurrency } from '@/lib/format';
 
 interface ProductListProps {
@@ -127,14 +128,16 @@ export default function ProductList({ onEdit, onDelete }: ProductListProps) {
                     <ImageOff className="h-9 w-9 sm:h-10 sm:w-10 text-slate-300" />
                   </div>
                 )}
-                <button
-                  onClick={() => onEdit(product)}
-                  className="absolute right-2 top-2 z-10 rounded-lg bg-white/90 p-2 text-slate-500 shadow-sm backdrop-blur transition-colors hover:bg-white hover:text-primary"
-                  title="Edit product"
-                  aria-label="Edit product"
-                >
-                  <Edit3 className="h-4 w-4" />
-                </button>
+                <PermissionGate module="products" action="edit">
+                  <button
+                    onClick={() => onEdit(product)}
+                    className="absolute right-2 top-2 z-10 rounded-lg bg-white/90 p-2 text-slate-500 shadow-sm backdrop-blur transition-colors hover:bg-white hover:text-primary"
+                    title="Edit product"
+                    aria-label="Edit product"
+                  >
+                    <Edit3 className="h-4 w-4" />
+                  </button>
+                </PermissionGate>
               </div>
 
               <div className="flex flex-1 flex-col p-3 sm:p-4">
@@ -151,15 +154,17 @@ export default function ProductList({ onEdit, onDelete }: ProductListProps) {
                 </span>
 
                 <div className="mt-auto pt-3 flex flex-col xs:flex-row gap-2">
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    className="w-full"
-                    onClick={() => onDelete(product)}
-                  >
-                    <Trash2 className="mr-1.5 h-3.5 w-3.5" />
-                    Delete
-                  </Button>
+                  <PermissionGate module="products" action="edit">
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      className="w-full"
+                      onClick={() => onDelete(product)}
+                    >
+                      <Trash2 className="mr-1.5 h-3.5 w-3.5" />
+                      Delete
+                    </Button>
+                  </PermissionGate>
                 </div>
               </div>
             </div>

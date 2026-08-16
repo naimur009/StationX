@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Search, ChevronLeft, ChevronRight, Edit3, Trash2 } from 'lucide-react';
 import { useCategoriesList, type CategoryResponse } from '../api';
 import { Button } from '@/components/ui/button';
+import PermissionGate from '@/components/shared/PermissionGate';
 
 interface CategoryListProps {
   onEdit: (category: CategoryResponse) => void;
@@ -89,17 +90,19 @@ export default function CategoryList({ onEdit, onDelete }: CategoryListProps) {
                   </div>
                 </div>
                 <div className="mt-3 flex items-center justify-end gap-1.5">
-                  <button
-                    onClick={() => onEdit(category)}
-                    className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-primary"
-                    title="Edit category"
-                  >
-                    <Edit3 className="h-4 w-4" />
-                  </button>
-                  <Button variant="destructive" size="xs" onClick={() => onDelete(category)}>
-                    <Trash2 className="h-3.5 w-3.5 mr-1" />
-                    Delete
-                  </Button>
+                  <PermissionGate module="categories" action="edit">
+                    <button
+                      onClick={() => onEdit(category)}
+                      className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-primary"
+                      title="Edit category"
+                    >
+                      <Edit3 className="h-4 w-4" />
+                    </button>
+                    <Button variant="destructive" size="xs" onClick={() => onDelete(category)}>
+                      <Trash2 className="h-3.5 w-3.5 mr-1" />
+                      Delete
+                    </Button>
+                  </PermissionGate>
                 </div>
               </div>
             ))}
@@ -130,17 +133,19 @@ export default function CategoryList({ onEdit, onDelete }: CategoryListProps) {
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-end gap-2">
-                        <button
-                          onClick={() => onEdit(category)}
-                          className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-primary"
-                          title="Edit category"
-                        >
-                          <Edit3 className="h-4 w-4" />
-                        </button>
-                        <Button variant="destructive" size="xs" onClick={() => onDelete(category)}>
-                          <Trash2 className="h-3.5 w-3.5 mr-1" />
-                          Delete
-                        </Button>
+                        <PermissionGate module="categories" action="edit">
+                          <button
+                            onClick={() => onEdit(category)}
+                            className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-primary"
+                            title="Edit category"
+                          >
+                            <Edit3 className="h-4 w-4" />
+                          </button>
+                          <Button variant="destructive" size="xs" onClick={() => onDelete(category)}>
+                            <Trash2 className="h-3.5 w-3.5 mr-1" />
+                            Delete
+                          </Button>
+                        </PermissionGate>
                       </div>
                     </td>
                   </tr>

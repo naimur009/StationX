@@ -150,27 +150,31 @@ export default function UserList({ onEdit, onDeactivate, onPermanentDelete }: Us
                     </button>
                   </PermissionGate>
                   {user.isActive ? (
-                    <Button variant="warning" size="xs" onClick={() => onDeactivate(user)}>
-                      Deactivate
-                    </Button>
+                    <PermissionGate module="users" action="edit">
+                      <Button variant="warning" size="xs" onClick={() => onDeactivate(user)}>
+                        Deactivate
+                      </Button>
+                    </PermissionGate>
                   ) : (
-                    <>
-                      <Button
-                        variant="primary"
-                        size="xs"
-                        onClick={() => handleReactivate(user)}
-                        disabled={reactivateUser.isPending}
-                      >
-                        Reactivate
-                      </Button>
-                      <Button
-                        variant="destructive"
-                        size="xs"
-                        onClick={() => onPermanentDelete(user)}
-                      >
-                        Delete
-                      </Button>
-                    </>
+                    <PermissionGate module="users" action="edit">
+                      <div className="flex items-center gap-1.5">
+                        <Button
+                          variant="primary"
+                          size="xs"
+                          onClick={() => handleReactivate(user)}
+                          disabled={reactivateUser.isPending}
+                        >
+                          Reactivate
+                        </Button>
+                        <Button
+                          variant="destructive"
+                          size="xs"
+                          onClick={() => onPermanentDelete(user)}
+                        >
+                          Delete
+                        </Button>
+                      </div>
+                    </PermissionGate>
                   )}
                 </div>
               </div>
@@ -224,27 +228,31 @@ export default function UserList({ onEdit, onDeactivate, onPermanentDelete }: Us
                           </button>
                         </PermissionGate>
                         {user.isActive ? (
-                          <Button variant="warning" size="xs" onClick={() => onDeactivate(user)}>
-                            Deactivate
-                          </Button>
+                          <PermissionGate module="users" action="edit">
+                            <Button variant="warning" size="xs" onClick={() => onDeactivate(user)}>
+                              Deactivate
+                            </Button>
+                          </PermissionGate>
                         ) : (
-                          <>
-                            <Button
-                              variant="primary"
-                              size="xs"
-                              onClick={() => handleReactivate(user)}
-                              disabled={reactivateUser.isPending}
-                            >
-                              Reactivate
-                            </Button>
-                            <Button
-                              variant="destructive"
-                              size="xs"
-                              onClick={() => onPermanentDelete(user)}
-                            >
-                              Delete
-                            </Button>
-                          </>
+                          <PermissionGate module="users" action="edit">
+                            <div className="flex items-center gap-2">
+                              <Button
+                                variant="primary"
+                                size="xs"
+                                onClick={() => handleReactivate(user)}
+                                disabled={reactivateUser.isPending}
+                              >
+                                Reactivate
+                              </Button>
+                              <Button
+                                variant="destructive"
+                                size="xs"
+                                onClick={() => onPermanentDelete(user)}
+                              >
+                                Delete
+                              </Button>
+                            </div>
+                          </PermissionGate>
                         )}
                       </div>
                     </td>

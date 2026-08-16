@@ -238,7 +238,7 @@ export default function AttendanceCalendar() {
                           <div
                             className={`flex h-10 w-full flex-col items-start justify-between rounded-xl border p-1.5 transition-all sm:h-12 sm:p-2 md:h-14 xl:h-20 xl:p-3
                               ${meta ? `${meta.cell} shadow-sm` : cell.isPast ? 'border-slate-100 bg-slate-50' : 'border-slate-100 bg-white'}
-                              ${cell.isToday ? 'ring-2 ring-primary ring-offset-1' : ''}
+                              ${cell.isToday ? 'ring-2 ring-ring ring-offset-1' : ''}
                             `}
                           >
                             <span className={`text-xs font-bold sm:text-sm xl:text-base ${dayNumber}`}>{cell.day}</span>

@@ -140,6 +140,67 @@ export async function apiClient<T>(
   return response.json() as Promise<T>;
 }
 
+export async function fetchBlob(path: string): Promise<Blob> {
+  const store = useAuthStore.getState();
+  let token = store.accessToken;
+
+  if (!token && store.isAuthenticated) {
+    token = await refreshAccessToken();
+  }
+
+  if (token && isTokenExpired(token)) {
+    const freshToken = await refreshAccessToken();
+    if (freshToken) {
+      token = freshToken;
+    }
+  }
+
+  const response = await fetch(`${API_BASE}${path}`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    credentials: 'include',
+  }).catch(() => {
+    throw new AppError('NETWORK_ERROR', 'Unable to reach the server. Please check your connection.');
+  });
+
+  if (response.status === 401 && store.isAuthenticated) {
+    const newToken = await refreshAccessToken();
+
+    if (newToken) {
+      const retryResponse = await fetch(`${API_BASE}${path}`, {
+        headers: { Authorization: `Bearer ${newToken}` },
+        credentials: 'include',
+      });
+
+      if (retryResponse.ok) {
+        return retryResponse.blob();
+      }
+    }
+
+    useAuthStore.getState().clearAuth();
+    if (typeof window !== 'undefined' && !['/login'].includes(window.location.pathname)) {
+      window.location.href = '/login';
+    }
+
+    throw new AppError('UNAUTHORIZED', 'Session expired. Please log in again.');
+  }
+
+  if (!response.ok) {
+    let errorBody: { error?: { code?: string; message?: string } } = {};
+    try {
+      errorBody = await response.json();
+    } catch {
+      // ignore parse errors
+    }
+
+    throw new AppError(
+      errorBody.error?.code || 'DOWNLOAD_FAILED',
+      errorBody.error?.message || 'Failed to download file'
+    );
+  }
+
+  return response.blob();
+}
+
 export async function uploadFile(
   path: string,
   file: File,

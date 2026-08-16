@@ -40,11 +40,7 @@ function formatTime(dateStr: string): string {
 
 function OrderStatusBadge({ item }: { item: OrderListItem }) {
   if (item.status === 'completed') {
-    return (
-      <Badge variant={item.paymentStatus === 'paid' ? 'green' : 'yellow'}>
-        {item.paymentStatus === 'paid' ? 'Paid' : 'Unpaid'}
-      </Badge>
-    );
+    return <Badge variant="green">Completed</Badge>;
   }
   const config = ORDER_STATUS_CONFIG[item.status];
   return <Badge variant={config?.variant || 'slate'}>{config?.label || item.status}</Badge>;

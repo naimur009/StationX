@@ -6,6 +6,7 @@ import { useResetData, useRestoreBackup } from '@/features/settings/api';
 import { Dialog } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import PermissionGate from '@/components/shared/PermissionGate';
 import { AppError } from '@/lib/utils';
 
 export default function DataManagementSection() {
@@ -144,13 +145,15 @@ export default function DataManagementSection() {
           <li className="font-medium text-green-700">Admin accounts will NOT be affected</li>
         </ul>
 
-        <Button
-          variant="destructive"
-          className="mt-4"
-          onClick={() => { setResetDialogOpen(true); setError(null); }}
-        >
-          Reset All Data
-        </Button>
+        <PermissionGate module="settings" action="edit">
+          <Button
+            variant="destructive"
+            className="mt-4"
+            onClick={() => { setResetDialogOpen(true); setError(null); }}
+          >
+            Reset All Data
+          </Button>
+        </PermissionGate>
 
         <Dialog
           open={resetDialogOpen}
@@ -206,9 +209,11 @@ export default function DataManagementSection() {
           Download a complete backup of all data as a JSON file. The backup includes all records
           and settings. It can be used later to restore the system.
         </p>
-        <Button variant="primary" className="mt-4" onClick={handleDownloadBackup}>
-          Download Backup
-        </Button>
+        <PermissionGate module="settings" action="edit">
+          <Button variant="primary" className="mt-4" onClick={handleDownloadBackup}>
+            Download Backup
+          </Button>
+        </PermissionGate>
       </div>
 
       {/* Restore Backup */}
@@ -219,77 +224,79 @@ export default function DataManagementSection() {
           with the backup contents.
         </p>
 
-        <div className="mt-4">
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".json"
-            onChange={handleFileSelect}
-            className="block w-full text-sm text-slate-500 file:mr-4 file:rounded-xl file:border-0 file:bg-primary file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:bg-primary-hover"
-          />
-        </div>
+        <PermissionGate module="settings" action="edit">
+          <div className="mt-4">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".json"
+              onChange={handleFileSelect}
+              className="block w-full text-sm text-slate-500 file:mr-4 file:rounded-xl file:border-0 file:bg-primary file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:bg-primary-hover"
+            />
+          </div>
 
-        {restorePreview && (
-          <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
-            <h4 className="text-sm font-semibold text-slate-700">Backup Preview</h4>
-            <div className="mt-2 grid grid-cols-2 gap-2 text-sm">
-              {Object.entries(restorePreview).map(([collection, count]) => (
-                <div key={collection} className="flex justify-between rounded-lg bg-white px-3 py-1.5 shadow-sm">
-                  <span className="text-slate-600">{collection}</span>
-                  <span className="font-semibold text-slate-800">{count}</span>
-                </div>
-              ))}
-            </div>
-
-            <Button
-              variant="warning"
-              className="mt-4"
-              onClick={() => { setRestoreDialogOpen(true); setError(null); }}
-            >
-              Restore Backup
-            </Button>
-
-            <Dialog
-              open={restoreDialogOpen}
-              onClose={() => { setRestoreDialogOpen(false); setError(null); }}
-              title="Restore from Backup?"
-              size="sm"
-              footer={
-                <>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="md"
-                    onClick={() => setRestoreDialogOpen(false)}
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="warning"
-                    size="md"
-                    disabled={isRestoring}
-                    onClick={handleRestore}
-                  >
-                    {isRestoring ? 'Restoring...' : 'Restore Backup'}
-                  </Button>
-                </>
-              }
-            >
-              <div className="space-y-4">
-                {error && (
-                  <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700">
-                    {error}
+          {restorePreview && (
+            <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
+              <h4 className="text-sm font-semibold text-slate-700">Backup Preview</h4>
+              <div className="mt-2 grid grid-cols-2 gap-2 text-sm">
+                {Object.entries(restorePreview).map(([collection, count]) => (
+                  <div key={collection} className="flex justify-between rounded-lg bg-white px-3 py-1.5 shadow-sm">
+                    <span className="text-slate-600">{collection}</span>
+                    <span className="font-semibold text-slate-800">{count}</span>
                   </div>
-                )}
-                <p className="text-sm text-slate-600">
-                  This will replace all existing data with the backup. Current data will be lost.
-                  This action cannot be undone. Are you sure you want to proceed?
-                </p>
+                ))}
               </div>
-            </Dialog>
+
+              <Button
+                variant="warning"
+                className="mt-4"
+                onClick={() => { setRestoreDialogOpen(true); setError(null); }}
+              >
+                Restore Backup
+              </Button>
+
+              <Dialog
+                open={restoreDialogOpen}
+                onClose={() => { setRestoreDialogOpen(false); setError(null); }}
+                title="Restore from Backup?"
+                size="sm"
+                footer={
+                  <>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="md"
+                      onClick={() => setRestoreDialogOpen(false)}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="warning"
+                      size="md"
+                      disabled={isRestoring}
+                      onClick={handleRestore}
+                    >
+                      {isRestoring ? 'Restoring...' : 'Restore Backup'}
+                    </Button>
+                  </>
+                }
+              >
+                <div className="space-y-4">
+                  {error && (
+                    <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700">
+                      {error}
+                    </div>
+                  )}
+                  <p className="text-sm text-slate-600">
+                    This will replace all existing data with the backup. Current data will be lost.
+                    This action cannot be undone. Are you sure you want to proceed?
+                  </p>
+                </div>
+              </Dialog>
           </div>
         )}
+        </PermissionGate>
       </div>
     </div>
   );

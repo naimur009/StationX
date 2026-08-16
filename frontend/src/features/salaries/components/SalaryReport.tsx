@@ -210,7 +210,7 @@ export default function SalaryReport() {
                 <thead className="bg-slate-50 [&_tr>th:first-child]:rounded-tl-2xl [&_tr>th:last-child]:rounded-tr-2xl">
                   <tr className="text-xs font-semibold uppercase text-slate-500">
                     <th className="px-5 py-3.5">Employee</th>
-                    <th className="px-5 py-3.5 text-right">Paid</th>
+                    <th className="px-5 py-3.5 text-right">Salary Paid</th>
                     <th className="px-5 py-3.5 text-right">Bonus</th>
                     <th className="px-5 py-3.5 text-right">Cut</th>
                     <th className="px-5 py-3.5 text-right">Net</th>
@@ -287,7 +287,7 @@ export default function SalaryReport() {
                     </div>
                     <div className="mt-3 grid grid-cols-2 gap-3 border-t border-slate-100 pt-3 sm:grid-cols-4">
                       <div>
-                        <span className="text-xs text-slate-500">Paid</span>
+                        <span className="text-xs text-slate-500">Salary Paid</span>
                         <p className="font-semibold text-green-600">
                           {emp.totalPaid > 0 ? formatCurrency(emp.totalPaid) : <span className="text-xs font-normal text-slate-400">&mdash;</span>}
                         </p>
@@ -367,7 +367,7 @@ export default function SalaryReport() {
                     <tr className="text-xs font-semibold uppercase text-slate-500">
                       <th className="px-5 py-3.5">Month</th>
                       <th className="px-5 py-3.5 text-right">Net Salary</th>
-                      <th className="px-5 py-3.5 text-right">Paid</th>
+                      <th className="px-5 py-3.5 text-right">Salary Paid</th>
                       <th className="px-5 py-3.5 text-right">Remaining</th>
                       <th className="px-5 py-3.5">Status</th>
                     </tr>
@@ -443,7 +443,7 @@ export default function SalaryReport() {
                           </p>
                         </div>
                         <div>
-                          <span className="text-xs text-slate-500">Paid</span>
+                          <span className="text-xs text-slate-500">Salary Paid</span>
                           <p className="font-semibold text-green-600">
                             {m.totalPaid > 0 ? formatCurrency(m.totalPaid) : <span className="text-xs font-normal text-slate-400">&mdash;</span>}
                           </p>

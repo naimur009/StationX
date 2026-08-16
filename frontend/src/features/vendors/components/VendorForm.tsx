@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { useForm, Controller } from 'react-hook-form';
+import { useForm, Controller, type Resolver } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { X, Plus } from 'lucide-react';
 import { useCreateVendor, useUpdateVendor, type VendorResponse } from '../api';
@@ -42,7 +42,14 @@ export default function VendorForm({ open, vendor, onClose }: VendorFormProps) {
     address?: string;
     itemsSupplied?: string[];
   }>({
-    resolver: zodResolver(schema as never),
+    resolver: zodResolver(schema) as Resolver<{
+      name: string;
+      contactPerson?: string;
+      phone?: string;
+      email?: string;
+      address?: string;
+      itemsSupplied?: string[];
+    }>,
     defaultValues: {
       name: '',
       contactPerson: '',

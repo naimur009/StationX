@@ -1,6 +1,8 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog } from '@/components/ui/dialog';
@@ -8,6 +10,7 @@ import { useUpdateOrder } from '../api';
 import { useCatalog, type CatalogProduct } from '@/features/pos/api';
 import { useTableList } from '@/features/tables/api';
 import type { OrderDetail, OrderItemUpdate } from '../api';
+import { updateOrderSchema, type UpdateOrderFormData } from '../schema';
 import { Trash2, Plus, Minus, Search, ChevronDown } from 'lucide-react';
 
 function round2(n: number): number {

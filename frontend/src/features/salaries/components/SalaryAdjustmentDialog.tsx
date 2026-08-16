@@ -63,13 +63,13 @@ export default function SalaryAdjustmentDialog({
       type: editAdjustment!.type,
       amount: editAdjustment!.amount,
       reason: editAdjustment!.reason,
-      date: new Date(editAdjustment!.date),
+      date: editAdjustment!.date,
     } : {
       employeeId: defaultEmployeeId ?? '',
       type: defaultType,
       amount: 0,
       reason: '',
-      date: new Date(),
+      date: new Date().toISOString().split('T')[0],
       month: defaultMonth ?? now.getMonth() + 1,
       year: defaultYear ?? now.getFullYear(),
     },
@@ -84,7 +84,7 @@ export default function SalaryAdjustmentDialog({
           type: editAdjustment.type,
           amount: editAdjustment.amount,
           reason: editAdjustment.reason,
-          date: new Date(editAdjustment.date),
+          date: editAdjustment.date,
         });
       } else {
         reset({
@@ -92,7 +92,7 @@ export default function SalaryAdjustmentDialog({
           type: defaultType,
           amount: 0,
           reason: '',
-          date: new Date(),
+          date: new Date().toISOString().split('T')[0],
           month: defaultMonth ?? now.getMonth() + 1,
           year: defaultYear ?? now.getFullYear(),
         });
@@ -250,6 +250,7 @@ export default function SalaryAdjustmentDialog({
           <input
             id="adj-amount"
             type="number"
+            inputMode="decimal"
             step="0.01"
             min="0"
             placeholder="e.g. 1000"
@@ -316,6 +317,7 @@ export default function SalaryAdjustmentDialog({
               <input
                 id="adj-year"
                 type="number"
+                inputMode="numeric"
                 min="2000"
                 max="2100"
                 className={`w-full rounded-xl border bg-white px-3.5 py-2.5 text-sm text-slate-800 placeholder-slate-400 ring-ring focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring ${

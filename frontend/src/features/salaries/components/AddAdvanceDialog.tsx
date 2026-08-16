@@ -49,7 +49,7 @@ export default function AddAdvanceDialog({
     resolver: zodResolver(addAdvanceSchema),
     defaultValues: {
       amount: 0,
-      date: new Date(),
+      date: new Date().toISOString().split('T')[0],
       note: '',
     },
   });
@@ -60,7 +60,7 @@ export default function AddAdvanceDialog({
     if (open) {
       reset({
         amount: 0,
-        date: new Date(),
+        date: new Date().toISOString().split('T')[0],
         note: '',
       });
       setError(null);
@@ -88,7 +88,7 @@ export default function AddAdvanceDialog({
         await addAdvance.mutateAsync({
           salaryId: salary.id,
           amount: data.amount,
-          date: typeof data.date === 'string' ? data.date : data.date.toISOString().split('T')[0],
+          date: data.date,
           note: data.note || undefined,
         });
       } else {
@@ -190,6 +190,7 @@ export default function AddAdvanceDialog({
           <input
             id="advance-amount"
             type="number"
+            inputMode="decimal"
             step="0.01"
             min="0"
             placeholder="e.g. 3000"

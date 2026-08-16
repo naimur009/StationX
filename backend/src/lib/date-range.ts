@@ -26,8 +26,8 @@ export function normalizeDateRange(range: string, from?: string, to?: string): D
       return { from: start, to: end };
     }
     case 'week': {
-      const dayOfWeek = now.getDay();
-      const start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - dayOfWeek);
+      const daysSinceMonday = (now.getDay() + 6) % 7;
+      const start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - daysSinceMonday);
       const end = new Date(start);
       end.setDate(end.getDate() + 7);
       return { from: start, to: end };

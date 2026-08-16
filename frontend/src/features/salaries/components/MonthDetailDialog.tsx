@@ -75,7 +75,7 @@ export default function MonthDetailDialog({ open, month, employeeName, year, onC
               <p className="text-lg font-bold text-slate-800">{formatCurrency(month.netSalary)}</p>
             </div>
             <div>
-              <span className="text-xs text-slate-500">Paid</span>
+              <span className="text-xs text-slate-500">Salary Paid</span>
               <p className="text-lg font-bold text-green-600">{formatCurrency(month.totalPaid)}</p>
             </div>
             <div>

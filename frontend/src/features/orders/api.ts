@@ -1,7 +1,7 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
-import { apiClient } from '@/lib/api-client';
+import { apiClient, fetchBlob } from '@/lib/api-client';
 import toast from 'react-hot-toast';
 
 export interface OrderListItem {
@@ -192,15 +192,7 @@ export function useOrderBill(id: string, format: 'html' | 'pdf' = 'html') {
     queryKey: ['orders', 'bill', id, format],
     queryFn: async () => {
       if (format === 'pdf') {
-        const store = await import('@/stores/auth-store').then((m) => m.useAuthStore.getState());
-        const token = store.accessToken;
-        const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1';
-        const response = await fetch(`${API_BASE}/orders/${id}/bill?format=pdf`, {
-          headers: { Authorization: `Bearer ${token}` },
-          credentials: 'include',
-        });
-        if (!response.ok) throw new Error('Failed to fetch PDF bill');
-        const blob = await response.blob();
+        const blob = await fetchBlob(`/orders/${id}/bill?format=pdf`);
         return URL.createObjectURL(blob);
       }
       const res = await apiClient<{ data: { html: string } }>(`/orders/${id}/bill?format=html`);

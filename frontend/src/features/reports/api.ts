@@ -1,7 +1,8 @@
 'use client';
 
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { apiClient } from '@/lib/api-client';
+import { apiClient, fetchBlob } from '@/lib/api-client';
+import toast from 'react-hot-toast';
 import type { ReportType } from './schema';
 
 // ---- Response Types ----
@@ -144,21 +145,8 @@ export function useExportReport() {
       if (to) params.set('to', to);
       const qs = params.toString();
 
-      const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1';
-      const token = (await import('@/stores/auth-store')).useAuthStore.getState().accessToken;
+      const blob = await fetchBlob(`/reports/${type}/export?${qs}`);
 
-      const response = await fetch(`${API_BASE}/reports/${type}/export?${qs}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-        credentials: 'include',
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to export report');
-      }
-
-      const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -168,6 +156,9 @@ export function useExportReport() {
       a.click();
       document.body.removeChild(a);
       window.URL.revokeObjectURL(url);
+    },
+    onError: (error: unknown) => {
+      toast.error(error instanceof Error ? error.message : 'Failed to export report');
     },
   });
 }
