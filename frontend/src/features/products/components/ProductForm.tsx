@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useForm, type Resolver } from 'react-hook-form';
+import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useCreateProduct, useUpdateProduct, useProductReferenceData, type ProductResponse } from '../api';
 import { createProductSchema, updateProductSchema } from '../schema';
@@ -51,7 +51,7 @@ export default function ProductForm({ open, product, onClose }: ProductFormProps
     formState: { errors },
     reset,
   } = useForm<ProductFormValues>({
-    resolver: zodResolver(schema) as Resolver<ProductFormValues>,
+    resolver: zodResolver(schema as never),
     defaultValues: {
       name: '',
       price: 0,

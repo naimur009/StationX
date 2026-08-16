@@ -29,7 +29,7 @@ export default function OrderStatusActions({ order, onStatusChange, isLoading }:
 
   if (order.status === 'cancelled') {
     return (
-      <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700">
+      <div className="flex w-full items-center gap-2 rounded-xl border border-red-100 bg-red-50 px-4 py-2.5 text-sm text-red-700 sm:w-auto">
         Order cancelled
       </div>
     );
@@ -37,11 +37,12 @@ export default function OrderStatusActions({ order, onStatusChange, isLoading }:
 
   return (
     <PermissionGate module="orders" action="edit">
-      <div className="flex flex-wrap gap-3">
+      <div className="flex w-full flex-wrap gap-2 sm:w-auto sm:gap-3">
         {(order.status === 'pending' || (order.status === 'completed' && order.paymentStatus !== 'paid')) && (
           <Button
             variant="primary"
             size="md"
+            className="flex-1 sm:flex-none"
             disabled={isLoading}
             onClick={() => setCaptureOpen(true)}
           >
@@ -53,6 +54,7 @@ export default function OrderStatusActions({ order, onStatusChange, isLoading }:
           <Button
             variant={order.status === 'completed' ? 'destructive' : 'warning'}
             size="md"
+            className="flex-1 sm:flex-none"
             disabled={isLoading}
             onClick={() => setCancelOpen(true)}
           >

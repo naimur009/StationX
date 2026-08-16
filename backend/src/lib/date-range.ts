@@ -41,8 +41,13 @@ export function normalizeDateRange(range: string, from?: string, to?: string): D
       if (!from || !to) {
         throw createError(400, 'VALIDATION_ERROR', 'from and to are required for custom range');
       }
-      const start = new Date(from);
-      const end = new Date(to);
+      const [fy, fm, fd] = from.split('-').map(Number);
+      const [ty, tm, td] = to.split('-').map(Number);
+      if (!fy || !fm || !fd || !ty || !tm || !td) {
+        throw createError(400, 'VALIDATION_ERROR', 'from and to must be valid dates');
+      }
+      const start = new Date(fy, fm - 1, fd);
+      const end = new Date(ty, tm - 1, td);
       end.setDate(end.getDate() + 1);
       return { from: start, to: end };
     }

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { AlertTriangle, CreditCard, ReceiptText } from 'lucide-react';
+import { AlertTriangle, CreditCard, MapPin, Phone, ReceiptText, User } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
@@ -61,11 +61,69 @@ function getServedBy(servedBy: OrderDetailType['servedBy']): string | null {
   return 'Server';
 }
 
-function InfoRow({ label, children }: { label: string; children: React.ReactNode }) {
+function InfoRow({ icon, label, children }: { icon?: React.ReactNode; label: string; children: React.ReactNode }) {
   return (
-    <div className="flex items-center justify-between gap-4 py-2">
-      <span className="shrink-0 text-sm text-slate-500">{label}</span>
-      <span className="truncate text-right text-sm font-medium text-slate-800">{children}</span>
+    <div className="group flex items-center justify-between gap-4 rounded-lg px-1 py-2 transition-colors hover:bg-slate-50/80">
+      <span className="flex shrink-0 items-center gap-2.5 text-[13px] text-slate-500">
+        {icon && <span className="flex h-6 w-6 items-center justify-center rounded-md bg-slate-100 text-slate-400 transition-colors group-hover:bg-slate-200/70 group-hover:text-slate-500">{icon}</span>}
+        {label}
+      </span>
+      <span className="truncate text-right text-[13px] font-semibold text-slate-700">{children}</span>
+    </div>
+  );
+}
+
+function DetailCard({
+  title,
+  icon,
+  accentColor = 'primary',
+  children,
+  className,
+}: {
+  title: string;
+  icon: React.ReactNode;
+  accentColor?: 'primary' | 'emerald' | 'red';
+  children: React.ReactNode;
+  className?: string;
+}) {
+  const accentMap = {
+    primary: {
+      bar: 'bg-gradient-to-r from-primary to-primary/70',
+      iconBg: 'bg-primary/10 text-primary',
+    },
+    emerald: {
+      bar: 'bg-gradient-to-r from-emerald-500 to-teal-400',
+      iconBg: 'bg-emerald-50 text-emerald-600',
+    },
+    red: {
+      bar: 'bg-gradient-to-r from-red-500 to-rose-400',
+      iconBg: 'bg-red-50 text-red-500',
+    },
+  };
+  const accent = accentMap[accentColor];
+
+  return (
+    <div className={`flex h-full flex-col overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm transition-shadow hover:shadow-md ${className ?? ''}`}>
+      {/* Accent bar */}
+      <div className={`h-1 w-full ${accent.bar}`} />
+      {/* Header */}
+      <div className="flex items-center gap-2.5 border-b border-slate-100 px-4 py-3 sm:px-5">
+        <span className={`flex h-8 w-8 items-center justify-center rounded-xl ${accent.iconBg}`}>
+          {icon}
+        </span>
+        <h3 className="text-xs font-bold uppercase tracking-widest text-slate-600">{title}</h3>
+      </div>
+      {/* Content */}
+      <div className="flex-1 px-4 py-3 sm:px-5 sm:py-4">{children}</div>
+    </div>
+  );
+}
+
+function SummaryStat({ label, value, valueClass }: { label: string; value: React.ReactNode; valueClass?: string }) {
+  return (
+    <div className="rounded-xl bg-slate-50 px-3 py-2.5 sm:px-4">
+      <p className="text-[11px] font-medium uppercase tracking-wider text-slate-400">{label}</p>
+      <p className={`mt-0.5 truncate text-sm font-bold text-slate-800 sm:text-base ${valueClass ?? ''}`}>{value}</p>
     </div>
   );
 }
@@ -92,47 +150,79 @@ export default function OrderDetailView({ order }: OrderDetailViewProps) {
 
   const deleteError = deleteMutation.error ? (typeof deleteMutation.error === 'object' && 'message' in deleteMutation.error ? (deleteMutation.error as { message: string }).message : 'Failed to delete order') : null;
 
+  const totalWithVat = round2(order.subtotal + order.taxAmount);
+  const totalDiscount = round2(order.discountAmount + order.taxAmount);
+  const previousPaymentsTotal = (order.previousPayments || []).reduce((s, p) => s + p.amount, 0);
+  const canEdit = order.status !== 'cancelled' && order.paymentStatus !== 'paid';
+
   return (
     <div className="space-y-5 sm:space-y-6">
       {/* Header */}
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-        <div>
-          <div className="flex flex-wrap items-center gap-3">
-            <h1 className="text-xl font-bold text-slate-800 sm:text-2xl">{order.orderNumber}</h1>
-            <Badge variant={statusConfig?.variant || 'slate'}>
-              {statusConfig?.label || order.status}
-            </Badge>
-          </div>
-          <p className="mt-1 text-sm text-slate-500">{formatDate(order.createdAt)}</p>
-        </div>
+      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div className="p-4 sm:p-6">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex min-w-0 items-center gap-3">
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                <ReceiptText className="h-5 w-5" />
+              </span>
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h1 className="text-lg font-bold text-slate-800 sm:text-2xl">{order.orderNumber}</h1>
+                  <Badge variant={statusConfig?.variant || 'slate'}>
+                    {statusConfig?.label || order.status}
+                  </Badge>
+                </div>
+                <p className="mt-0.5 truncate text-xs text-slate-500 sm:text-sm">
+                  Created {formatDate(order.createdAt)}
+                </p>
+              </div>
+            </div>
 
-        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-          <OrderStatusActions
-            order={order}
-            onStatusChange={handleStatusChange}
-            isLoading={statusMutation.isPending}
-          />
-          <PermissionGate module="orders" action="delete">
-            <Button
-              variant="destructive"
-              size="md"
-              disabled={deleteMutation.isPending}
-              onClick={() => setDeleteOpen(true)}
-            >
-              {deleteMutation.isPending ? 'Deleting...' : 'Delete'}
-            </Button>
-          </PermissionGate>
-          <PermissionGate module="orders" action="edit">
-            {order.status !== 'cancelled' && order.paymentStatus !== 'paid' && (
-              <Button
-                variant="primary"
-                size="md"
-                onClick={() => setEditOpen(true)}
-              >
-                Edit
-              </Button>
-            )}
-          </PermissionGate>
+            <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center sm:gap-3">
+              <OrderStatusActions
+                order={order}
+                onStatusChange={handleStatusChange}
+                isLoading={statusMutation.isPending}
+              />
+              <PermissionGate module="orders" action="delete">
+                <Button
+                  variant="destructive"
+                  size="md"
+                  className="w-full sm:w-auto"
+                  disabled={deleteMutation.isPending}
+                  onClick={() => setDeleteOpen(true)}
+                >
+                  {deleteMutation.isPending ? 'Deleting...' : 'Delete'}
+                </Button>
+              </PermissionGate>
+              <PermissionGate module="orders" action="edit">
+                {canEdit && (
+                  <Button
+                    variant="primary"
+                    size="md"
+                    className="w-full sm:w-auto"
+                    onClick={() => setEditOpen(true)}
+                  >
+                    Edit
+                  </Button>
+                )}
+              </PermissionGate>
+            </div>
+          </div>
+
+          <div className="mt-4 grid grid-cols-2 gap-2 border-t border-dashed border-slate-200 pt-4 sm:grid-cols-4 sm:gap-3">
+            <SummaryStat label="Grand Total" value={formatBdt(order.grandTotal)} valueClass="text-primary" />
+            <SummaryStat label="Items" value={`${order.items.length} item${order.items.length === 1 ? '' : 's'}`} />
+            <SummaryStat
+              label="Payment"
+              value={order.paymentStatus === 'paid' ? 'Paid' : 'Unpaid'}
+              valueClass={order.paymentStatus === 'paid' ? 'text-green-600' : 'text-amber-600'}
+            />
+            <SummaryStat
+              label="Table"
+              value={order.tableLabelSnapshot ? `Table ${order.tableLabelSnapshot}` : 'Takeaway'}
+            />
+          </div>
         </div>
       </div>
 
@@ -170,24 +260,32 @@ export default function OrderDetailView({ order }: OrderDetailViewProps) {
         onSaved={() => setEditOpen(false)}
       />
 
-      {/* Order Info */}
-      <div className="grid gap-4 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3">
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-slate-500">
-            <ReceiptText className="h-4 w-4 text-primary" />
-            Order Info
-          </h3>
-          <div className="divide-y divide-slate-100">
+      {/* Cancel Reason — full-width alert banner */}
+      {order.cancelReason && (
+        <div className="flex items-start gap-3 rounded-2xl border border-red-200/60 bg-gradient-to-r from-red-50 to-rose-50/80 px-4 py-3.5 shadow-sm sm:items-center sm:gap-4 sm:px-5 sm:py-4">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-red-100/80 text-red-500">
+            <AlertTriangle className="h-4 w-4" />
+          </span>
+          <div className="min-w-0">
+            <p className="text-[11px] font-bold uppercase tracking-widest text-red-400">Cancellation Reason</p>
+            <p className="mt-0.5 text-sm font-medium text-red-700">&ldquo;{order.cancelReason}&rdquo;</p>
+          </div>
+        </div>
+      )}
+
+      {/* Order Info + Payment */}
+      <div className="grid items-stretch gap-4 sm:gap-5 lg:grid-cols-2">
+        {/* Order Info */}
+        <DetailCard title="Order Info" icon={<ReceiptText className="h-4 w-4" />} accentColor="primary">
+          <div className="space-y-0.5">
             {order.tableLabelSnapshot && (
-              <InfoRow label="Table">
-                <span className="flex items-center justify-end gap-1.5">
-                  {order.tableLabelSnapshot}
-                </span>
+              <InfoRow icon={<MapPin className="h-3.5 w-3.5" />} label="Table">
+                {order.tableLabelSnapshot}
               </InfoRow>
             )}
-            <InfoRow label="Customer">{getCustomerName(order)}</InfoRow>
+            <InfoRow icon={<User className="h-3.5 w-3.5" />} label="Customer">{getCustomerName(order)}</InfoRow>
             {getCustomerPhone(order) && (
-              <InfoRow label="Phone">{getCustomerPhone(order)}</InfoRow>
+              <InfoRow icon={<Phone className="h-3.5 w-3.5" />} label="Phone">{getCustomerPhone(order)}</InfoRow>
             )}
             <InfoRow label="Staff">{getStaffName(order.createdBy)}</InfoRow>
             {getServedBy(order.servedBy) && (
@@ -197,23 +295,20 @@ export default function OrderDetailView({ order }: OrderDetailViewProps) {
               <Badge variant={statusConfig?.variant || 'slate'}>{statusConfig?.label || order.status}</Badge>
             </InfoRow>
           </div>
-        </div>
+        </DetailCard>
 
         {/* Payment Info */}
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-slate-500">
-            <CreditCard className="h-4 w-4 text-primary" />
-            Payment
-          </h3>
-          <div className="divide-y divide-slate-100">
+        <DetailCard title="Payment" icon={<CreditCard className="h-4 w-4" />} accentColor="emerald">
+          <div className="space-y-0.5">
             {order.previousPayments && order.previousPayments.length > 0 && (
-              <div className="space-y-1 border-b border-dashed border-slate-200 py-2">
+              <div className="mb-2 space-y-1 rounded-xl bg-slate-50 px-3 py-2">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Previous Payments</p>
                 {order.previousPayments.map((p, i) => (
                   <div key={i} className="flex items-center justify-between gap-4">
-                    <span className="truncate text-sm text-slate-400">
-                      {p.method.charAt(0).toUpperCase() + p.method.slice(1)} (previous)
+                    <span className="truncate text-xs text-slate-500">
+                      {p.method.charAt(0).toUpperCase() + p.method.slice(1)}
                     </span>
-                    <span className="shrink-0 text-xs text-slate-400">{formatBdt(p.amount)}</span>
+                    <span className="shrink-0 text-xs font-medium text-slate-600">{formatBdt(p.amount)}</span>
                   </div>
                 ))}
               </div>
@@ -224,26 +319,27 @@ export default function OrderDetailView({ order }: OrderDetailViewProps) {
                   <span className="capitalize">{order.payment.method}</span>
                 </InfoRow>
                 <InfoRow label="Payment Status">
-                  <span className={`font-semibold ${order.paymentStatus === 'paid' ? 'text-green-600' : 'text-amber-600'}`}>
+                  <span className={`inline-flex items-center gap-1.5 font-semibold ${order.paymentStatus === 'paid' ? 'text-emerald-600' : 'text-amber-600'}`}>
+                    <span className={`inline-block h-1.5 w-1.5 rounded-full ${order.paymentStatus === 'paid' ? 'bg-emerald-500' : 'bg-amber-500'}`} />
                     {order.paymentStatus === 'paid' ? 'Paid' : 'Unpaid'}
                   </span>
                 </InfoRow>
-                {order.payment.method !== 'cash' && (() => {
-                  const prevTotal = (order.previousPayments || []).reduce((s, p) => s + p.amount, 0);
-                  return (
-                    <InfoRow label="Amount">{formatBdt(order.grandTotal - prevTotal)}</InfoRow>
-                  );
-                })()}
+                {order.payment.method !== 'cash' && (
+                  <InfoRow label="Amount">{formatBdt(order.grandTotal - previousPaymentsTotal)}</InfoRow>
+                )}
                 {order.payment.transactionId && (
                   <InfoRow label="Transaction ID">
-                    <span className="break-all">{order.payment.transactionId}</span>
+                    <span className="break-all font-mono text-xs">{order.payment.transactionId}</span>
                   </InfoRow>
                 )}
               </>
             )}
             {!order.payment && (
               <InfoRow label="Payment Status">
-                <span className="font-semibold text-amber-600">Unpaid</span>
+                <span className="inline-flex items-center gap-1.5 font-semibold text-amber-600">
+                  <span className="inline-block h-1.5 w-1.5 rounded-full bg-amber-500" />
+                  Unpaid
+                </span>
               </InfoRow>
             )}
             {order.cashTendered !== undefined && order.cashTendered !== null && (
@@ -251,7 +347,7 @@ export default function OrderDetailView({ order }: OrderDetailViewProps) {
             )}
             {order.changeAmount !== undefined && order.changeAmount !== null && (
               <InfoRow label="Change">
-                <span className="text-green-600">{formatBdt(order.changeAmount)}</span>
+                <span className="text-emerald-600">{formatBdt(order.changeAmount)}</span>
               </InfoRow>
             )}
             {order.completedAt && (
@@ -265,30 +361,28 @@ export default function OrderDetailView({ order }: OrderDetailViewProps) {
               </InfoRow>
             )}
           </div>
-        </div>
-
-        {/* Cancel Reason */}
-        {order.cancelReason && (
-          <div className="rounded-2xl border border-red-100 bg-red-50 p-5 shadow-sm sm:col-span-2 lg:col-span-1">
-            <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-red-700">
-              <AlertTriangle className="h-4 w-4" />
-              Cancel Reason
-            </h3>
-            <p className="text-sm italic text-red-600">&ldquo;{order.cancelReason}&rdquo;</p>
-          </div>
-        )}
+        </DetailCard>
       </div>
 
       {/* Items */}
-      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
-        <h2 className="mb-4 text-base font-bold text-slate-800">Items</h2>
-        <div className="overflow-x-auto">
+      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+          <h2 className="flex items-center gap-2 text-base font-bold text-slate-800">
+            Items
+            <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary">
+              {order.items.length}
+            </span>
+          </h2>
+        </div>
+
+        {/* Desktop table */}
+        <div className="hidden overflow-hidden rounded-xl border border-slate-200 sm:block">
           <table className="w-full text-left text-sm">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50 text-xs font-semibold uppercase tracking-wider text-slate-500">
                 <th className="px-4 py-3">Item</th>
                 <th className="px-4 py-3 text-center">Qty</th>
-                <th className="hidden px-4 py-3 text-right md:table-cell">Price</th>
+                <th className="px-4 py-3 text-right">Price</th>
                 <th className="px-4 py-3 text-right">Total</th>
               </tr>
             </thead>
@@ -296,51 +390,67 @@ export default function OrderDetailView({ order }: OrderDetailViewProps) {
               {order.items.map((item, i) => (
                 <tr key={i} className="transition-colors hover:bg-slate-50">
                   <td className="px-4 py-3 text-slate-700">{item.nameSnapshot}</td>
-                  <td className="px-4 py-3 text-center text-slate-700">{item.quantity}</td>
-                  <td className="hidden px-4 py-3 text-right text-slate-500 md:table-cell">{formatBdt(item.priceSnapshot)}</td>
-                  <td className="px-4 py-3 text-right font-medium text-slate-800">{formatBdt(item.lineTotal)}</td>
+                  <td className="px-4 py-3 text-center text-slate-700">
+                    <span className="inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-slate-100 px-2 text-xs font-semibold text-slate-700">
+                      {item.quantity}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-right text-slate-500">{formatBdt(item.priceSnapshot)}</td>
+                  <td className="px-4 py-3 text-right font-semibold text-slate-800">{formatBdt(item.lineTotal)}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
+
+        {/* Mobile cards */}
+        <div className="space-y-2.5 sm:hidden">
+          {order.items.map((item, i) => (
+            <div
+              key={i}
+              className="flex items-center justify-between gap-3 rounded-xl border border-slate-100 bg-slate-50/60 px-4 py-3"
+            >
+              <div className="min-w-0">
+                <p className="truncate text-sm font-medium text-slate-800">{item.nameSnapshot}</p>
+                <p className="mt-0.5 text-xs text-slate-500">
+                  {item.quantity} × {formatBdt(item.priceSnapshot)}
+                </p>
+              </div>
+              <span className="shrink-0 text-sm font-semibold text-slate-800">{formatBdt(item.lineTotal)}</span>
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* Totals */}
       <div className="flex justify-end">
-        <div className="w-full max-w-sm space-y-2 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
-          {(() => {
-            const totalWithVat = round2(order.subtotal + order.taxAmount);
-            const totalDiscount = round2(order.discountAmount + order.taxAmount);
-            return (
-              <>
-                <div className="flex justify-between text-sm">
-                  <span className="text-slate-500">Subtotal</span>
-                  <span className="text-slate-800">{formatBdt(order.subtotal)}</span>
-                </div>
-                {order.taxAmount > 0 && (
-                  <div className="flex justify-between text-sm">
-                    <span className="text-slate-500">VAT</span>
-                    <span className="text-slate-800">{formatBdt(order.taxAmount)}</span>
-                  </div>
-                )}
-                <div className="flex justify-between text-sm font-semibold">
-                  <span className="text-slate-600">Subtotal + VAT</span>
-                  <span>{formatBdt(totalWithVat)}</span>
-                </div>
-                {totalDiscount > 0 && (
-                  <div className="flex justify-between text-sm font-semibold">
-                    <span className="text-green-600">Discount</span>
-                    <span className="text-green-600">-{formatBdt(totalDiscount)}</span>
-                  </div>
-                )}
-                <div className="flex justify-between border-t border-slate-200 pt-3 text-base font-bold">
-                  <span>Grand Total</span>
-                  <span className="text-primary">{formatBdt(order.grandTotal)}</span>
-                </div>
-              </>
-            );
-          })()}
+        <div className="w-full rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:max-w-md sm:p-6">
+          <div className="space-y-2.5">
+            <div className="flex justify-between text-sm">
+              <span className="text-slate-500">Subtotal</span>
+              <span className="text-slate-800">{formatBdt(order.subtotal)}</span>
+            </div>
+            {order.taxAmount > 0 && (
+              <div className="flex justify-between text-sm">
+                <span className="text-slate-500">VAT</span>
+                <span className="text-slate-800">{formatBdt(order.taxAmount)}</span>
+              </div>
+            )}
+            <div className="flex justify-between text-sm font-semibold">
+              <span className="text-slate-600">Subtotal + VAT</span>
+              <span>{formatBdt(totalWithVat)}</span>
+            </div>
+            {totalDiscount > 0 && (
+              <div className="flex justify-between text-sm font-semibold">
+                <span className="text-green-600">Discount</span>
+                <span className="text-green-600">-{formatBdt(totalDiscount)}</span>
+              </div>
+            )}
+            <div className="flex items-center justify-between rounded-xl bg-primary/5 px-3.5 py-3 text-base font-bold">
+              <span>Grand Total</span>
+              <span className="text-primary">{formatBdt(order.grandTotal)}</span>
+            </div>
+          </div>
         </div>
       </div>
 

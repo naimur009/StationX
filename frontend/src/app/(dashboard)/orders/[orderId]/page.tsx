@@ -15,11 +15,14 @@ export default function OrderDetailPage() {
   if (isLoading) {
     return (
       <PermissionGate module="orders" action="view">
-        <div className="space-y-6">
-          <div className="h-8 w-48 animate-pulse rounded bg-slate-200" />
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="space-y-5 sm:space-y-6">
+          <div className="flex items-center gap-2 text-sm text-slate-400">
+            <div className="h-4 w-24 animate-pulse rounded bg-slate-200" />
+          </div>
+          <div className="h-44 animate-pulse rounded-2xl bg-slate-200 sm:h-40" />
+          <div className="grid gap-4 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3">
             {Array.from({ length: 3 }).map((_, i) => (
-              <div key={i} className="h-32 animate-pulse rounded-2xl bg-slate-200" />
+              <div key={i} className="h-56 animate-pulse rounded-2xl bg-slate-200" />
             ))}
           </div>
           <div className="h-64 animate-pulse rounded-2xl bg-slate-200" />
@@ -41,7 +44,7 @@ export default function OrderDetailPage() {
           </p>
           <Link
             href="/orders"
-            className="mt-6 inline-flex items-center gap-2 text-sm font-medium text-primary hover:text-primary"
+            className="mt-6 inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 shadow-sm transition-colors hover:bg-slate-50"
           >
             <ChevronLeft className="h-4 w-4" />
             Back to Orders
@@ -57,10 +60,10 @@ export default function OrderDetailPage() {
 
   return (
     <PermissionGate module="orders" action="view">
-      <div className="space-y-6">
+      <div className="space-y-5 sm:space-y-6">
         <Link
           href="/orders"
-          className="inline-flex items-center gap-2 text-sm font-medium text-slate-500 transition-colors hover:text-slate-700"
+          className="inline-flex w-fit items-center gap-1.5 rounded-xl px-2 py-1.5 text-sm font-medium text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700"
         >
           <ChevronLeft className="h-4 w-4" />
           Back to Orders

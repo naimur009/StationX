@@ -20,6 +20,7 @@ export default function OrderFilters({ onFilter }: OrderFiltersProps) {
   const { filter: dateFilter, setRange, setCustomRange } = useDateRangeFilter('today');
 
   useEffect(() => {
+    if (dateFilter.range === 'custom' && (!dateFilter.from || !dateFilter.to)) return;
     const timer = setTimeout(() => {
       onFilter({
         status: status === 'all' ? undefined : (status as OrdersFilterFormData['status']),
