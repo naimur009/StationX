@@ -200,6 +200,20 @@ export async function deactivateUser(id: string, actorId: string, viewerRole?: s
     throw createError(409, 'CANNOT_DEACTIVATE_SELF', 'You cannot deactivate your own account');
   }
 
+  const actor = await User.findById(actorId);
+  if (!actor) {
+    throw createError(404, 'NOT_FOUND', 'Actor user not found');
+  }
+
+  const target = await User.findById(id).select('role');
+  if (!target) {
+    throw createError(404, 'NOT_FOUND', 'User not found');
+  }
+
+  if (target.role === 'admin' && actor.role !== 'admin') {
+    throw createError(403, 'FORBIDDEN', 'Only admins can deactivate another admin account');
+  }
+
   return withTransaction(async (session) => {
     const user = await User.findById(id).session(session);
 
@@ -234,10 +248,19 @@ export async function deactivateUser(id: string, actorId: string, viewerRole?: s
 }
 
 export async function reactivateUser(id: string, actorId: string, viewerRole?: string) {
+  const actor = await User.findById(actorId);
+  if (!actor) {
+    throw createError(404, 'NOT_FOUND', 'Actor user not found');
+  }
+
   const user = await User.findById(id);
 
   if (!user) {
     throw createError(404, 'NOT_FOUND', 'User not found');
+  }
+
+  if (user.role === 'admin' && actor.role !== 'admin') {
+    throw createError(403, 'FORBIDDEN', 'Only admins can reactivate another admin account');
   }
 
   if (user.isActive) {
@@ -309,6 +332,20 @@ export async function permanentDeleteUser(id: string, actorId: string) {
     throw createError(409, 'CANNOT_DELETE_SELF', 'You cannot delete your own account');
   }
 
+  const actor = await User.findById(actorId);
+  if (!actor) {
+    throw createError(404, 'NOT_FOUND', 'Actor user not found');
+  }
+
+  const target = await User.findById(id).select('role');
+  if (!target) {
+    throw createError(404, 'NOT_FOUND', 'User not found');
+  }
+
+  if (target.role === 'admin' && actor.role !== 'admin') {
+    throw createError(403, 'FORBIDDEN', 'Only admins can permanently delete another admin account');
+  }
+
   return withTransaction(async (session) => {
     const user = await User.findById(id).session(session);
     if (!user) {
@@ -373,10 +410,21 @@ export async function adminResetUserPassword(
     throw createError(400, 'CANNOT_RESET_SELF', 'Use the self-service password change endpoint for your own account');
   }
 
-  const user = await User.findById(id);
+  const [actor, user] = await Promise.all([
+    User.findById(actorId),
+    User.findById(id),
+  ]);
+
+  if (!actor) {
+    throw createError(404, 'NOT_FOUND', 'Actor user not found');
+  }
 
   if (!user) {
     throw createError(404, 'NOT_FOUND', 'User not found');
+  }
+
+  if (user.role === 'admin' && actor.role !== 'admin') {
+    throw createError(403, 'FORBIDDEN', 'Only admins can reset the password of another admin account');
   }
 
   const newHash = await bcrypt.hash(dto.newPassword, SALT_ROUNDS);

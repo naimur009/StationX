@@ -112,7 +112,7 @@ export default function ProductGrid() {
                   {product.name}
                 </span>
                 <span className="text-sm font-bold text-primary">
-                  BDT {product.price.toFixed(2)}
+                  ৳{product.price.toFixed(2)}
                 </span>
               </div>
             </button>

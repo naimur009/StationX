@@ -269,18 +269,31 @@ import Settings from '../src/models/Settings';
 import Product from '../src/models/Product';
 import Category from '../src/models/Category';
 import ActivityLog from '../src/models/ActivityLog';
+import Table from '../src/models/Table';
+import Coupon from '../src/models/Coupon';
 
 vi.mock('../src/models/Order');
 vi.mock('../src/models/Product');
 vi.mock('../src/models/Category');
 vi.mock('../src/models/Settings');
 vi.mock('../src/models/ActivityLog');
+vi.mock('../src/models/Table');
+vi.mock('../src/models/Coupon');
+vi.mock('../src/lib/transaction', () => ({
+  withTransaction: vi.fn(async (fn: (session: unknown) => Promise<unknown>) => fn({ id: 'mock-session' })),
+}));
 vi.mock('../src/config/socket', () => ({
   getIO: () => ({ emit: vi.fn() }),
 }));
 vi.mock('../src/lib/pdf', () => ({
   renderPdf: vi.fn().mockResolvedValue(Buffer.from('%PDF-1.4 mock')),
 }));
+
+const mockOrderRead = (order: Record<string, unknown>) =>
+  vi.mocked(Order.findById).mockReturnValueOnce({
+    ...order,
+    session: vi.fn().mockReturnValue(order),
+  } as never);
 
 describe('formatBdt', () => {
   it('formats with BDT symbol and 2 decimals', () => {
@@ -420,11 +433,11 @@ describe('renderBillHtml', () => {
     expect(html).toContain('\u09F3474.00');
   });
 
-  it('includes auto-round when grand total is not round', () => {
+  it('shows the exact grand total without auto-round', () => {
     const nonRound = { ...sampleOrder, subtotal: 28.5, discountAmount: 0, taxAmount: 0, grandTotal: 28.5 };
     const html = renderBillHtml(nonRound as never);
-    expect(html).toContain('Auto Round');
-    expect(html).toContain('\u09F3-0.50');
+    expect(html).toContain('\u09F328.50');
+    expect(html).not.toContain('Auto Round');
   });
 
   it('includes settings data when provided', () => {
@@ -589,7 +602,10 @@ describe('updateOrder', () => {
   });
 
   it('updates tableId', async () => {
-    vi.mocked(Order.findById).mockResolvedValueOnce({ ...mockExistingOrder } as never);
+    mockOrderRead({ ...mockExistingOrder });
+    mockOrderRead({ ...mockExistingOrder });
+    vi.mocked(Table.findById).mockResolvedValueOnce({ _id: '507f1f77bcf86cd799439012', tableNumber: '12' } as never);
+    vi.mocked(Table.findOneAndUpdate).mockResolvedValueOnce({ _id: '507f1f77bcf86cd799439012', tableNumber: '12' } as never);
     vi.mocked(Order.findByIdAndUpdate).mockResolvedValueOnce({
       ...mockExistingOrder,
       tableId: '507f1f77bcf86cd799439012',
@@ -601,6 +617,11 @@ describe('updateOrder', () => {
 
     const result = await updateOrder('507f1f77bcf86cd799439011', { tableId: '507f1f77bcf86cd799439012' });
 
+    expect(Table.findOneAndUpdate).toHaveBeenCalledWith(
+      { _id: '507f1f77bcf86cd799439012', status: 'available' },
+      expect.objectContaining({ status: 'booked' }),
+      expect.objectContaining({ new: true, session: expect.anything() })
+    );
     expect(Order.findByIdAndUpdate).toHaveBeenCalledWith(
       '507f1f77bcf86cd799439011',
       { $set: expect.objectContaining({ tableId: '507f1f77bcf86cd799439012' }) },
@@ -610,7 +631,9 @@ describe('updateOrder', () => {
   });
 
   it('updates payment method', async () => {
-    vi.mocked(Order.findById).mockResolvedValueOnce({ ...mockExistingOrder } as never);
+    mockOrderRead({ ...mockExistingOrder });
+    mockOrderRead({ ...mockExistingOrder });
+    vi.mocked(Order.updateOne).mockReturnValueOnce({ session: vi.fn().mockResolvedValue({}) } as never);
     vi.mocked(Order.findByIdAndUpdate).mockResolvedValueOnce({
       ...mockExistingOrder,
       payment: { method: 'card' },
@@ -633,7 +656,8 @@ describe('updateOrder', () => {
   });
 
   it('updates items and recalculates totals', async () => {
-    vi.mocked(Order.findById).mockResolvedValueOnce({ ...mockExistingOrder } as never);
+    mockOrderRead({ ...mockExistingOrder });
+    mockOrderRead({ ...mockExistingOrder });
     vi.mocked(Product.find).mockResolvedValueOnce([
       { _id: { toString: () => 'pid-1' }, name: 'Pasta', price: 12, categoryId: { toString: () => 'cat-1' } },
       { _id: { toString: () => 'pid-2' }, name: 'Juice', price: 3, categoryId: { toString: () => 'cat-2' } },
@@ -662,7 +686,8 @@ describe('updateOrder', () => {
   });
 
   it('allows item editing on completed orders', async () => {
-    vi.mocked(Order.findById).mockResolvedValueOnce({ ...mockExistingOrder, status: 'completed' } as never);
+    mockOrderRead({ ...mockExistingOrder, status: 'completed' });
+    mockOrderRead({ ...mockExistingOrder, status: 'completed' });
     vi.mocked(Product.find).mockResolvedValueOnce([
       { _id: { toString: () => 'pid-1' }, name: 'Product 1', price: 10, categoryId: { toString: () => 'cat-1' } },
     ] as never);
@@ -712,6 +737,137 @@ describe('updateOrder', () => {
       expect(appErr.code).toBe('NOT_FOUND');
     }
   });
+
+  it('throws ORDER_ALREADY_PAID when editing financial fields on a paid order', async () => {
+    mockOrderRead({ ...mockExistingOrder, paymentStatus: 'paid' });
+
+    try {
+      await updateOrder('507f1f77bcf86cd799439011', {
+        items: [{ productId: 'pid-1', quantity: 2 }],
+      });
+      expect.unreachable('Expected error');
+    } catch (err) {
+      const appErr = err as { statusCode: number; code: string };
+      expect(appErr.statusCode).toBe(400);
+      expect(appErr.code).toBe('ORDER_ALREADY_PAID');
+    }
+  });
+
+  it('throws ORDER_CANCELLED when editing items on a cancelled order', async () => {
+    mockOrderRead({ ...mockExistingOrder, status: 'cancelled' });
+
+    try {
+      await updateOrder('507f1f77bcf86cd799439011', {
+        items: [{ productId: 'pid-1', quantity: 2 }],
+      });
+      expect.unreachable('Expected error');
+    } catch (err) {
+      const appErr = err as { statusCode: number; code: string };
+      expect(appErr.statusCode).toBe(400);
+      expect(appErr.code).toBe('ORDER_CANCELLED');
+    }
+  });
+
+  it('throws COUPON_NOT_APPLICABLE when the attached coupon is no longer valid', async () => {
+    mockOrderRead({ ...mockExistingOrder, couponId: 'coupon-1' });
+    vi.mocked(Product.find).mockResolvedValueOnce([
+      { _id: { toString: () => 'pid-1' }, name: 'Pasta', price: 12, categoryId: { toString: () => 'cat-1' } },
+    ] as never);
+    vi.mocked(Category.find).mockResolvedValueOnce([
+      { _id: { toString: () => 'cat-1' }, vatRate: 5 },
+    ] as never);
+    vi.mocked(Coupon.findById).mockResolvedValueOnce({
+      isEnabled: false,
+      validFrom: new Date('2026-01-01'),
+      validUntil: new Date('2026-12-31'),
+      discountType: 'percentage',
+      value: 10,
+    } as never);
+
+    try {
+      await updateOrder('507f1f77bcf86cd799439011', {
+        items: [{ productId: 'pid-1', quantity: 2 }],
+      });
+      expect.unreachable('Expected error');
+    } catch (err) {
+      const appErr = err as { statusCode: number; code: string };
+      expect(appErr.statusCode).toBe(400);
+      expect(appErr.code).toBe('COUPON_NOT_APPLICABLE');
+    }
+  });
+
+  it('decrements coupon usageCount when the coupon is removed via discountPercent', async () => {
+    mockOrderRead({ ...mockExistingOrder, couponId: 'coupon-1' });
+    mockOrderRead({ ...mockExistingOrder, couponId: 'coupon-1' });
+    vi.mocked(Coupon.updateOne).mockReturnValueOnce({ session: vi.fn().mockResolvedValue({}) } as never);
+    vi.mocked(Order.findByIdAndUpdate).mockResolvedValueOnce({
+      ...mockExistingOrder,
+      discountPercent: 10,
+      discountAmount: 2.4,
+      grandTotal: 21.6,
+    } as never);
+    vi.mocked(Order.findById).mockReturnValue({
+      populate: vi.fn().mockReturnThis(),
+      lean: vi.fn().mockResolvedValue({ ...mockExistingOrder }),
+    } as never);
+
+    const result = await updateOrder('507f1f77bcf86cd799439011', { discountPercent: 10 });
+
+    expect(Coupon.updateOne).toHaveBeenCalledWith(
+      { _id: 'coupon-1', usageCount: { $gt: 0 } },
+      { $inc: { usageCount: -1 } }
+    );
+    expect(result.data).toBeDefined();
+  });
+
+  it('rejects cash tendered below the remaining balance', async () => {
+    mockOrderRead({
+      ...mockExistingOrder,
+      grandTotal: 100,
+      previousPayments: [{ method: 'card', amount: 40 }],
+    });
+
+    try {
+      await updateOrder('507f1f77bcf86cd799439011', { cashTendered: 50 });
+      expect.unreachable('Expected error');
+    } catch (err) {
+      const appErr = err as { statusCode: number; code: string };
+      expect(appErr.statusCode).toBe(400);
+      expect(appErr.code).toBe('VALIDATION_ERROR');
+    }
+  });
+
+  it('computes changeAmount server-side against the remaining balance', async () => {
+    mockOrderRead({
+      ...mockExistingOrder,
+      grandTotal: 100,
+      previousPayments: [{ method: 'card', amount: 40 }],
+    });
+    mockOrderRead({
+      ...mockExistingOrder,
+      grandTotal: 100,
+      previousPayments: [{ method: 'card', amount: 40 }],
+    });
+    vi.mocked(Order.findByIdAndUpdate).mockResolvedValueOnce({
+      ...mockExistingOrder,
+      grandTotal: 100,
+      cashTendered: 70,
+      changeAmount: 10,
+    } as never);
+    vi.mocked(Order.findById).mockReturnValue({
+      populate: vi.fn().mockReturnThis(),
+      lean: vi.fn().mockResolvedValue({ ...mockExistingOrder }),
+    } as never);
+
+    const result = await updateOrder('507f1f77bcf86cd799439011', { cashTendered: 70 });
+
+    expect(Order.findByIdAndUpdate).toHaveBeenCalledWith(
+      '507f1f77bcf86cd799439011',
+      { $set: expect.objectContaining({ cashTendered: 70, changeAmount: 10 }) },
+      expect.any(Object)
+    );
+    expect(result.data).toBeDefined();
+  });
 });
 
 describe('updateOrderStatus', () => {
@@ -734,7 +890,8 @@ describe('updateOrderStatus', () => {
   });
 
   it('completes a pending order', async () => {
-    vi.mocked(Order.findById).mockResolvedValueOnce({ ...mockOrder } as never);
+    mockOrderRead({ ...mockOrder });
+    mockOrderRead({ ...mockOrder });
     vi.mocked(Order.findByIdAndUpdate).mockResolvedValueOnce({
       ...mockOrder,
       status: 'completed',
@@ -751,7 +908,9 @@ describe('updateOrderStatus', () => {
   });
 
   it('cancels a pending order with reason', async () => {
-    vi.mocked(Order.findById).mockResolvedValueOnce({ ...mockOrder } as never);
+    mockOrderRead({ ...mockOrder });
+    mockOrderRead({ ...mockOrder });
+    vi.mocked(Table.findOne).mockReturnValueOnce({ session: vi.fn().mockResolvedValue(null) } as never);
     vi.mocked(Order.findByIdAndUpdate).mockResolvedValueOnce({
       ...mockOrder,
       status: 'cancelled',
@@ -814,6 +973,72 @@ describe('updateOrderStatus', () => {
     } catch (err) {
       const appErr = err as { statusCode: number; code: string };
       expect(appErr.statusCode).toBe(404);
+    }
+  });
+
+  it('marks a pending order paid with cash and records the payment', async () => {
+    mockOrderRead({ ...mockOrder, paymentStatus: 'unpaid', grandTotal: 100 });
+    mockOrderRead({ ...mockOrder, paymentStatus: 'unpaid', grandTotal: 100 });
+    vi.mocked(Order.findByIdAndUpdate).mockResolvedValueOnce({
+      ...mockOrder,
+      paymentStatus: 'paid',
+      status: 'completed',
+      cashTendered: 100,
+      changeAmount: 0,
+    } as never);
+    vi.mocked(ActivityLog.create).mockResolvedValueOnce([] as never);
+    vi.mocked(Order.findById).mockReturnValue({
+      populate: vi.fn().mockReturnThis(),
+      lean: vi.fn().mockResolvedValue({ ...mockOrder, paymentStatus: 'paid', status: 'completed' }),
+    } as never);
+
+    const result = await updateOrderStatus('507f1f77bcf86cd799439011', {
+      paymentStatus: 'paid',
+      payment: { method: 'cash' },
+      cashTendered: 100,
+    }, '507f1f77bcf86cd799439011');
+
+    expect(Order.findByIdAndUpdate).toHaveBeenCalledWith(
+      '507f1f77bcf86cd799439011',
+      { $set: expect.objectContaining({ paymentStatus: 'paid', cashTendered: 100, changeAmount: 0 }) },
+      expect.any(Object)
+    );
+    expect(ActivityLog.create).toHaveBeenCalled();
+    expect(result.data).toBeDefined();
+  });
+
+  it('throws ORDER_CANCELLED when marking a cancelled order as paid', async () => {
+    mockOrderRead({ ...mockOrder, status: 'cancelled' });
+
+    try {
+      await updateOrderStatus('507f1f77bcf86cd799439011', {
+        paymentStatus: 'paid',
+        payment: { method: 'cash' },
+        cashTendered: 100,
+      }, '507f1f77bcf86cd799439011');
+      expect.unreachable('Expected error');
+    } catch (err) {
+      const appErr = err as { statusCode: number; code: string };
+      expect(appErr.statusCode).toBe(400);
+      expect(appErr.code).toBe('ORDER_CANCELLED');
+    }
+  });
+
+  it('rejects cash tendered below grand total when marking paid', async () => {
+    mockOrderRead({ ...mockOrder, paymentStatus: 'unpaid', grandTotal: 100 });
+    mockOrderRead({ ...mockOrder, paymentStatus: 'unpaid', grandTotal: 100 });
+
+    try {
+      await updateOrderStatus('507f1f77bcf86cd799439011', {
+        paymentStatus: 'paid',
+        payment: { method: 'cash' },
+        cashTendered: 50,
+      }, '507f1f77bcf86cd799439011');
+      expect.unreachable('Expected error');
+    } catch (err) {
+      const appErr = err as { statusCode: number; code: string };
+      expect(appErr.statusCode).toBe(400);
+      expect(appErr.code).toBe('VALIDATION_ERROR');
     }
   });
 });

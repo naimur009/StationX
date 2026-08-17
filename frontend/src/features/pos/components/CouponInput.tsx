@@ -56,7 +56,7 @@ export default function CouponInput() {
         </div>
         <div className="flex shrink-0 items-center gap-1.5">
           <span className="font-medium text-green-600">
-            {couponType === 'percentage' ? `${couponDiscount}% off` : `BDT ${couponDiscount.toFixed(2)} off`}
+            {couponType === 'percentage' ? `${couponDiscount}% off` : `৳${couponDiscount.toFixed(2)} off`}
           </span>
           <button
             onClick={clearCoupon}

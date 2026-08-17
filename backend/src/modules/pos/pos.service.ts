@@ -160,9 +160,22 @@ export async function createOrder(dto: CreateOrderDto, userId: string) {
   let couponId: string | null = null;
 
   if (couponCode) {
-    const coupon = await Coupon.findOne({ code: couponCode, isEnabled: true, validUntil: { $gt: new Date() } });
+    const now = new Date();
+    const coupon = await Coupon.findOne({
+      code: couponCode,
+      isEnabled: true,
+      validFrom: { $lte: now },
+      validUntil: { $gt: now },
+    });
     if (!coupon) {
       throw createError(400, 'VALIDATION_ERROR', 'Invalid or expired coupon code');
+    }
+    if (coupon.minOrderAmount != null && computedSubtotal < coupon.minOrderAmount) {
+      throw createError(
+        400,
+        'VALIDATION_ERROR',
+        `This coupon requires a minimum order amount of ৳${coupon.minOrderAmount.toFixed(2)}`
+      );
     }
     couponId = coupon._id.toString();
 
@@ -202,6 +215,7 @@ export async function createOrder(dto: CreateOrderDto, userId: string) {
       return sum + round2(item.lineTotal * (vatRate / 100));
     }, 0)
   );
+  discountAmount = Math.min(discountAmount, computedSubtotal);
   const grandTotal = round2(computedSubtotal - discountAmount);
 
   let tableLabelSnapshot: string | undefined;
@@ -297,7 +311,7 @@ export async function createOrder(dto: CreateOrderDto, userId: string) {
         action: 'pos.order_created',
         targetId: order[0]._id.toString(),
         targetType: 'Order',
-        description: `Created order ${on} for BDT ${grandTotal.toFixed(2)}, pending`,
+        description: `Created order ${on} for ৳${grandTotal.toFixed(2)}, pending`,
       }],
       { session }
     );
@@ -339,12 +353,12 @@ export async function createOrder(dto: CreateOrderDto, userId: string) {
       status: orderResult.status,
       createdBy: orderResult.createdBy,
     };
-    io.emit('pos:order_created', payload);
-    io.emit('order:created', payload);
-    io.emit('dashboard:metricsInvalidate');
+    io.to('room:orders').emit('pos:order_created', payload);
+    io.to('room:orders').emit('order:created', payload);
+    io.to('room:dashboard').emit('dashboard:metricsInvalidate');
 
     if (rest.tableId) {
-      io.emit('table:statusChanged', {
+      io.to('room:tables').emit('table:statusChanged', {
         tableId: rest.tableId,
         tableNumber: tableLabelSnapshot,
         status: 'booked',

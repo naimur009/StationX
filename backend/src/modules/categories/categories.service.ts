@@ -82,12 +82,19 @@ export async function createCategory(dto: CreateCategoryDto) {
     throw createError(400, 'VALIDATION_ERROR', 'A category with this name already exists');
   }
 
-  const category = await Category.create({
-    name: dto.name,
-    vatRate: dto.vatRate,
-  });
+  try {
+    const category = await Category.create({
+      name: dto.name,
+      vatRate: dto.vatRate,
+    });
 
-  return await categoryResponse(category);
+    return await categoryResponse(category);
+  } catch (error) {
+    if ((error as { code?: number }).code === 11000) {
+      throw createError(400, 'VALIDATION_ERROR', 'A category with this name already exists');
+    }
+    throw error;
+  }
 }
 
 export async function updateCategory(id: string, dto: UpdateCategoryDto) {
@@ -108,11 +115,19 @@ export async function updateCategory(id: string, dto: UpdateCategoryDto) {
   if (dto.name !== undefined) updates.name = dto.name;
   if (dto.vatRate !== undefined) updates.vatRate = dto.vatRate;
 
-  const updated = await Category.findByIdAndUpdate(
-    id,
-    { $set: updates },
-    { new: true, runValidators: true }
-  );
+  let updated;
+  try {
+    updated = await Category.findByIdAndUpdate(
+      id,
+      { $set: updates },
+      { new: true, runValidators: true }
+    );
+  } catch (error) {
+    if ((error as { code?: number }).code === 11000) {
+      throw createError(400, 'VALIDATION_ERROR', 'A category with this name already exists');
+    }
+    throw error;
+  }
 
   if (!updated) {
     throw createError(404, 'NOT_FOUND', 'Category not found');

@@ -26,7 +26,6 @@ export default function OrdersPage() {
 
   useEffect(() => {
     const socket = getSocket();
-    if (!socket.connected) return;
     const invalidate = () => queryClient.invalidateQueries({ queryKey: ['orders'] });
 
     socket.on('pos:order_created', invalidate);

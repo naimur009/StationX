@@ -5,6 +5,17 @@ import { env } from './env';
 
 let io: SocketServer | null = null;
 
+const MODULE_ROOMS: Record<string, string[]> = {
+  orders: ['room:orders', 'room:tables'],
+  pos: ['room:orders', 'room:tables'],
+  dashboard: ['room:dashboard'],
+  tables: ['room:tables'],
+  tasks: ['room:tasks'],
+  attendance: ['room:attendance'],
+  expenses: ['room:dashboard'],
+  incomes: ['room:dashboard'],
+};
+
 export function initSocket(httpServer: HttpServer): SocketServer {
   io = new SocketServer(httpServer, {
     cors: {
@@ -31,6 +42,16 @@ export function initSocket(httpServer: HttpServer): SocketServer {
 
   io.on('connection', (socket) => {
     console.log(`Socket connected: ${socket.id}`);
+
+    const permissions = (socket.data.user?.permissions ?? []) as Array<{ module: string; actions: string[] }>;
+    for (const permission of permissions) {
+      for (const room of MODULE_ROOMS[permission.module] ?? [`room:${permission.module}`]) {
+        socket.join(room);
+      }
+    }
+    if (socket.data.user?.id) {
+      socket.join(`user:${socket.data.user.id}`);
+    }
 
     socket.on('disconnect', () => {
       console.log(`Socket disconnected: ${socket.id}`);

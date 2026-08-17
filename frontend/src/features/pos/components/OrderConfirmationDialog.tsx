@@ -46,9 +46,9 @@ export default function OrderConfirmationDialog({
             <div key={item.productId} className="flex items-center justify-between py-1">
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-medium text-foreground">{item.name}</p>
-                <p className="text-xs text-muted-foreground">BDT {item.price.toFixed(2)} x {item.quantity}</p>
+                <p className="text-xs text-muted-foreground">৳{item.price.toFixed(2)} x {item.quantity}</p>
               </div>
-              <p className="ml-4 text-sm font-semibold text-foreground">BDT {item.lineTotal.toFixed(2)}</p>
+              <p className="ml-4 text-sm font-semibold text-foreground">৳{item.lineTotal.toFixed(2)}</p>
             </div>
           ))}
         </div>

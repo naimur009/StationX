@@ -142,6 +142,7 @@ Base path: `/users`. **Permission module key:** `users`.
 **Guard rails (service layer, not schema):**
 - A user cannot deactivate/delete their own account → `409 CANNOT_DEACTIVATE_SELF` / `409 CANNOT_DELETE_SELF`.
 - The last remaining active `admin` cannot be deactivated or permanently deleted → `409 LAST_ADMIN_PROTECTED`.
+- **Admin-account protection:** only `admin`-role actors may reset the password of, deactivate, reactivate, or permanently delete another `admin` account — any other actor gets `403 FORBIDDEN`. Permission grants (`users:edit`, `users:delete`) on employee accounts never extend to admin accounts, so an employee cannot hijack or lock out the admin. Employees can still manage other employee accounts (reset password, deactivate, reactivate, delete) exactly as before.
 
 ```json
 // PATCH /users/:id/permissions request
@@ -204,6 +205,8 @@ Name-only staff list (`[{ "id": "...", "name": "..." }]`, sorted by name, capped
 
 `maxDiscountAmount` (`number | null`) is the coupon's cap for percentage discounts (the server applies `min(rawPercentageDiscount, maxDiscountAmount)`); the POS preview mirrors this cap so the displayed discount matches what will be charged. `null` means no cap.
 
+The preview and the actual redemption agree by construction: `POST /pos/orders` re-checks the same validity rules at order-creation time (`isEnabled`, `validFrom` not in the future, `validUntil` not passed, `minOrderAmount` satisfied) and rejects the coupon with `400 VALIDATION_ERROR` otherwise — a scheduled or below-minimum coupon can never be charged, even if the cashier bypasses the preview.
+
 This is a **read-only preview** — `Coupon.usageCount` is *not* incremented here, even though the cart may call this endpoint multiple times as items change. The actual increment happens exactly once, atomically, inside the order-creation transaction (`POST /pos/orders`, §9.3), per `DATABASE.md` §5.2's race-condition handling. Calling this endpoint is purely advisory for the POS UI.
 
 ### 9.3 Order Creation
@@ -221,7 +224,7 @@ This is where `ARCHITECTURE.md` §4's `pos.service.ts` ("order total calc, coupo
 }
 ```
 
-Orders are always created with `paymentStatus: 'unpaid'` and `status: 'pending'` — neither is client-settable (a `payment` block is **not** accepted at creation, no quick-checkout path; `POST /pos/orders` is creation-only). If a coupon is applied, its `usageCount` is incremented atomically inside this creation transaction (usage is reserved at order placement, not at payment). Status transitions — including `completed`/`cancelled` — happen exclusively via `PATCH /orders/:id/status` (§10), where the payment-capture and table-unbooking side-effects run inside the same transaction.
+Orders are always created with `paymentStatus: 'unpaid'` and `status: 'pending'` — neither is client-settable (a `payment` block is **not** accepted at creation, no quick-checkout path; `POST /pos/orders` is creation-only). If a coupon is applied, its `usageCount` is incremented atomically inside this creation transaction (usage is reserved at order placement, not at payment). Status transitions — including `completed`/`cancelled` — happen exclusively via `PATCH /orders/:id/status` (§10), where the payment-capture and table-unbooking side-effects run inside the same transaction. `grandTotal` is never negative: the combined discount (coupon + manual `discountPercent`) is clamped to the subtotal, so a discount can never exceed the order value.
 
 ```json
 // Response 201
@@ -268,13 +271,15 @@ Base path: `/orders`. **Permission module key:** `orders`.
 | GET | `/orders/:id/bill?format=pdf\|html` | `view` | Puppeteer-rendered bill, same template POS would trigger |
 | DELETE | `/orders/:id` | `delete` | See open item below — not a true hard delete in most cases |
 
-**`PUT /orders/:id` supports the following fields:** `tableId`, `customerId`, `items`, `payment`, `discountPercent`, `cashTendered`, `changeAmount`. `items` replacement triggers server-side recalculation of all financial fields (subtotal, tax, discount, grandTotal). Items are editable until `paymentStatus` becomes `paid`; once paid, any attempt to edit financial fields returns `400 ORDER_ALREADY_PAID`. `tableId` and `customerId` remain editable even after payment.
+**`PUT /orders/:id` supports the following fields:** `tableId`, `customerId`, `items`, `payment`, `discountPercent`, `cashTendered`, `changeAmount`. `items` replacement triggers server-side recalculation of all financial fields (subtotal, tax, discount, grandTotal). Items are editable until `paymentStatus` becomes `paid`; once paid, any attempt to edit financial fields returns `400 ORDER_ALREADY_PAID`. `tableId` and `customerId` remain editable even after payment. A `cancelled` order is **terminal**: items and financial fields (`payment`, `cashTendered`, `changeAmount`, `discountPercent`) are rejected with `400 ORDER_CANCELLED`, closing the cancel → inflate → revive → capture cash-out path. `changeAmount` is **never client-settable**: it is always recomputed server-side as `cashTendered - grandTotal` (clamped at 0), and any client-supplied value is ignored — the bill's "Returned" line therefore always reflects the actual change owed. When `items` are edited and the order still holds a coupon, the coupon is **re-validated** (enabled, date range, `minOrderAmount`); if it no longer applies, the edit is rejected with `400 COUPON_NOT_APPLICABLE` — the discount is never silently dropped. Removing the coupon (`discountPercent` set, or no valid coupon) decrements its `usageCount` back. Order edits, table re-booking, coupon quota return, and payment-split recording all commit atomically in a single transaction.
 
 ```json
 // PATCH /orders/:id/status request
 { "status": "cancelled", "cancelReason": "Customer changed their mind before payment" }
 ```
 Valid transitions: `pending → completed`, `pending → cancelled`, `completed → cancelled` (the latter requires `cancelReason` and is effectively a refund acknowledgment — gated by the same `orders:edit` permission since the schema's action enum doesn't define a separate `cancel` action; a stricter approval step is a candidate future feature spec, not added here to avoid inventing a permission action `DATABASE.md` doesn't define). `cancelled` is terminal. Sets `completedAt`/`cancelledAt` accordingly and excludes the order from revenue per `DATABASE.md` §5.4.
+
+Marking an order paid via `{ paymentStatus: 'paid' }` re-validates the terminal state: a `cancelled` order is rejected with `400 ORDER_CANCELLED` — it can never be revived, completed, or marked paid. On the paid path, `changeAmount` is computed server-side as `cashTendered - grandTotal` (clamped at 0); a client-supplied `changeAmount` is ignored, so the cash-skimming attack (tendered 1000, "change" 0, no Returned line on the bill) is impossible.
 
 **Open item — `DELETE /orders/:id` needs a DATABASE.md decision (carried to §28):** the PRD lists "Delete order" as a feature, but `Order` has no `isActive` field in `DATABASE.md` §3.8, and a true hard delete of a *settled* order would silently corrupt historical Reports/Income — directly contradicting the snapshot-pricing rationale that document goes out of its way to protect. Until that's resolved, this endpoint is implemented narrowly: it only succeeds for orders that are `status: pending`, created the same day, and have no coupon usage recorded (i.e., a mistaken/duplicate draft, not a completed sale). Any other order returns `409 ORDER_NOT_DELETABLE` with a message pointing the user to `PATCH /orders/:id/status` (cancel) instead.
 
@@ -794,6 +799,7 @@ Base path: `/settings`. **Permission module key:** `settings`. Singleton (fixed 
 - `POST /settings/reset` is the **sole generated-code path allowed to hard-delete `Order` and `Expense`** (exception to the never-hard-delete rule, see `AI_rules.md` §6). Admin accounts survive; non-admin users and all other collections are wiped. The operation is non-transactional — if it fails partway, re-run it to complete the wipe.
 - `GET /settings/backup` is gated by `settings:view` and downloads the entire dataset (users *including* `passwordHash`, orders, financials, activity logs) as a raw JSON file — treat the file like a credentials export.
 - `POST /settings/restore` requires a backup containing **all** 17 expected collections and at least one active admin user, otherwise `400 VALIDATION_ERROR`. Restore is a per-collection replace (`deleteMany` + `insertMany`, `ordered: false`), not an atomic transaction — a failure partway leaves some collections restored and others wiped; re-run with the same file to complete.
+- **Restore cannot inject credentials or privileges.** `User` documents are validated strictly before insert (non-empty `name`/`email`, `role ∈ admin|employee`, boolean `isActive`, valid bcrypt `passwordHash`, `permissions` limited to valid module/action keys) — malformed documents abort the whole restore with `400 VALIDATION_ERROR`. Admin accounts are additionally protected: every admin in the backup must match an **existing** admin account by email (restore can never create a new admin), and matched admins keep their **current** `passwordHash` — the backup's hash for an admin is discarded, so a forged backup cannot overwrite the real admin's password or fabricate an admin login.
 
 ---
 
@@ -883,6 +889,8 @@ Single namespace, all authenticated dashboard clients join one shared room — n
 | 400 | `INVALID_CATEGORY` | Referenced category does not exist |
 | 400 | `COUPON_CODE_EXISTS` | A coupon with this code already exists |
 | 400 | `ORDER_ALREADY_PAID` | Attempt to edit items or financial fields on a paid order |
+| 400 | `ORDER_CANCELLED` | Attempt to edit items/financial fields on a cancelled order, or to mark a cancelled order as paid — `cancelled` is terminal |
+| 400 | `COUPON_NOT_APPLICABLE` | Editing `items` on an order whose attached coupon is expired, disabled, below `minOrderAmount`, or otherwise invalid — the coupon can no longer be applied, so it must be removed or replaced with a manual discount instead of silently zeroing the discount |
 | 400 | `PRODUCT_IS_ACTIVE` | (reserved — not currently used; products are unconditionally hard-deletable per §19) |
 | 401 | `UNAUTHORIZED` | Missing/invalid/expired access token |
 | 401 | `INVALID_CREDENTIALS` | Login failed |

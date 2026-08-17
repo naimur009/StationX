@@ -118,7 +118,7 @@ export async function createIncome(dto: CreateIncomeDto, userId: string) {
   });
 
   try {
-    getIO().emit('dashboard:metricsInvalidate');
+    getIO().to('room:dashboard').emit('dashboard:metricsInvalidate');
   } catch {
     // Socket.io not initialized — skip real-time event
   }

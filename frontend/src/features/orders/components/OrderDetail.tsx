@@ -82,7 +82,7 @@ function DetailCard({
 }: {
   title: string;
   icon: React.ReactNode;
-  accentColor?: 'primary' | 'emerald' | 'red';
+  accentColor?: 'primary' | 'success' | 'red';
   children: React.ReactNode;
   className?: string;
 }) {
@@ -91,9 +91,9 @@ function DetailCard({
       bar: 'bg-gradient-to-r from-primary to-primary/70',
       iconBg: 'bg-primary/10 text-primary',
     },
-    emerald: {
-      bar: 'bg-gradient-to-r from-emerald-500 to-teal-400',
-      iconBg: 'bg-emerald-50 text-emerald-600',
+    success: {
+      bar: 'bg-gradient-to-r from-success to-success/70',
+      iconBg: 'bg-success/10 text-success',
     },
     red: {
       bar: 'bg-gradient-to-r from-red-500 to-rose-400',
@@ -298,7 +298,7 @@ export default function OrderDetailView({ order }: OrderDetailViewProps) {
         </DetailCard>
 
         {/* Payment Info */}
-        <DetailCard title="Payment" icon={<CreditCard className="h-4 w-4" />} accentColor="emerald">
+        <DetailCard title="Payment" icon={<CreditCard className="h-4 w-4" />} accentColor="success">
           <div className="space-y-0.5">
             {order.previousPayments && order.previousPayments.length > 0 && (
               <div className="mb-2 space-y-1 rounded-xl bg-slate-50 px-3 py-2">
@@ -319,8 +319,8 @@ export default function OrderDetailView({ order }: OrderDetailViewProps) {
                   <span className="capitalize">{order.payment.method}</span>
                 </InfoRow>
                 <InfoRow label="Payment Status">
-                  <span className={`inline-flex items-center gap-1.5 font-semibold ${order.paymentStatus === 'paid' ? 'text-emerald-600' : 'text-amber-600'}`}>
-                    <span className={`inline-block h-1.5 w-1.5 rounded-full ${order.paymentStatus === 'paid' ? 'bg-emerald-500' : 'bg-amber-500'}`} />
+                  <span className={`inline-flex items-center gap-1.5 font-semibold ${order.paymentStatus === 'paid' ? 'text-success' : 'text-amber-600'}`}>
+                    <span className={`inline-block h-1.5 w-1.5 rounded-full ${order.paymentStatus === 'paid' ? 'bg-success' : 'bg-amber-500'}`} />
                     {order.paymentStatus === 'paid' ? 'Paid' : 'Unpaid'}
                   </span>
                 </InfoRow>
@@ -329,7 +329,7 @@ export default function OrderDetailView({ order }: OrderDetailViewProps) {
                 )}
                 {order.payment.transactionId && (
                   <InfoRow label="Transaction ID">
-                    <span className="break-all font-mono text-xs">{order.payment.transactionId}</span>
+                    <span className="break-all text-xs">{order.payment.transactionId}</span>
                   </InfoRow>
                 )}
               </>
@@ -347,7 +347,7 @@ export default function OrderDetailView({ order }: OrderDetailViewProps) {
             )}
             {order.changeAmount !== undefined && order.changeAmount !== null && (
               <InfoRow label="Change">
-                <span className="text-emerald-600">{formatBdt(order.changeAmount)}</span>
+                <span className="text-success">{formatBdt(order.changeAmount)}</span>
               </InfoRow>
             )}
             {order.completedAt && (

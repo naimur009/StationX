@@ -17,6 +17,7 @@ import type {
   UpdateOrderDto,
   UpdateOrderStatusDto,
 } from './orders.validation';
+import type { IOrder } from '../../models/Order';
 
 const VALID_TRANSITIONS: Record<string, string[]> = {
   pending: ['completed', 'cancelled'],
@@ -452,7 +453,15 @@ export async function updateOrder(id: string, dto: UpdateOrderDto) {
     }
   }
 
+  if (order.status === 'cancelled') {
+    const financialFields = dto.items || dto.discountPercent !== undefined || dto.payment || dto.cashTendered !== undefined || dto.changeAmount !== undefined;
+    if (financialFields) {
+      throw createError(400, 'ORDER_CANCELLED', 'Cannot edit items or financial fields on a cancelled order');
+    }
+  }
+
   const updates: Record<string, unknown> = {};
+  let removingCoupon = false;
   if (dto.tableId !== undefined) updates.tableId = dto.tableId;
   if (dto.customerId !== undefined) updates.customerId = dto.customerId;
 
@@ -518,25 +527,39 @@ export async function updateOrder(id: string, dto: UpdateOrderDto) {
       let discountAmount = 0;
       if (order.couponId) {
         const coupon = await Coupon.findById(order.couponId);
-        if (coupon && coupon.isEnabled && coupon.validUntil > new Date()) {
-          const rawDiscount = coupon.discountType === 'percentage'
-            ? round2(subtotal * (coupon.value / 100))
-            : round2(coupon.value);
-          discountAmount = coupon.maxDiscountAmount != null
-            ? Math.min(rawDiscount, coupon.maxDiscountAmount)
-            : rawDiscount;
+        const now = new Date();
+        if (
+          !coupon ||
+          !coupon.isEnabled ||
+          coupon.validFrom > now ||
+          coupon.validUntil <= now ||
+          (coupon.minOrderAmount != null && subtotal < coupon.minOrderAmount)
+        ) {
+          throw createError(
+            400,
+            'COUPON_NOT_APPLICABLE',
+            'The coupon attached to this order is no longer valid — remove it or apply a manual discount instead'
+          );
         }
+        const rawDiscount = coupon.discountType === 'percentage'
+          ? round2(subtotal * (coupon.value / 100))
+          : round2(coupon.value);
+        discountAmount = coupon.maxDiscountAmount != null
+          ? Math.min(rawDiscount, coupon.maxDiscountAmount)
+          : rawDiscount;
       } else if (order.discountPercent && order.discountPercent > 0) {
         discountAmount = round2(subtotal * (order.discountPercent / 100));
       }
+      discountAmount = Math.min(discountAmount, subtotal);
       updates.discountAmount = discountAmount;
       const newGrandTotal = round2(subtotal - discountAmount);
       updates.grandTotal = newGrandTotal;
     } else {
-      const discountAmount = round2(subtotal * (dto.discountPercent! / 100));
+      const discountAmount = Math.min(round2(subtotal * (dto.discountPercent! / 100)), subtotal);
       updates.discountPercent = dto.discountPercent!;
       updates.discountAmount = discountAmount;
       updates.couponId = null;
+      removingCoupon = !!order.couponId;
       const newGrandTotal = round2(subtotal - discountAmount);
       updates.grandTotal = newGrandTotal;
     }
@@ -544,14 +567,16 @@ export async function updateOrder(id: string, dto: UpdateOrderDto) {
 
   if (dto.discountPercent !== undefined && !dto.items) {
     const baseSubtotal = order.subtotal;
-    const discountAmount = round2(baseSubtotal * (dto.discountPercent / 100));
+    const discountAmount = Math.min(round2(baseSubtotal * (dto.discountPercent / 100)), baseSubtotal);
     updates.discountPercent = dto.discountPercent;
     updates.discountAmount = discountAmount;
     updates.couponId = null;
+    removingCoupon = !!order.couponId;
     updates.taxAmount = order.taxAmount;
     updates.grandTotal = round2(baseSubtotal - discountAmount);
   }
 
+  let previousPaymentEntry: Record<string, unknown> | null = null;
   if (dto.payment) {
     const oldPayment = order.payment;
     const oldMethod = oldPayment?.method;
@@ -568,7 +593,7 @@ export async function updateOrder(id: string, dto: UpdateOrderDto) {
       if (oldPayment?.transactionId) {
         entry.transactionId = oldPayment.transactionId;
       }
-      await Order.updateOne({ _id: id }, { $push: { previousPayments: entry } });
+      previousPaymentEntry = entry;
     }
     if (dto.payment.method) updates['payment.method'] = dto.payment.method;
     if (dto.payment.transactionId !== undefined) updates['payment.transactionId'] = dto.payment.transactionId;
@@ -577,88 +602,101 @@ export async function updateOrder(id: string, dto: UpdateOrderDto) {
   if (dto.cashTendered !== undefined) {
     const effectiveGrandTotal = (updates.grandTotal ?? order.grandTotal) as number;
     const effectivePaymentMethod = (dto.payment?.method ?? order.payment?.method ?? 'cash') as string;
-    if (effectivePaymentMethod === 'cash') {
-      const alreadyCollected = order.payment?.method === 'cash'
-        ? (order.cashTendered ?? 0)
-        : order.grandTotal;
-      const totalCollected = order.payment?.method === 'cash'
-        ? dto.cashTendered
-        : order.grandTotal + dto.cashTendered;
-      if (totalCollected < effectiveGrandTotal) {
-        throw createError(400, 'VALIDATION_ERROR', 'Total payment must cover the grand total.');
-      }
+    const sumPrevious = (order.previousPayments ?? []).reduce(
+      (s, p) => s + (Number(p.amount) || 0), 0
+    );
+    const outstanding = round2(Math.max(0, effectiveGrandTotal - sumPrevious));
+    if (effectivePaymentMethod === 'cash' && dto.cashTendered < outstanding) {
+      throw createError(400, 'VALIDATION_ERROR', 'Cash tendered must cover the remaining balance.');
     }
     updates.cashTendered = dto.cashTendered;
-    if (dto.changeAmount !== undefined) {
-      updates.changeAmount = dto.changeAmount;
-    } else if (dto.cashTendered >= effectiveGrandTotal) {
-      updates.changeAmount = round2(dto.cashTendered - effectiveGrandTotal);
-    }
+    updates.changeAmount = round2(Math.max(0, dto.cashTendered - outstanding));
   }
 
   const oldTableId = order.tableId ? order.tableId.toString() : null;
   const newTableId = dto.tableId !== undefined ? (dto.tableId || null) : oldTableId;
   let newTableLabel: string | null = null;
-  let bookedNewTable = false;
 
-  if (newTableId !== oldTableId) {
-    if (newTableId) {
-      const newTableDoc = await Table.findById(newTableId);
-      if (!newTableDoc) {
-        throw createError(400, 'TABLE_NOT_FOUND', 'Referenced table not found');
-      }
-      newTableLabel = newTableDoc.tableNumber;
-      updates.tableLabelSnapshot = newTableLabel;
-
-      if (order.paymentStatus !== 'paid') {
-        try {
-          const newTable = await Table.findOneAndUpdate(
-            { _id: newTableId, status: 'available' },
-            { status: 'booked', currentOrderId: order._id, bookedBy: 'order', bookedAt: new Date() },
-            { new: true }
-          );
-          if (!newTable) {
-            throw createError(409, 'TABLE_ALREADY_BOOKED', 'This table is already booked by another active order');
-          }
-          bookedNewTable = true;
-        } catch (error) {
-          if ((error as { codeName?: string }).codeName === 'WriteConflict') {
-            throw createError(409, 'TABLE_ALREADY_BOOKED', 'This table is already booked by another active order');
-          }
-          throw error;
-        }
-      }
-    } else {
-      updates.tableLabelSnapshot = null;
+  if (newTableId !== oldTableId && newTableId) {
+    const newTableDoc = await Table.findById(newTableId);
+    if (!newTableDoc) {
+      throw createError(400, 'TABLE_NOT_FOUND', 'Referenced table not found');
     }
+    newTableLabel = newTableDoc.tableNumber;
+    updates.tableLabelSnapshot = newTableLabel;
+  } else if (newTableId !== oldTableId) {
+    updates.tableLabelSnapshot = null;
   }
 
-  const updated = await Order.findByIdAndUpdate(
-    id,
-    { $set: updates },
-    { new: true, runValidators: true }
-  );
+  const updated = await withTransaction(async (session) => {
+    const fresh = (await Order.findById(id).session(session)) as IOrder | null;
+    if (!fresh) {
+      throw createError(404, 'NOT_FOUND', 'Order not found');
+    }
+    if (fresh.paymentStatus === 'paid') {
+      throw createError(400, 'ORDER_ALREADY_PAID', 'Cannot edit a paid order');
+    }
+    if (fresh.status === 'cancelled') {
+      throw createError(400, 'ORDER_CANCELLED', 'Cannot edit a cancelled order');
+    }
 
-  if (!updated) {
-    throw createError(404, 'NOT_FOUND', 'Order not found');
-  }
+    if (newTableId !== oldTableId && newTableId) {
+      const newTable = await Table.findOneAndUpdate(
+        { _id: newTableId, status: 'available' },
+        { status: 'booked', currentOrderId: fresh._id, bookedBy: 'order', bookedAt: new Date() },
+        { new: true, session }
+      );
+      if (!newTable) {
+        throw createError(409, 'TABLE_ALREADY_BOOKED', 'This table is already booked by another active order');
+      }
+    }
 
-  if (newTableId !== oldTableId && oldTableId) {
-    await Table.findOneAndUpdate(
-      { _id: oldTableId, currentOrderId: order._id },
-      { status: 'available', currentOrderId: null, bookedBy: null, bookedAt: null }
+    if (removingCoupon && order.couponId) {
+      await Coupon.updateOne(
+        { _id: order.couponId, usageCount: { $gt: 0 } },
+        { $inc: { usageCount: -1 } }
+      ).session(session);
+    }
+
+    if (previousPaymentEntry) {
+      await Order.updateOne(
+        { _id: id },
+        { $push: { previousPayments: previousPaymentEntry } }
+      ).session(session);
+    }
+
+    const doc = await Order.findByIdAndUpdate(
+      id,
+      { $set: updates },
+      { new: true, runValidators: true, session }
     );
-  }
+
+    if (!doc) {
+      throw createError(404, 'NOT_FOUND', 'Order not found');
+    }
+
+    if (newTableId !== oldTableId && oldTableId) {
+      await Table.findOneAndUpdate(
+        { _id: oldTableId, currentOrderId: fresh._id },
+        { status: 'available', currentOrderId: null, bookedBy: null, bookedAt: null },
+        { session }
+      );
+    }
+
+    return doc;
+  });
+
+  const bookedNewTable = newTableId !== oldTableId && !!newTableId && updated.paymentStatus !== 'paid';
 
   try {
-    getIO().emit('order:updated', {
+    getIO().to('room:orders').emit('order:updated', {
       orderId: updated._id.toString(),
       orderNumber: updated.orderNumber,
     });
 
     if (newTableId !== oldTableId) {
       if (bookedNewTable && newTableId) {
-        getIO().emit('table:statusChanged', {
+        getIO().to('room:tables').emit('table:statusChanged', {
           tableId: newTableId,
           tableNumber: newTableLabel,
           status: 'booked',
@@ -667,7 +705,7 @@ export async function updateOrder(id: string, dto: UpdateOrderDto) {
         });
       }
       if (oldTableId) {
-        getIO().emit('table:statusChanged', {
+        getIO().to('room:tables').emit('table:statusChanged', {
           tableId: oldTableId,
           tableNumber: order.tableLabelSnapshot || null,
           status: 'available',
@@ -682,7 +720,7 @@ export async function updateOrder(id: string, dto: UpdateOrderDto) {
 
   if (dto.items && updated.status === 'completed') {
     try {
-      getIO().emit('order:itemsUpdated', {
+      getIO().to('room:orders').emit('order:itemsUpdated', {
         orderId: updated._id.toString(),
         orderNumber: updated.orderNumber,
       });
@@ -708,6 +746,10 @@ export async function updateOrderStatus(id: string, dto: UpdateOrderStatusDto, a
   }
 
   if (dto.paymentStatus === 'paid') {
+    if (order.status === 'cancelled') {
+      throw createError(400, 'ORDER_CANCELLED', 'Cannot mark a cancelled order as paid — cancelled is a terminal state');
+    }
+
     if (order.paymentStatus === 'paid') {
       const populated = await Order.findById(order._id)
         .populate('customerId', 'name phone')
@@ -721,17 +763,30 @@ export async function updateOrderStatus(id: string, dto: UpdateOrderStatusDto, a
       throw createError(400, 'VALIDATION_ERROR', 'Payment method is required when marking an order as paid');
     }
 
-    const grandTotal = order.grandTotal;
-    const cashTendered = dto.cashTendered;
-    const changeAmount = dto.changeAmount;
-
-    if (dto.payment.method === 'cash') {
-      if (cashTendered == null || cashTendered < grandTotal) {
-        throw createError(400, 'VALIDATION_ERROR', 'Cash tendered must cover the grand total');
-      }
-    }
+    let tableIdForSocket: unknown = order.tableId;
+    let tableLabelForSocket: string | null = order.tableLabelSnapshot || null;
+    let capturedNumber = order.orderNumber;
 
     await withTransaction(async (session) => {
+      const fresh = (await Order.findById(id).session(session)) as IOrder | null;
+      if (!fresh) {
+        throw createError(404, 'NOT_FOUND', 'Order not found');
+      }
+      if (fresh.paymentStatus === 'paid') {
+        return;
+      }
+      if (fresh.status === 'cancelled') {
+        throw createError(400, 'ORDER_CANCELLED', 'Cannot mark a cancelled order as paid — cancelled is a terminal state');
+      }
+
+      const freshGrandTotal = fresh.grandTotal;
+
+      if (dto.payment!.method === 'cash') {
+        if (dto.cashTendered == null || dto.cashTendered < freshGrandTotal) {
+          throw createError(400, 'VALIDATION_ERROR', 'Cash tendered must cover the grand total');
+        }
+      }
+
       const setFields: Record<string, unknown> = {
         status: 'completed',
         completedAt: new Date(),
@@ -743,9 +798,9 @@ export async function updateOrderStatus(id: string, dto: UpdateOrderStatusDto, a
         setFields['payment.transactionId'] = dto.payment!.transactionId;
       }
 
-      if (cashTendered != null) {
-        setFields.cashTendered = cashTendered;
-        setFields.changeAmount = changeAmount != null ? changeAmount : round2(Math.max(0, cashTendered - grandTotal));
+      if (dto.cashTendered != null) {
+        setFields.cashTendered = dto.cashTendered;
+        setFields.changeAmount = round2(Math.max(0, dto.cashTendered - freshGrandTotal));
       }
 
       await Order.findByIdAndUpdate(id, { $set: setFields }, { session });
@@ -754,36 +809,40 @@ export async function updateOrderStatus(id: string, dto: UpdateOrderStatusDto, a
         actor: new mongoose.Types.ObjectId(actorId),
         module: 'orders',
         action: 'pos.order_paid',
-        targetId: order._id.toString(),
+        targetId: fresh._id.toString(),
         targetType: 'Order',
-        description: `Payment captured for ${order.orderNumber} — ${dto.payment!.method.toUpperCase()}, BDT ${grandTotal.toFixed(2)}`,
+        description: `Payment captured for ${fresh.orderNumber} — ${dto.payment!.method.toUpperCase()}, ৳${freshGrandTotal.toFixed(2)}`,
       }], { session });
 
-      if (order.tableId) {
-        const table = await Table.findOne({ _id: order.tableId, currentOrderId: order._id }, null, { session });
+      if (fresh.tableId) {
+        const table = await Table.findOne({ _id: fresh.tableId, currentOrderId: fresh._id }, null, { session });
         if (table) {
           await Table.findByIdAndUpdate(
-            order.tableId,
+            fresh.tableId,
             { status: 'available', currentOrderId: null, bookedBy: null, bookedAt: null },
             { session }
           );
         }
       }
+
+      tableIdForSocket = fresh.tableId;
+      tableLabelForSocket = fresh.tableLabelSnapshot || null;
+      capturedNumber = fresh.orderNumber;
     });
 
     try {
       const io = getIO();
-      io.emit('order:paid', {
+      io.to('room:orders').emit('order:paid', {
         orderId: order._id.toString(),
-        orderNumber: order.orderNumber,
+        orderNumber: capturedNumber,
         paymentStatus: 'paid',
       });
-      io.emit('dashboard:metricsInvalidate');
+      io.to('room:dashboard').emit('dashboard:metricsInvalidate');
 
-      if (order.tableId) {
-        io.emit('table:statusChanged', {
-          tableId: order.tableId.toString(),
-          tableNumber: order.tableLabelSnapshot || null,
+      if (tableIdForSocket) {
+        io.to('room:tables').emit('table:statusChanged', {
+          tableId: (tableIdForSocket as { toString(): string }).toString(),
+          tableNumber: tableLabelForSocket,
           status: 'available',
           orderId: null,
           source: 'order',
@@ -840,6 +899,22 @@ export async function updateOrderStatus(id: string, dto: UpdateOrderStatusDto, a
   }
 
   const updated = await withTransaction(async (session) => {
+    const fresh = (await Order.findById(id).session(session)) as IOrder | null;
+    if (!fresh) {
+      throw createError(404, 'NOT_FOUND', 'Order not found');
+    }
+    if (fresh.status === targetStatus) {
+      return fresh;
+    }
+    const freshAllowed = VALID_TRANSITIONS[fresh.status] || [];
+    if (!freshAllowed.includes(targetStatus)) {
+      throw createError(
+        400,
+        'VALIDATION_ERROR',
+        `Cannot transition from '${fresh.status}' to '${targetStatus}'. Allowed transitions: ${freshAllowed.length > 0 ? freshAllowed.join(', ') : 'none (terminal state)'}`
+      );
+    }
+
     const doc = await Order.findByIdAndUpdate(
       id,
       { $set: setFields },
@@ -850,10 +925,10 @@ export async function updateOrderStatus(id: string, dto: UpdateOrderStatusDto, a
       throw createError(404, 'NOT_FOUND', 'Order not found');
     }
 
-    if (targetStatus === 'cancelled' && order.tableId) {
-      const table = await Table.findOne({ _id: order.tableId, currentOrderId: order._id }, null, { session });
+    if (targetStatus === 'cancelled' && fresh.tableId) {
+      const table = await Table.findOne({ _id: fresh.tableId, currentOrderId: fresh._id }, null, { session });
       if (table) {
-        await Table.findByIdAndUpdate(order.tableId, {
+        await Table.findByIdAndUpdate(fresh.tableId, {
           status: 'available', currentOrderId: null, bookedBy: null, bookedAt: null,
         }, { session });
       }
@@ -863,16 +938,16 @@ export async function updateOrderStatus(id: string, dto: UpdateOrderStatusDto, a
   });
 
   try {
-    getIO().emit('order:statusChanged', {
+    getIO().to('room:orders').emit('order:statusChanged', {
       orderId: updated._id.toString(),
       status: updated.status,
       orderNumber: updated.orderNumber,
     });
 
-    if (targetStatus === 'cancelled' && order.tableId) {
-      getIO().emit('table:statusChanged', {
-        tableId: order.tableId.toString(),
-        tableNumber: order.tableLabelSnapshot || null,
+    if (targetStatus === 'cancelled' && updated.tableId) {
+      getIO().to('room:tables').emit('table:statusChanged', {
+        tableId: updated.tableId.toString(),
+        tableNumber: updated.tableLabelSnapshot || null,
         status: 'available',
         orderId: null,
         source: 'order',
@@ -932,10 +1007,10 @@ export async function deleteOrder(id: string) {
   });
 
   try {
-    getIO().emit('order:deleted', { orderId: id });
+    getIO().to('room:orders').emit('order:deleted', { orderId: id });
 
     if (order.tableId) {
-      getIO().emit('table:statusChanged', {
+      getIO().to('room:tables').emit('table:statusChanged', {
         tableId: order.tableId.toString(),
         tableNumber: order.tableLabelSnapshot || null,
         status: 'available',

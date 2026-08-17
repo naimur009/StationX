@@ -1,14 +1,5 @@
 import type { ProfitReport } from '../api';
 
-function MetricBox({ label, value, color }: { label: string; value: string; color: string }) {
-  return (
-    <div className="rounded-xl border border-border bg-white px-5 py-4 shadow-sm">
-      <p className="text-xs font-medium uppercase tracking-wider text-slate-400">{label}</p>
-      <p className={`mt-0.5 text-2xl font-bold ${color}`}>{value}</p>
-    </div>
-  );
-}
-
 interface ProfitReportViewProps {
   data: ProfitReport;
 }

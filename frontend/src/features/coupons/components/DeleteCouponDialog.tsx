@@ -85,7 +85,7 @@ export default function DeleteCouponDialog({ coupon, onClose }: DeleteCouponDial
             </span>
           </div>
           <div className="mt-1 text-slate-500">
-            {coupon.discountType === 'flat' ? `TK ${coupon.value.toFixed(2)} off` : `${coupon.value}% off`}
+            {coupon.discountType === 'flat' ? `৳${coupon.value.toFixed(2)} off` : `${coupon.value}% off`}
           </div>
         </div>
       </div>

@@ -120,13 +120,8 @@ export async function updateProduct(id: string, dto: UpdateProductDto) {
     }
   }
 
-  if (dto.image === null && product.image?.publicId) {
-    deleteFromCloudinary(product.image.publicId).catch((err: unknown) => console.error('[Cloudinary] Failed to delete image:', err));
-  } else if (dto.image && dto.image.publicId !== product.image?.publicId) {
-    if (product.image?.publicId) {
-      deleteFromCloudinary(product.image.publicId).catch((err: unknown) => console.error('[Cloudinary] Failed to delete image:', err));
-    }
-  }
+  const oldImagePublicId = product.image?.publicId;
+  const replacingImage = dto.image !== undefined && dto.image?.publicId !== oldImagePublicId;
 
   const updates: Record<string, unknown> = {};
   if (dto.name !== undefined) updates.name = dto.name;
@@ -144,6 +139,10 @@ export async function updateProduct(id: string, dto: UpdateProductDto) {
 
   if (!updated) {
     throw createError(404, 'NOT_FOUND', 'Product not found');
+  }
+
+  if (oldImagePublicId && (dto.image === null || replacingImage)) {
+    deleteFromCloudinary(oldImagePublicId).catch((err: unknown) => console.error('[Cloudinary] Failed to delete image:', err));
   }
 
   return toProductResponse(updated);

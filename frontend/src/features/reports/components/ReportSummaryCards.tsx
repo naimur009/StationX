@@ -6,7 +6,6 @@ import {
   ShoppingCart,
   Package,
   Receipt,
-  Percent,
   TrendingUp,
   BadgePercent,
   Coins,

@@ -8,6 +8,7 @@ import { createAdjustmentSchema, updateAdjustmentSchema, type CreateAdjustmentFo
 import { useEmployeesList } from '@/features/employees/api';
 import { Dialog } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { formatCurrency } from '@/lib/format';
 import { AppError } from '@/lib/utils';
 
 const MONTHS = [
@@ -42,7 +43,7 @@ export default function SalaryAdjustmentDialog({
   const updateAdjustment = useUpdateAdjustment();
   const isEdit = !!editAdjustment;
 
-  const now = new Date();
+  const now = useMemo(() => new Date(), []);
 
   const { data: employeesData } = useEmployeesList({ page: 1, limit: 100 });
   const employees = useMemo(() => employeesData?.data ?? [], [employeesData]);
@@ -99,15 +100,11 @@ export default function SalaryAdjustmentDialog({
       }
       setError(null);
     }
-  }, [open, editAdjustment, defaultEmployeeId, defaultType, defaultMonth, defaultYear, reset]);
+  }, [open, editAdjustment, defaultEmployeeId, defaultType, defaultMonth, defaultYear, now, reset]);
 
   useEffect(() => {
     setValue('reason', '');
   }, [selectedType, setValue]);
-
-  function formatCurrency(amount: number): string {
-    return `৳${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-  }
 
   async function onSubmit(data: CreateAdjustmentFormData | UpdateAdjustmentFormData) {
     setError(null);

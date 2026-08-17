@@ -222,6 +222,9 @@ These apply to **every** module below; listed once here and referenced by ID rat
 | POS-E-10 | Error | `productId` references a now-`isActive: false` product | `409 PRODUCT_UNAVAILABLE` |
 | POS-E-11 | Error | `productId` doesn't exist at all (deleted document, bad ID) | `409 PRODUCT_UNAVAILABLE` or `400 VALIDATION_ERROR` depending on whether ID format is even valid — confirm in implementation |
 | POS-E-12 | Error/Race | Coupon hits `usageLimit` in the gap between validate-preview and order submit (two terminals race) | `409 COUPON_USAGE_LIMIT_REACHED`; transaction-level re-check catches it (`DATABASE.md` §5.2) |
+| POS-E-13 | Error | `couponCode` of a **scheduled** coupon (`validFrom` in the future, otherwise enabled) | `400 VALIDATION_ERROR` — redemption enforces the same window as `POST /pos/coupons/validate` (§9.2); the coupon is **not** applied and `usageCount` is **not** incremented |
+| POS-E-14 | Error | `couponCode` of an in-window coupon but `subtotal < minOrderAmount` | `400 VALIDATION_ERROR` — redemption enforces `minOrderAmount` server-side, mirroring the preview's `BELOW_MIN_ORDER` |
+| POS-E-15 | Edge | Flat coupon value larger than the order subtotal (e.g. BDT 500 coupon on a BDT 300 order) | Order is created with `discountAmount` clamped to the subtotal and `grandTotal: 0` — never negative, never reflected as negative revenue |
 | POS-CONCUR-01 | Concurrency | Two POS terminals submit orders using the same near-limit coupon (`usageLimit - usageCount = 1`) simultaneously | Exactly one order succeeds with the coupon applied; the other gets `409 COUPON_USAGE_LIMIT_REACHED` — **no double-spend of the last usage slot** |
 | POS-CONCUR-02 | Concurrency | Two terminals submit orders simultaneously, both relying on `Counter` for `orderNumber` | No duplicate `orderNumber` ever generated — verify via the atomic `$inc` (`DATABASE.md` §3.9) under load |
 | POS-TXN-01 | Integrity | Simulate a failure mid-transaction (e.g. `ActivityLog` write fails after `Order` insert succeeds, via fault injection) | Entire transaction rolls back — no orphaned `Order` document, no incremented `Coupon.usageCount` without a corresponding order |
@@ -250,6 +253,15 @@ These apply to **every** module below; listed once here and referenced by ID rat
 | ORD-V-03 | Validation | `paymentStatus` filter has invalid value (e.g. `yes`) | `400 VALIDATION_ERROR` |
 | ORD-E-02 | Error | Invalid transition attempt, e.g. `cancelled → completed` | Rejected — `cancelled` is terminal |
 | ORD-E-03 | Error | Invalid transition `completed → pending` | Rejected — not in the allowed transition set |
+| ORD-E-05 | Error | `PATCH /orders/:id/status` with `{ paymentStatus: 'paid', payment: { method: 'cash' }, cashTendered: X }` on a `cancelled` order | `400 ORDER_CANCELLED` — a cancelled order can never be revived/marked paid, even with full cash tendered |
+| ORD-E-06 | Error | `PUT /orders/:id` sending `items` (or `payment`/`cashTendered`/`changeAmount`/`discountPercent`) on a `cancelled` order | `400 ORDER_CANCELLED` — blocks the cancel → inflate → revive → capture cash-out path |
+| ORD-E-07 | Error | `PUT /orders/:id` sending only `tableId`/`customerId` on a `cancelled` order | Succeeds — non-financial fields remain editable |
+| ORD-S-02 | Security | `PATCH /orders/:id/status` paid with `cashTendered: 1000, changeAmount: 0` on a BDT 500 order | Succeeds, but stored `changeAmount` is server-computed `500` — the client-supplied `0` is ignored; bill prints the "Returned" line |
+| ORD-S-03 | Security | `PUT /orders/:id` with `cashTendered` and a forged `changeAmount` | Stored `changeAmount` is `cashTendered - grandTotal` (clamped at 0), never the client value |
+| ORD-E-08 | Error | `PUT /orders/:id` sending `items`/`payment`/`cashTendered`/`discountPercent` on a `paid` order | `400 ORDER_ALREADY_PAID` — financial fields are frozen once paid (only `tableId`/`customerId` remain editable) |
+| ORD-E-09 | Error | `PUT /orders/:id` editing `items` while the attached coupon is expired/disabled/below `minOrderAmount` | `400 COUPON_NOT_APPLICABLE` — the discount is never silently dropped; the coupon must be removed or replaced |
+| ORD-E-10 | Error | `PUT /orders/:id` `cashTendered` below the remaining balance (grand total − previous payments) on a cash edit | `400 VALIDATION_ERROR` — cash must cover the outstanding amount, not the full total when part was already collected |
+| ORD-H-09 | Happy | `PUT /orders/:id` with `discountPercent` on an order holding a coupon | Coupon is detached and its `usageCount` decremented (guarded at > 0) inside the same transaction as the order write |
 | ORD-RT-01 | Real-time | Status change succeeds | Emits `order:statusChanged` with `{ orderId, status }` |
 | ORD-RT-02 | Real-time | Order created via POS | Emits `order:created` with order payload |
 | ORD-H-09 | Happy | `GET /orders/:id/bill?format=pdf` | Returns valid PDF binary, `application/pdf` content-type |
@@ -492,6 +504,10 @@ These apply to **every** module below; listed once here and referenced by ID rat
 | USR-E-04 | Error | `DELETE /users/:id` on last admin | `409 LAST_ADMIN_PROTECTED` (alias must inherit the same guard) |
 | USR-AUTH-01 | Security | Non-admin attempts `PATCH /users/:id/permissions` with `users:edit` but lacks the modules they are trying to grant | `403 FORBIDDEN` — grantor must possess each module+action they assign per AI_rules.md §5 ("Users cannot assign permissions they do not possess") |
 | USR-AUTH-02 | Security | Non-admin with `users:edit` grants permissions for modules they DO possess | Succeeds — permission-based access, not role-hardcoded |
+| USR-AUTH-03 | Security | Non-admin with `users:edit` calls `PATCH /users/:id/reset-password` on an **admin** account | `403 FORBIDDEN` — only admins can reset another admin's password (prevents employee takeover of the system) |
+| USR-AUTH-04 | Security | Non-admin with `users:delete` calls `PATCH /users/:id/deactivate` or `DELETE /users/:id/permanent` on an **admin** account | `403 FORBIDDEN` — only admins can deactivate/permanently-delete an admin account |
+| USR-AUTH-05 | Security | Non-admin with `users:edit` calls `PATCH /users/:id/activate` on an **admin** account | `403 FORBIDDEN` — only admins can reactivate an admin account |
+| USR-AUTH-06 | Security | Non-admin with `users:edit` resets the password of an **employee** account | Succeeds — the employee-target behavior is unchanged; only admin targets are admin-gated |
 | USR-LOG-01 | Integration | Permission update and profile update each produce distinct `ActivityLog` entries | `user.updated` vs `user.permissions_updated` — verifiable by querying `/activity-log?module=users` |
 
 ---
@@ -519,6 +535,9 @@ These apply to **every** module below; listed once here and referenced by ID rat
 | SET-RST-02 | Validation | Restore payload missing a collection (e.g. no `ActivityLog`) | `400 VALIDATION_ERROR` |
 | SET-RST-03 | Validation | Restore payload with zero active admin users | `400 VALIDATION_ERROR` |
 | SET-RST-04 | Security | User without `settings:edit` calls `POST /settings/restore` | `403 FORBIDDEN` |
+| SET-RST-05 | Security | Restore payload injects a **new** admin (`email` not present among existing admin accounts, `passwordHash` chosen by attacker) | `400 VALIDATION_ERROR` — restore cannot create new admin accounts |
+| SET-RST-06 | Security | Restore payload replaces the **existing** admin's `passwordHash` with the attacker's hash | Restore succeeds only with the admin's **current** hash preserved — backup hash discarded; verify via DB read that the admin password did not change |
+| SET-RST-07 | Security | Restore payload contains a malformed user document (invalid `role`, non-bcrypt `passwordHash`, invalid permission module/action) | `400 VALIDATION_ERROR` — strict `User` document validation aborts the whole restore |
 
 ---
 

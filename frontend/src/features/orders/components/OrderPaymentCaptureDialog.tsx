@@ -87,7 +87,7 @@ export default function OrderPaymentCaptureDialog({ open, order, onClose, onCapt
         <p className="rounded-xl bg-slate-50 px-4 py-3 text-sm text-slate-600">
           <span className="font-semibold text-slate-800">{order.orderNumber}</span>
           <span className="mx-2 text-slate-300">&mdash;</span>
-          Due amount <span className="font-bold text-slate-800">BDT {order.grandTotal.toFixed(2)}</span>
+          Due amount <span className="font-bold text-slate-800">৳{order.grandTotal.toFixed(2)}</span>
         </p>
 
         <div>
@@ -142,7 +142,7 @@ export default function OrderPaymentCaptureDialog({ open, order, onClose, onCapt
             {tendered > 0 && (
               <div className="mt-2 flex items-center justify-between rounded-xl bg-green-50 px-3 py-2 text-sm">
                 <span className="font-medium text-green-700">Change</span>
-                <span className="font-bold text-green-700">BDT {changeAmount.toFixed(2)}</span>
+                <span className="font-bold text-green-700">৳{changeAmount.toFixed(2)}</span>
               </div>
             )}
           </div>

@@ -178,14 +178,14 @@ export default function CouponForm({ open, coupon, onClose }: CouponFormProps) {
               className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-800 ring-ring focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
               {...register('discountType')}
             >
-              <option value="flat">Flat (TK)</option>
+              <option value="flat">Flat (৳)</option>
               <option value="percentage">Percentage (%)</option>
             </select>
           </div>
 
           <div>
             <label htmlFor="coupon-value" className="mb-1.5 block text-sm font-medium text-secondary-foreground">
-              {discountType === 'flat' ? 'Amount (TK)' : 'Percentage (%)'}
+              {discountType === 'flat' ? 'Amount (৳)' : 'Percentage (%)'}
             </label>
             <input
               id="coupon-value"
@@ -237,7 +237,7 @@ export default function CouponForm({ open, coupon, onClose }: CouponFormProps) {
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label htmlFor="coupon-max-discount" className="mb-1.5 block text-sm font-medium text-secondary-foreground">
-              Max Discount (TK, optional)
+              Max Discount (৳, optional)
             </label>
             <input
               id="coupon-max-discount"
@@ -258,7 +258,7 @@ export default function CouponForm({ open, coupon, onClose }: CouponFormProps) {
 
           <div>
             <label htmlFor="coupon-min-order" className="mb-1.5 block text-sm font-medium text-secondary-foreground">
-              Min Order (TK, optional)
+              Min Order (৳, optional)
             </label>
             <input
               id="coupon-min-order"

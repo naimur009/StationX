@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useDeleteIncome, type IncomeResponse } from '@/features/incomes/api';
 import { Dialog } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { formatCurrency } from '@/lib/format';
 import { AppError } from '@/lib/utils';
 
 interface DeleteIncomeDialogProps {
@@ -37,10 +38,6 @@ export default function DeleteIncomeDialog({ income, onClose }: DeleteIncomeDial
   }
 
   if (!income) return null;
-
-  function formatCurrency(amount: number): string {
-    return `$${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-  }
 
   return (
     <Dialog

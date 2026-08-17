@@ -23,6 +23,10 @@ interface PopulatedEmployee {
   name: string;
 }
 
+function round2(n: number): number {
+  return Math.round(n * 100) / 100;
+}
+
 interface PopulatedCreator {
   _id: string;
   name: string;
@@ -202,33 +206,57 @@ export async function addAdvance(salaryId: string, dto: AddAdvanceDto, userId: s
     throw createError(400, 'INVALID_SALARY_STATUS', 'Can only add advances to active salary records');
   }
 
-  const totalPaid = salary.advances.reduce((sum, a) => sum + a.amount, 0);
-  if (totalPaid + dto.amount > salary.baseSalary) {
+  const amount = round2(dto.amount);
+
+  const result = await Salary.updateOne(
+    {
+      _id: salaryId,
+      status: 'active',
+      $expr: {
+        $lte: [
+          { $add: [{ $sum: '$advances.amount' }, amount] },
+          '$baseSalary',
+        ],
+      },
+    },
+    {
+      $push: {
+        advances: {
+          amount,
+          date: dto.date,
+          note: dto.note,
+          createdBy: new mongoose.Types.ObjectId(userId),
+        },
+      },
+    }
+  );
+
+  if (result.matchedCount === 0) {
+    const fresh = await Salary.findById(salaryId);
+    if (!fresh) {
+      throw createError(404, 'NOT_FOUND', 'Salary record not found');
+    }
+    if (fresh.status !== 'active') {
+      throw createError(400, 'INVALID_SALARY_STATUS', 'Can only add advances to active salary records');
+    }
     throw createError(400, 'EXCEEDS_SALARY', 'Advance amount would exceed remaining balance');
   }
 
-  salary.advances.push({
-    amount: dto.amount,
-    date: dto.date,
-    note: dto.note,
-    createdBy: new mongoose.Types.ObjectId(userId),
-  });
-
-  const newTotal = totalPaid + dto.amount;
-  if (Math.abs(newTotal - salary.baseSalary) < 0.01) {
-    salary.status = 'paid';
-    salary.paidAt = new Date();
+  const totalPaid = salary.advances.reduce((sum, a) => sum + a.amount, 0) + amount;
+  if (Math.abs(totalPaid - salary.baseSalary) < 0.01) {
+    await Salary.updateOne(
+      { _id: salaryId, status: 'active' },
+      { $set: { status: 'paid', paidAt: new Date() } }
+    );
   }
 
-  await salary.save();
-
-  const populated = await Salary.findById(salary._id)
+  const updated = await Salary.findById(salaryId)
     .populate('employeeId', 'name')
     .populate('createdBy', 'name')
     .populate('advances.createdBy', 'name')
     .lean();
 
-  return toData(populated! as unknown as Record<string, unknown>);
+  return toData(updated! as unknown as Record<string, unknown>);
 }
 
 export async function updateSalaryStatus(salaryId: string, dto: UpdateSalaryStatusDto) {

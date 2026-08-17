@@ -151,7 +151,7 @@ export default function PosPage() {
             </div>
             <div className="min-w-0">
               <p className="text-[11px] font-medium uppercase tracking-wide text-slate-500">Total</p>
-              <p className="truncate text-sm font-bold text-slate-800">BDT {totals.grandTotal.toFixed(2)}</p>
+              <p className="truncate text-sm font-bold text-slate-800">৳{totals.grandTotal.toFixed(2)}</p>
             </div>
           </div>
           <Button

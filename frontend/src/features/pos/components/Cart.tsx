@@ -26,39 +26,39 @@ export default function Cart() {
         <li key={item.productId} className="flex items-center gap-2 py-1.5">
           <div className="min-w-0 flex-1">
             <p className="truncate text-[13px] font-medium text-slate-800">{item.name}</p>
-            <p className="text-[11px] text-slate-500">BDT {item.price.toFixed(2)}</p>
+            <p className="text-[11px] text-slate-500">৳{item.price.toFixed(2)}</p>
           </div>
 
-          <div className="flex shrink-0 items-center">
+          <div className="flex shrink-0 items-center gap-1">
             <button
               onClick={() => updateQuantity(item.productId, item.quantity - 1)}
-              className="flex h-7 w-7 items-center justify-center rounded-md border border-slate-200 bg-white text-slate-500 transition-colors hover:bg-slate-100 active:scale-95"
+              className="flex h-9 w-9 items-center justify-center rounded-md border border-slate-200 bg-white text-slate-500 transition-colors hover:bg-slate-100 active:scale-95"
               aria-label={`Decrease quantity of ${item.name}`}
             >
-              <Minus className="h-3 w-3" />
+              <Minus className="h-4 w-4" />
             </button>
-            <span className="flex w-7 items-center justify-center text-sm font-semibold text-slate-800">
+            <span className="flex w-8 items-center justify-center text-sm font-semibold text-slate-800">
               {item.quantity}
             </span>
             <button
               onClick={() => updateQuantity(item.productId, item.quantity + 1)}
-              className="flex h-7 w-7 items-center justify-center rounded-md border border-slate-200 bg-white text-slate-500 transition-colors hover:bg-slate-100 active:scale-95"
+              className="flex h-9 w-9 items-center justify-center rounded-md border border-slate-200 bg-white text-slate-500 transition-colors hover:bg-slate-100 active:scale-95"
               aria-label={`Increase quantity of ${item.name}`}
             >
-              <Plus className="h-3 w-3" />
+              <Plus className="h-4 w-4" />
             </button>
           </div>
 
           <p className="w-16 shrink-0 text-right text-[13px] font-semibold text-slate-800 sm:w-[4.5rem]">
-            BDT {item.lineTotal.toFixed(2)}
+            ৳{item.lineTotal.toFixed(2)}
           </p>
 
           <button
             onClick={() => removeItem(item.productId)}
-            className="shrink-0 rounded-md p-1.5 text-slate-300 transition-colors hover:bg-red-50 hover:text-red-500"
+            className="shrink-0 rounded-md p-2 text-slate-300 transition-colors hover:bg-red-50 hover:text-red-500"
             aria-label={`Remove ${item.name} from cart`}
           >
-            <Trash2 className="h-3.5 w-3.5" />
+            <Trash2 className="h-4 w-4" />
           </button>
         </li>
       ))}

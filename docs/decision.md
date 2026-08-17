@@ -742,6 +742,8 @@ Pulling table management into v1 was low-risk because `architecture.md`'s Future
 - A backup is an admin-only, authenticated download that already contains the entire dataset (orders, financials, activity logs); including bcrypt password hashes is consistent with standard dump-based backup tooling and is required for a functional restore.
 - The admin-preservation rule belongs to the *reset* flow (admin accounts survive a data reset), not the *restore* flow — restore is explicitly a "replace everything with the backup contents" operation per the UI confirmation copy.
 
+**Amendment (security review 2026-08-17):** restore is now privilege-safe by construction — attacker-chosen `User` documents can no longer be inserted verbatim. Strict document validation (shape, `role ∈ admin|employee`, bcrypt `passwordHash`, permission keys) plus two admin-specific rules: (1) every admin in the backup must match an existing admin account by email — restore can never create a new admin, and (2) matched admins keep their current `passwordHash` — a forged backup cannot overwrite the real admin's password. The `settings:edit` grant no longer implies "create arbitrary accounts / hijack the system" through `POST /settings/restore`. Documented in `API.md` §23, `DATABASE.md` §5.11, `TEST_CASES.md` §17 (SET-RST-05..07); enforced in `backend/src/modules/settings/data-management.service.ts` (`sanitizeRestoredUsers`).
+
 ### [—] Settings — Docs Reconciled to Code (Data Management, Public Whitelist, Table Sync) — 2026-08-05
 
 **Open item resolved:** Code-review reconciliation — `API.md` §23 documented only GET `/settings/public`, GET `/settings`, PUT `/settings`; the implemented reset/backup/restore endpoints, the public `loyaltyOrderThreshold` field, and the table re-sync event were undocumented contract deviations.
@@ -900,3 +902,40 @@ Pulling table management into v1 was low-risk because `architecture.md`'s Future
 - `frontend/src/features/tables/components/CreateTableDialog.tsx` (deleted — dead since decision [—] 2026-07-24)
 
 **Reasoning:** The delete-guard semantics conflict was resolved by amending the docs to the implemented, decision-anchored behavior (PRD §5 + decision [—] 2026-07-23) — a stale `currentOrderId` pointing at a completed/cancelled order is a residue reference, not an in-use table, and `tableLabelSnapshot` already protects historical bills. Everything else is mechanical: restoring the grid delete control the decision promised (the review's only High finding, and the repo's only FE tsc errors), unpaginating a list whose contract is "all tables" for a grid capped at 100 rows, documenting codes the code already threw, and deleting code that has been dead since the 2026-07-24 decision removed the Add Table button.
+### [21] Order Integrity Fixes — Transactional Edits, Coupon Quota Return, Cash Guards — 2026-08-17
+
+**Status:** Implemented.
+
+**Changes:**
+
+1. **`updateOrder` is now fully transactional** — table (re)booking, the order write, old-table release, coupon `usageCount` decrement, and payment-split recording all commit in one `withTransaction`. The old code booked the new table and recorded the payment split *before* the order write, so a failed write left a phantom booking and a split that never got applied. Paid/cancelled guards are re-checked inside the transaction on the fresh document (`ORDER_ALREADY_PAID` / `ORDER_CANCELLED`), closing the race where a concurrent capture lands between the pre-read and the write.
+2. **Coupon `usageCount` is now returned, not just consumed** — when an order's coupon is removed (`discountPercent` set, or coupon nulled via items edit), `usageCount` is decremented (guarded `{ $gt: 0 }`) inside the same transaction. Previously usage count was increment-only, so cancelled/edited orders permanently burned quota.
+3. **No more silent coupon zeroing** — editing `items` on an order whose attached coupon is expired/disabled/below `minOrderAmount` now rejects with new error `400 COUPON_NOT_APPLICABLE` (added to `API.md` §26). Previously the discount was silently dropped, hiding money owed to the customer.
+4. **Cash guard now measures the outstanding balance** — on mixed payments (`previousPayments` present), `cashTendered` must cover `round2(grandTotal − Σ previousPayments)`, not the full total, and `changeAmount` is `round2(max(0, cashTendered − outstanding))`. The previous vacuous guard compared `totalCollected ≥ grandTotal` with the old cash tendered, which never fired in the mixed-payment branch.
+5. **`updateOrderStatus` re-reads inside the transaction** — the paid branch checks `fresh.grandTotal` for the cash guard, `fresh.tableId`/`fresh.tableLabelSnapshot` for the unbooking, and `fresh.status === 'cancelled'` → `ORDER_CANCELLED` on the fresh doc; the transition branch re-checks `VALID_TRANSITIONS` against the fresh status (idempotent early return if already in target state). Socket emits now use the captured fresh values.
+6. **Reports discount allocation** — `byProduct`/`byCategory` income now allocates the whole-order `discountAmount` proportionally per unit (`discountPerUnit = discountAmount / subtotal`, guarded for `subtotal = 0`), so per-product sums reconcile with the summary `grandTotal`. Previously those facets summed pre-discount `lineTotal`, making them overstate revenue versus the summary row.
+
+**Tests:** 11 regression tests added (coupon decrement, `COUPON_NOT_APPLICABLE`, `ORDER_ALREADY_PAID`, `ORDER_CANCELLED` on items edit and paid capture, outstanding-balance cash guard, server-computed change, transactional re-read path); the 4 pre-existing failures fixed (stale "Auto Round" bill test + 3 timeouts from un-mocked `Table`/`Coupon`/`lib/transaction`). Full suite: 196/196 green, `tsc --noEmit` clean.
+
+**Doc(s) updated:** `API.md` §26 (`COUPON_NOT_APPLICABLE`), `TEST_CASES.md` (ORD-E-08/09/10, ORD-H-09).
+
+### [22] Security & Frontend Review Round — 2026-08-17
+
+**Status:** Implemented (deferrals noted).
+
+**Changes:**
+
+1. **Socket events are now permission-scoped** — every `emit` was a global broadcast; a cashier with no `tasks` permission still received `task:assigned`, table statuses, etc. Sockets now join `room:<module>` per their JWT permission set (plus `user:<id>`), and all ~20 emit sites route through `.to(room)`. `task:assigned` is user-scoped to the assignee. (Room membership derives from the access token, so permission changes apply on next token refresh — documented behavior.)
+2. **Rate limiters trust one proxy hop** (`app.set('trust proxy', 1)`) so clients behind nginx/caddy are keyed by real IP instead of sharing one bucket.
+3. **Backup/reset/restore are admin-only** — `/settings/backup` previously exposed `passwordHash` under `settings:view`; all three endpoints now require role `admin` via new `requireAdmin` middleware.
+4. **Uploads verify file content, not just the client header** — magic-byte sniffing (JPEG/PNG/WebP) rejects mismatched/unknown content (`INVALID_FILE_CONTENT`, `MIME_MISMATCH`). Cloudinary deletion refuses `publicId`s outside the app root folder.
+5. **`objectIdParam` strengthened** — 9 modules + users routes accepted any non-empty `:id` (CastError → 500); all now share `lib/object-id.ts` with the 24-hex regex (400 instead).
+6. **Frontend** — fixed the orders-page socket guard that prevented listeners from ever attaching when the socket wasn't yet connected; removed duplicate `$`/৳ currency helpers in favor of `lib/format.ts`; emerald accents replaced with the `success` token; POS cart quantity controls enlarged to 36px tap targets; `font-mono` removed per theme.md's no-override rule.
+7. **Salary advance is atomic** — `addAdvance` now uses a single `updateOne` with `$expr` (Σ advances + amount ≤ baseSalary, status active) instead of read-modify-write, closing the double-advance race; amount rounded to 2dp.
+8. **Customer `$unset`** — clearing `email`/`phone`/`address` now actually removes the field (`$unset`) instead of writing `undefined`, which the driver strips.
+9. **`task:assigned` payload fixed** — the emit captured `task.assignedTo.toString()` *after* population, sending `[object Object]`.
+10. **Category duplicate-name race** — E11000 on concurrent create/update mapped to the same 400 as the pre-check. **Product image lifecycle** — the old Cloudinary image is now deleted only after the product update succeeds (previously deleted first, orphaning on failure).
+
+**Deferred (documented, not silent):** refresh-token revocation remains Phase 2 per `ARCHITECTURE.md` §6.6 (7-day natural expiry, code comment in `auth.service.ts`); activity-log descriptions are stored raw but the frontend has zero `dangerouslySetInnerHTML` usages (React escaping renders them inert); date-range/report day boundaries remain server-local (`normalizeDateRange` + `serverTimezone()` are mutually consistent) — a production deployment should set the container TZ to `Asia/Dhaka`.
+
+**Verification:** backend `tsc --noEmit` clean; vitest 196/196; frontend `next build` clean.

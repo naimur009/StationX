@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useDeleteSalary, type SalaryResponse } from '../api';
 import { Dialog } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { formatCurrency } from '@/lib/format';
 import { AppError } from '@/lib/utils';
 
 const MONTHS = [
@@ -46,10 +47,6 @@ export default function DeleteSalaryDialog({ salary, onClose }: DeleteSalaryDial
   }
 
   if (!salary) return null;
-
-  function formatCurrency(amount: number): string {
-    return `৳${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-  }
 
   return (
     <Dialog

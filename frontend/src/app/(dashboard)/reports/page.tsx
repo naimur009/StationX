@@ -14,7 +14,7 @@ import type { SalesReport, ProfitReport } from '@/features/reports/api';
 
 export default function ReportsPage() {
   const [selectedType, setSelectedType] = useState<ReportType>('sales');
-  const { filter, setRange, setCustomRange, queryString } = useDateRangeFilter('month');
+  const { filter, setRange, setCustomRange, queryString } = useDateRangeFilter('today');
 
   const { data, isLoading, isError, error } = useReport(
     selectedType,
@@ -25,7 +25,7 @@ export default function ReportsPage() {
 
   function handleTypeChange(type: ReportType) {
     setSelectedType(type);
-    setRange('month');
+    setRange('today');
   }
 
   function renderReportView() {

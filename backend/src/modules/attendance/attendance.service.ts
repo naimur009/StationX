@@ -177,7 +177,7 @@ export async function markAttendance(dto: CreateAttendanceDto, authenticatedUser
     await record.populate('markedBy', 'name');
 
     try {
-      getIO().emit('attendance:marked', {
+      getIO().to('room:attendance').emit('attendance:marked', {
         employeeId: dto.employeeId,
         date: formatDate(date),
         status: dto.status,
@@ -276,7 +276,7 @@ export async function batchMarkAttendance(dto: BatchAttendanceDto, authenticated
     for (const record of attendanceRecords) {
       if (failedIds.has(record.employee)) continue;
       try {
-        getIO().emit('attendance:marked', {
+        getIO().to('room:attendance').emit('attendance:marked', {
           employeeId: record.employee,
           date: formatDate(date),
           status: record.status,
@@ -307,7 +307,7 @@ export async function updateAttendance(id: string, dto: UpdateAttendanceDto) {
   await record.populate('markedBy', 'name');
 
   try {
-    getIO().emit('attendance:updated', {
+    getIO().to('room:attendance').emit('attendance:updated', {
       employeeId: record.employee._id,
       date: formatDate(record.date),
       status: record.status,
@@ -336,7 +336,9 @@ export async function listAttendance(query: ListAttendanceQueryDto) {
     if (ids.length === 0) {
       return { data: [], meta: { total: 0, page: query.page, limit: query.limit } };
     }
-    filter.employee = { $in: ids };
+    filter.employee = query.employeeId
+      ? { $in: ids, $eq: query.employeeId }
+      : { $in: ids };
   }
 
   if (query.status) {

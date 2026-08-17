@@ -31,6 +31,11 @@ import tablesRoutes from './modules/tables/tables.routes';
 
 const app = express();
 
+// Trust the first hop so rate limiters key on the real client IP when the
+// app runs behind a reverse proxy (nginx/caddy). Remove/reduce if deployed
+// directly exposed to the internet.
+app.set('trust proxy', 1);
+
 app.use(
   helmet({
     contentSecurityPolicy: {

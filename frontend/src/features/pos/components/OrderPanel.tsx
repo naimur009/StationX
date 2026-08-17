@@ -246,7 +246,7 @@ export default function OrderPanel({
               disabled={items.length === 0 || submitting}
               onClick={onPlaceOrder}
             >
-              {submitting ? 'Processing...' : `Place Order — BDT ${totals.grandTotal.toFixed(2)}`}
+              {submitting ? 'Processing...' : `Place Order — ৳${totals.grandTotal.toFixed(2)}`}
             </Button>
           </PermissionGate>
 

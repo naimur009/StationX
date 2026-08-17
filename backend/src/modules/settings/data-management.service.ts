@@ -16,6 +16,7 @@ import ActivityLog from '../../models/ActivityLog';
 import Settings, { DEFAULT_SETTINGS } from '../../models/Settings';
 import Counter from '../../models/Counter';
 import { env } from '../../config/env';
+import { MODULE_ACTIONS } from '../../shared/constants';
 import bcrypt from 'bcrypt';
 
 const SALT_ROUNDS = 12;
@@ -99,6 +100,68 @@ const EXPECTED_COLLECTION_KEYS = new Set([
   'SalarySummary', 'Expense', 'ActivityLog', 'Settings', 'Counter',
 ]);
 
+const ALLOWED_USER_ROLES = new Set(['admin', 'employee']);
+
+function invalidRestoreUser(message: string): never {
+  const err = new Error(`Invalid user document in backup: ${message}`) as Error & { statusCode?: number; code?: string };
+  err.statusCode = 400;
+  err.code = 'VALIDATION_ERROR';
+  throw err;
+}
+
+function sanitizeRestoredUsers(
+  users: Array<Record<string, unknown>>,
+  existingAdminHash: Map<string, string>
+): Array<Record<string, unknown>> {
+  return users.map((u) => {
+    if (typeof u.email !== 'string' || !u.email.trim()) {
+      invalidRestoreUser('email must be a non-empty string');
+    }
+    if (typeof u.name !== 'string' || !u.name.trim()) {
+      invalidRestoreUser('name must be a non-empty string');
+    }
+    if (!ALLOWED_USER_ROLES.has(u.role as string)) {
+      invalidRestoreUser(`role must be one of ${[...ALLOWED_USER_ROLES].join(', ')}`);
+    }
+    if (typeof u.isActive !== 'boolean') {
+      invalidRestoreUser('isActive must be a boolean');
+    }
+    if (typeof u.passwordHash !== 'string' || !u.passwordHash.startsWith('$2')) {
+      invalidRestoreUser('passwordHash must be a valid bcrypt hash');
+    }
+
+    if (u.permissions !== undefined) {
+      if (!Array.isArray(u.permissions)) {
+        invalidRestoreUser('permissions must be an array');
+      }
+      for (const p of u.permissions as Array<Record<string, unknown>>) {
+        const validActions = MODULE_ACTIONS[p.module as string];
+        if (!validActions) {
+          invalidRestoreUser(`unknown permission module "${String(p.module)}"`);
+        }
+        if (
+          !Array.isArray(p.actions) ||
+          !p.actions.every((a) => typeof a === 'string' && (validActions as readonly string[]).includes(a))
+        ) {
+          invalidRestoreUser(`invalid actions for module "${String(p.module)}"`);
+        }
+      }
+    }
+
+    if (u.role === 'admin') {
+      const existingHash = existingAdminHash.get(String(u.email).toLowerCase());
+      if (!existingHash) {
+        invalidRestoreUser(
+          `admin "${u.email}" does not match an existing admin account — restore cannot create new admin accounts`
+        );
+      }
+      return { ...u, passwordHash: existingHash };
+    }
+
+    return u;
+  });
+}
+
 export async function restoreBackup(backupData: Record<string, unknown[]>): Promise<{ collections: number; documents: number }> {
   const providedKeys = Object.keys(backupData);
   for (const key of providedKeys) {
@@ -119,7 +182,17 @@ export async function restoreBackup(backupData: Record<string, unknown[]>): Prom
     }
   }
 
-  const adminCount = (backupData['User'] as Array<Record<string, unknown>>)
+  const existingAdmins = await User.find({ role: 'admin' })
+    .select('+passwordHash')
+    .lean();
+  const existingAdminHash = new Map(
+    existingAdmins.map((a) => [a.email.toLowerCase(), a.passwordHash])
+  );
+
+  const userDocs = (backupData['User'] as Array<Record<string, unknown>>) ?? [];
+  const sanitizedUsers = sanitizeRestoredUsers(userDocs, existingAdminHash);
+
+  const adminCount = sanitizedUsers
     .filter((u) => u.role === 'admin' && u.isActive !== false).length;
   if (adminCount === 0) {
     const err = new Error('Backup must contain at least one active admin user') as Error & { statusCode?: number; code?: string };
@@ -135,7 +208,7 @@ export async function restoreBackup(backupData: Record<string, unknown[]>): Prom
   const writers: CollectionWriter[] = [
     async () => { await Settings.deleteMany({}); if (backupData['Settings']?.length) { await Settings.insertMany(backupData['Settings'] as any, { ordered: false }); } return backupData['Settings']?.length ?? 0; },
     async () => { await Counter.deleteMany({}); if (backupData['Counter']?.length) { await Counter.insertMany(backupData['Counter'] as any, { ordered: false }); } return backupData['Counter']?.length ?? 0; },
-    async () => { await User.deleteMany({}); if (backupData['User']?.length) { await User.insertMany(backupData['User'] as any, { ordered: false }); } return backupData['User']?.length ?? 0; },
+    async () => { await User.deleteMany({}); if (sanitizedUsers.length) { await User.insertMany(sanitizedUsers as any, { ordered: false }); } return sanitizedUsers.length; },
     async () => { await Category.deleteMany({}); if (backupData['Category']?.length) { await Category.insertMany(backupData['Category'] as any, { ordered: false }); } return backupData['Category']?.length ?? 0; },
     async () => { await Product.deleteMany({}); if (backupData['Product']?.length) { await Product.insertMany(backupData['Product'] as any, { ordered: false }); } return backupData['Product']?.length ?? 0; },
     async () => { await Coupon.deleteMany({}); if (backupData['Coupon']?.length) { await Coupon.insertMany(backupData['Coupon'] as any, { ordered: false }); } return backupData['Coupon']?.length ?? 0; },

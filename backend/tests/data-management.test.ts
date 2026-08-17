@@ -221,9 +221,15 @@ describe('dataManagementService', () => {
   });
 
   describe('restoreBackup', () => {
+    const EXISTING_ADMIN = { email: 'admin@test.com', passwordHash: '$2b$12$existingAdminHashValue' };
+
+    const mockExistingAdmins = (admins = [EXISTING_ADMIN]) => {
+      vi.mocked(User.find).mockReturnValue(mockFindSelectLean(admins));
+    };
+
     const validBackup = (overrides: Record<string, unknown> = {}) => ({
       data: {
-        User: [{ _id: '1', email: 'admin@test.com', role: 'admin', isActive: true, passwordHash: 'hash' }],
+        User: [{ _id: '1', name: 'Admin', email: 'admin@test.com', role: 'admin', isActive: true, passwordHash: '$2b$12$backupHashValue' }],
         Category: [],
         Product: [],
         Coupon: [],
@@ -261,7 +267,12 @@ describe('dataManagementService', () => {
     });
 
     it('rejects backup with no active admin', async () => {
-      const noAdmin = validBackup({ User: [{ _id: '2', email: 'staff@test.com', role: 'staff', isActive: true }] });
+      mockExistingAdmins();
+      const noAdmin = validBackup({
+        User: [
+          { _id: '2', name: 'Staff', email: 'staff@test.com', role: 'employee', isActive: true, passwordHash: '$2b$12$staffHashValue' },
+        ],
+      });
       await expect(restoreBackup(noAdmin.data)).rejects.toMatchObject({
         statusCode: 400,
         code: 'VALIDATION_ERROR',
@@ -269,16 +280,71 @@ describe('dataManagementService', () => {
     });
 
     it('rejects backup with only inactive admin', async () => {
-      const inactiveAdmin = validBackup({ User: [{ _id: '3', email: 'admin@test.com', role: 'admin', isActive: false }] });
+      mockExistingAdmins();
+      const inactiveAdmin = validBackup({
+        User: [{ _id: '3', email: 'admin@test.com', role: 'admin', isActive: false, passwordHash: '$2b$12$backupHashValue' }],
+      });
       await expect(restoreBackup(inactiveAdmin.data)).rejects.toMatchObject({
         statusCode: 400,
         code: 'VALIDATION_ERROR',
       });
     });
 
+    it('rejects admin accounts that do not match an existing admin email', async () => {
+      mockExistingAdmins();
+      const injectedAdmin = validBackup({
+        User: [
+          { _id: '1', name: 'Admin', email: 'admin@test.com', role: 'admin', isActive: true, passwordHash: '$2b$12$backupHashValue' },
+          { _id: '9', name: 'Attacker', email: 'attacker@x.com', role: 'admin', isActive: true, passwordHash: '$2b$12$attackerHashValue' },
+        ],
+      });
+      await expect(restoreBackup(injectedAdmin.data)).rejects.toMatchObject({
+        statusCode: 400,
+        code: 'VALIDATION_ERROR',
+        message: expect.stringContaining('attacker@x.com'),
+      });
+    });
+
+    it('rejects malformed user documents (bad role / missing bcrypt hash)', async () => {
+      mockExistingAdmins();
+      const badRole = validBackup({
+        User: [
+          { _id: '1', name: 'Admin', email: 'admin@test.com', role: 'admin', isActive: true, passwordHash: '$2b$12$backupHashValue' },
+          { _id: '2', email: 'staff@test.com', role: 'superuser', isActive: true, passwordHash: '$2b$12$staffHashValue' },
+        ],
+      });
+      await expect(restoreBackup(badRole.data)).rejects.toMatchObject({
+        statusCode: 400,
+        code: 'VALIDATION_ERROR',
+      });
+
+      const badHash = validBackup({
+        User: [{ _id: '1', name: 'Admin', email: 'admin@test.com', role: 'admin', isActive: true, passwordHash: 'plaintext' }],
+      });
+      await expect(restoreBackup(badHash.data)).rejects.toMatchObject({
+        statusCode: 400,
+        code: 'VALIDATION_ERROR',
+      });
+    });
+
+    it('preserves the existing admin passwordHash instead of restoring the backup hash', async () => {
+      mockExistingAdmins();
+      const backupData = validBackup({
+        User: [{ _id: '1', name: 'Admin', email: 'admin@test.com', role: 'admin', isActive: true, passwordHash: '$2b$12$attackerHashValue' }],
+      }).data;
+
+      await restoreBackup(backupData);
+
+      expect(User.insertMany).toHaveBeenCalledWith(
+        [{ _id: '1', name: 'Admin', email: 'admin@test.com', role: 'admin', isActive: true, passwordHash: '$2b$12$existingAdminHashValue' }],
+        { ordered: false }
+      );
+    });
+
     it('clears all collections then inserts backup data in order', async () => {
+      mockExistingAdmins();
       const backupData = {
-        User: [{ _id: '1', email: 'admin@test.com', role: 'admin', isActive: true, passwordHash: 'hash' }],
+        User: [{ _id: '1', name: 'Admin', email: 'admin@test.com', role: 'admin', isActive: true, passwordHash: '$2b$12$backupHashValue' }],
         Settings: [{ _id: 'restaurant-settings', restaurantName: 'After Restore' }],
         Counter: [{ _id: 'orderNumber', seq: 10 }],
         Category: [{ _id: 'cat-1', name: 'Beverages' }],
@@ -313,14 +379,15 @@ describe('dataManagementService', () => {
         { ordered: false }
       );
       expect(User.insertMany).toHaveBeenCalledWith(
-        backupData.User,
+        [{ _id: '1', name: 'Admin', email: 'admin@test.com', role: 'admin', isActive: true, passwordHash: '$2b$12$existingAdminHashValue' }],
         { ordered: false }
       );
     });
 
     it('calls deleteMany even for empty collections but skips insertMany', async () => {
+      mockExistingAdmins();
       const backupData = {
-        User: [{ _id: '1', email: 'admin@test.com', role: 'admin', isActive: true, passwordHash: 'hash' }],
+        User: [{ _id: '1', name: 'Admin', email: 'admin@test.com', role: 'admin', isActive: true, passwordHash: '$2b$12$backupHashValue' }],
         Category: [],
         Product: [],
         Coupon: [],
@@ -346,10 +413,11 @@ describe('dataManagementService', () => {
     });
 
     it('returns correct document count', async () => {
+      mockExistingAdmins();
       const backupData = {
         User: [
-          { _id: '1', email: 'admin@test.com', role: 'admin', isActive: true },
-          { _id: '2', email: 'staff@test.com', role: 'staff', isActive: true },
+          { _id: '1', name: 'Admin', email: 'admin@test.com', role: 'admin', isActive: true, passwordHash: '$2b$12$backupHashValue' },
+          { _id: '2', name: 'Staff', email: 'staff@test.com', role: 'employee', isActive: true, passwordHash: '$2b$12$staffHashValue' },
         ],
         Category: [{ _id: 'cat-1', name: 'Food' }],
         Product: [],

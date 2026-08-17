@@ -139,6 +139,7 @@ export async function updateCustomer(id: string, dto: UpdateCustomerDto) {
 
   const historyEntries: Array<{ field: string; oldValue: string; newValue: string; changedAt: Date }> = [];
   const updates: Record<string, unknown> = {};
+  const unsets: Record<string, unknown> = {};
 
   if (dto.name !== undefined && dto.name !== customer.name) {
     historyEntries.push({ field: 'name', oldValue: customer.name, newValue: dto.name, changedAt: new Date() });
@@ -146,18 +147,33 @@ export async function updateCustomer(id: string, dto: UpdateCustomerDto) {
   }
   if (dto.phone !== undefined && dto.phone !== customer.phone) {
     historyEntries.push({ field: 'phone', oldValue: customer.phone, newValue: dto.phone, changedAt: new Date() });
-    updates.phone = dto.phone;
+    if (dto.phone) {
+      updates.phone = dto.phone;
+    } else {
+      unsets.phone = '';
+    }
   }
   if (dto.email !== undefined && dto.email !== (customer.email || '')) {
     historyEntries.push({ field: 'email', oldValue: customer.email || '', newValue: dto.email || '', changedAt: new Date() });
-    updates.email = dto.email || undefined;
+    if (dto.email) {
+      updates.email = dto.email;
+    } else {
+      unsets.email = '';
+    }
   }
   if (dto.address !== undefined && dto.address !== (customer.address || '')) {
     historyEntries.push({ field: 'address', oldValue: customer.address || '', newValue: dto.address || '', changedAt: new Date() });
-    updates.address = dto.address || undefined;
+    if (dto.address) {
+      updates.address = dto.address;
+    } else {
+      unsets.address = '';
+    }
   }
 
   const updateOp: Record<string, unknown> = { $set: updates };
+  if (Object.keys(unsets).length > 0) {
+    updateOp.$unset = unsets;
+  }
   if (historyEntries.length > 0) {
     updateOp.$push = { history: { $each: historyEntries } };
   }

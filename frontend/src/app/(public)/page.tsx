@@ -1,62 +1,27 @@
 'use client';
 
 import Link from 'next/link';
-import { usePublicSettings, useHealthCheck } from '@/features/homepage/api';
-import { useAuthStore } from '@/stores/auth-store';
-
-function HealthIndicator() {
-  const { data, isSuccess } = useHealthCheck();
-  const connected = isSuccess && data?.connected !== false;
-
-  return (
-    <div className="flex items-center gap-2 text-xs font-medium text-slate-400">
-      <span
-        className={`inline-block h-2 w-2 rounded-full ${connected ? 'bg-green-500' : 'bg-red-500'}`}
-      />
-      <span>{connected ? 'Connected' : 'Disconnected'}</span>
-    </div>
-  );
-}
+import { usePublicSettings } from '@/features/homepage/api';
+import HomeNavbar from '@/features/homepage/components/HomeNavbar';
 
 export default function HomePage() {
   const { data: settingsData, isError } = usePublicSettings();
   const settings = settingsData?.data;
-  const logoSrc = !isError ? settings?.logo?.url : undefined;
   const brandName = settings?.restaurantName || 'StationX';
-  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
-  const loginHref = isAuthenticated ? '/redirect?to=/overview' : '/login';
 
   return (
     <div className="flex min-h-screen flex-col bg-slate-50">
-      <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/80 backdrop-blur-md">
-        <nav className="mx-auto flex max-w-7xl items-center justify-between px-6 py-2">
-          <span className="flex h-16 items-center">
-            {logoSrc && (
-              <img
-                src={logoSrc}
-                alt={brandName}
-                className="h-full w-auto object-contain"
-                onError={(e) => {
-                  (e.target as HTMLImageElement).style.display = 'none';
-                }}
-              />
-            )}
-          </span>
-          <Link
-            href={loginHref}
-            className="inline-flex h-11 items-center justify-center rounded-xl bg-primary px-5 text-sm font-medium text-white shadow-primary/25 transition-all hover:bg-primary/90 active:translate-y-px"
-          >
-            Staff Login
-          </Link>
-        </nav>
-      </header>
+      <HomeNavbar />
 
       <main className="relative flex-1">
         <div className="relative overflow-hidden">
           <div aria-hidden="true" className="pointer-events-none absolute -top-32 right-0 h-[500px] w-[500px] rounded-full bg-indigo-50" />
           <div aria-hidden="true" className="pointer-events-none absolute -bottom-40 -left-40 h-[600px] w-[600px] rounded-full bg-indigo-50/50" />
 
-          <section className="relative mx-auto flex max-w-4xl flex-col items-center px-6 pb-20 pt-28 text-center md:pt-40">
+          <section
+            id="home"
+            className="relative mx-auto flex max-w-4xl scroll-mt-16 flex-col items-center px-6 pb-20 pt-24 text-center md:pt-36"
+          >
             <div className="mb-8 h-1 w-20 rounded-full bg-primary/60" aria-hidden="true" />
 
             <h1 className="text-5xl font-bold tracking-tight text-slate-800 max-md:text-4xl">
@@ -88,7 +53,7 @@ export default function HomePage() {
           </section>
         </div>
 
-        <section className="border-t border-slate-200 bg-white">
+        <section id="features" className="scroll-mt-16 border-t border-slate-200 bg-white">
           <div className="mx-auto max-w-7xl px-6 py-20">
             <div className="grid gap-12 md:grid-cols-3">
               <div className="text-center">
@@ -132,20 +97,20 @@ export default function HomePage() {
 
       </main>
 
-      <footer className="border-t border-slate-200">
+      <footer id="contact" className="scroll-mt-16 border-t border-slate-200">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-5">
           <p className="text-xs font-medium text-slate-400">
             &copy; {new Date().getFullYear()} {brandName}. All rights reserved.
           </p>
           <div className="flex items-center gap-4">
             <Link
-              href={loginHref}
+              href="/login"
               className="text-xs font-medium text-slate-400 transition-colors hover:text-slate-600"
             >
               Staff Login
             </Link>
             <span className="text-slate-200">|</span>
-            <HealthIndicator />
+            <span className="text-xs font-medium text-slate-400">Contact us</span>
           </div>
         </div>
       </footer>

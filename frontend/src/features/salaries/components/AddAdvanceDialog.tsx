@@ -7,6 +7,7 @@ import { useAddAdvance, useCreateSalary, type SalaryResponse } from '../api';
 import { addAdvanceSchema, type AddAdvanceFormData } from '../schema';
 import { Dialog } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { formatCurrency } from '@/lib/format';
 import { AppError } from '@/lib/utils';
 
 interface AddAdvanceDialogProps {
@@ -66,10 +67,6 @@ export default function AddAdvanceDialog({
       setError(null);
     }
   }, [open, reset]);
-
-  function formatCurrency(amount: number): string {
-    return `৳${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-  }
 
   async function onSubmit(data: AddAdvanceFormData) {
     setError(null);

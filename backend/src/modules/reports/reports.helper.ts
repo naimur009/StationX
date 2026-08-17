@@ -18,6 +18,13 @@ export function salesAggregation(from: Date, to: Date): PipelineStage[] {
     { $match: { ...buildRevenueMatch(), createdAt: { $gte: from, $lte: to } } },
     {
       $addFields: {
+        discountPerUnit: {
+          $cond: [
+            { $gt: ['$subtotal', 0] },
+            { $divide: ['$discountAmount', '$subtotal'] },
+            0,
+          ],
+        },
         paymentSplits: {
           $cond: {
             if: { $gt: [{ $size: { $ifNull: ['$previousPayments', []] } }, 0] },
@@ -115,7 +122,14 @@ export function salesAggregation(from: Date, to: Date): PipelineStage[] {
             $group: {
               _id: { productId: '$items.productId', name: '$items.nameSnapshot' },
               unitsSold: { $sum: '$items.quantity' },
-              income: { $sum: '$items.lineTotal' },
+              income: {
+                $sum: {
+                  $subtract: [
+                    '$items.lineTotal',
+                    { $multiply: ['$items.lineTotal', '$discountPerUnit'] },
+                  ],
+                },
+              },
               orderCount: { $addToSet: '$_id' },
               category: {
                 $first: {
@@ -169,7 +183,14 @@ export function salesAggregation(from: Date, to: Date): PipelineStage[] {
                 ]
               },
               unitsSold: { $sum: '$items.quantity' },
-              income: { $sum: '$items.lineTotal' },
+              income: {
+                $sum: {
+                  $subtract: [
+                    '$items.lineTotal',
+                    { $multiply: ['$items.lineTotal', '$discountPerUnit'] },
+                  ],
+                },
+              },
             },
           },
           {

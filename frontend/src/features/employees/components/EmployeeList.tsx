@@ -114,7 +114,7 @@ export default function EmployeeList({ onEdit, onDelete }: EmployeeListProps) {
                         )}
                       </div>
                     </div>
-                    <span className="shrink-0 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
+                    <span className="shrink-0 rounded-full bg-success/10 px-2.5 py-1 text-xs font-semibold text-success">
                       {formatCurrency(employee.baseSalary)}
                     </span>
                   </div>

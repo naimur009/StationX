@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { authenticate } from '../../middleware/authenticate';
-import { authorize } from '../../middleware/authorize';
+import { authorize, requireAdmin } from '../../middleware/authorize';
 import { validate } from '../../middleware/validate';
 import { updateSettingsSchema, resetDataSchema, restoreBackupSchema } from './settings.validation';
 import {
@@ -26,10 +26,12 @@ router.put(
   handleUpdateSettings
 );
 
+// Destructive/export operations are admin-only: the backup contains password
+// hashes, and reset/restore replace the whole database.
 router.post(
   '/settings/reset',
   authenticate,
-  authorize('settings', 'edit'),
+  requireAdmin,
   validate(resetDataSchema),
   handleResetData
 );
@@ -37,14 +39,14 @@ router.post(
 router.get(
   '/settings/backup',
   authenticate,
-  authorize('settings', 'view'),
+  requireAdmin,
   handleDownloadBackup
 );
 
 router.post(
   '/settings/restore',
   authenticate,
-  authorize('settings', 'edit'),
+  requireAdmin,
   validate(restoreBackupSchema),
   handleRestoreBackup
 );

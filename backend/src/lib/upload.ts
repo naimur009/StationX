@@ -30,7 +30,16 @@ export async function uploadToCloudinary(
   });
 }
 
+const ROOT_PREFIX = `${env.CLOUDINARY_ROOT_FOLDER}/`;
+
 export async function deleteFromCloudinary(publicId: string): Promise<void> {
+  if (!publicId.startsWith(ROOT_PREFIX)) {
+    throw createError(
+      400,
+      'INVALID_PUBLIC_ID',
+      'Refusing to delete a resource outside the application folder'
+    );
+  }
   return new Promise((resolve, reject) => {
     cloudinary.uploader.destroy(publicId, (error, _result) => {
       if (error) {

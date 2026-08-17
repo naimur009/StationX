@@ -103,13 +103,13 @@ const RESOURCE_DESCRIPTION_MAP: Record<string, (req: AuthenticatedRequest) => st
   'vendors.deleted': () => 'Deleted vendor',
   'expenses.created': (req) => {
     const body = req.body as Record<string, unknown>;
-    return `Created expense of BDT ${(body.amount as number)?.toFixed(2) ?? '0.00'}${body.paidTo ? ` — ${body.paidTo}` : ''}`;
+    return `Created expense of ৳${(body.amount as number)?.toFixed(2) ?? '0.00'}${body.paidTo ? ` — ${body.paidTo}` : ''}`;
   },
   'expenses.updated': () => 'Updated expense',
   'expenses.deleted': () => 'Deleted expense',
   'incomes.created': (req) => {
     const body = req.body as Record<string, unknown>;
-    return `Created income of BDT ${(body.amount as number)?.toFixed(2) ?? '0.00'}${body.receivedFrom ? ` — ${body.receivedFrom}` : ''}`;
+    return `Created income of ৳${(body.amount as number)?.toFixed(2) ?? '0.00'}${body.receivedFrom ? ` — ${body.receivedFrom}` : ''}`;
   },
   'incomes.updated': () => 'Updated income',
   'incomes.deleted': () => 'Deleted income',

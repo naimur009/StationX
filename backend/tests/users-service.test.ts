@@ -48,6 +48,11 @@ describe('userService', () => {
 
     it('creates user with hashed password', async () => {
       vi.mocked(User.findOne).mockResolvedValueOnce(null as never);
+      vi.mocked(User.findById).mockResolvedValueOnce({
+        _id: { toString: () => 'actor-id' },
+        role: 'admin',
+        permissions: [],
+      } as never);
       vi.mocked(bcrypt.hash).mockResolvedValueOnce('hashed-password' as never);
       vi.mocked(User.create).mockResolvedValueOnce({
         _id: { toString: () => 'new-id' },
@@ -83,17 +88,37 @@ describe('userService', () => {
       }
     });
 
-    it('blocks deactivation of last admin — USR-E-02', async () => {
-      vi.mocked(User.findById).mockResolvedValueOnce({
-        _id: { toString: () => 'admin-id' },
-        role: 'admin',
-        isActive: true,
-        save: vi.fn(),
-      } as never);
-      vi.mocked(User.countDocuments).mockResolvedValueOnce(0 as never);
+    it('blocks non-admin from deactivating an admin account', async () => {
+      vi.mocked(User.findById)
+        .mockResolvedValueOnce({ _id: 'actor-id', role: 'employee' } as never)
+        .mockReturnValueOnce({ select: vi.fn().mockResolvedValue({ role: 'admin' }) } as never);
 
       try {
-        await userService.deactivateUser('admin-id', 'other-id');
+        await userService.deactivateUser('admin-id', 'actor-id');
+        expect.unreachable('Expected error to be thrown');
+      } catch (err: unknown) {
+        const appErr = err as { code?: string; message?: string };
+        expect(appErr.code).toBe('FORBIDDEN');
+        expect(appErr.message).toContain('admin');
+      }
+    });
+
+    it('blocks deactivation of last admin — USR-E-02', async () => {
+      vi.mocked(User.findById)
+        .mockResolvedValueOnce({ _id: 'admin-actor', role: 'admin' } as never)
+        .mockReturnValueOnce({ select: vi.fn().mockResolvedValue({ role: 'admin' }) } as never)
+        .mockReturnValueOnce({
+          session: vi.fn().mockResolvedValue({
+            _id: { toString: () => 'admin-id' },
+            role: 'admin',
+            isActive: true,
+            save: vi.fn(),
+          }),
+        } as never);
+      vi.mocked(User.countDocuments).mockReturnValueOnce(mockQuery(0 as never));
+
+      try {
+        await userService.deactivateUser('admin-id', 'admin-actor');
         expect.unreachable('Expected error to be thrown');
       } catch (err: unknown) {
         const appErr = err as { code?: string; message?: string };
@@ -103,15 +128,20 @@ describe('userService', () => {
 
     it('allows deactivating one of two admins (USR-E-02 happy path)', async () => {
       const saveMock = vi.fn().mockResolvedValueOnce({} as never);
-      vi.mocked(User.findById).mockResolvedValueOnce({
-        _id: { toString: () => 'admin-id' },
-        role: 'admin',
-        isActive: true,
-        save: saveMock,
-      } as never);
-      vi.mocked(User.countDocuments).mockResolvedValueOnce(1 as never);
+      vi.mocked(User.findById)
+        .mockResolvedValueOnce({ _id: 'admin-actor', role: 'admin' } as never)
+        .mockReturnValueOnce({ select: vi.fn().mockResolvedValue({ role: 'admin' }) } as never)
+        .mockReturnValueOnce({
+          session: vi.fn().mockResolvedValue({
+            _id: { toString: () => 'admin-id' },
+            role: 'admin',
+            isActive: true,
+            save: saveMock,
+          }),
+        } as never);
+      vi.mocked(User.countDocuments).mockReturnValueOnce(mockQuery(1 as never));
 
-      const result = await userService.deactivateUser('admin-id', 'other-id');
+      const result = await userService.deactivateUser('admin-id', 'admin-actor');
       expect(saveMock).toHaveBeenCalled();
       expect(result).toHaveProperty('isActive', false);
     });
@@ -129,12 +159,17 @@ describe('userService', () => {
         updatedAt: new Date(),
       });
 
-      vi.mocked(User.findById).mockResolvedValueOnce({
-        _id: { toString: () => 'user-id' },
-        role: 'employee',
-        isActive: true,
-        save: saveMock,
-      } as never);
+      vi.mocked(User.findById)
+        .mockResolvedValueOnce({ _id: 'admin-id', role: 'admin' } as never)
+        .mockReturnValueOnce({ select: vi.fn().mockResolvedValue({ role: 'employee' }) } as never)
+        .mockReturnValueOnce({
+          session: vi.fn().mockResolvedValue({
+            _id: { toString: () => 'user-id' },
+            role: 'employee',
+            isActive: true,
+            save: saveMock,
+          }),
+        } as never);
 
       const result = await userService.deactivateUser('user-id', 'admin-id');
       expect(saveMock).toHaveBeenCalled();
@@ -400,16 +435,33 @@ describe('userService', () => {
       }
     });
 
+    it('blocks non-admin from permanently deleting an admin account', async () => {
+      vi.mocked(User.findById)
+        .mockResolvedValueOnce({ _id: 'actor-id', role: 'employee' } as never)
+        .mockReturnValueOnce({ select: vi.fn().mockResolvedValue({ role: 'admin' }) } as never);
+
+      try {
+        await userService.permanentDeleteUser('admin-id', 'actor-id');
+        expect.unreachable('Expected error to be thrown');
+      } catch (err: unknown) {
+        const appErr = err as { code?: string; message?: string };
+        expect(appErr.code).toBe('FORBIDDEN');
+      }
+    });
+
     it('blocks permanent deletion of last admin', async () => {
-      vi.mocked(User.findById).mockReturnValueOnce(mockQuery({
-        _id: { toString: () => 'admin-id' },
-        role: 'admin',
-        isActive: true,
-      }));
+      vi.mocked(User.findById)
+        .mockResolvedValueOnce({ _id: 'admin-actor', role: 'admin' } as never)
+        .mockReturnValueOnce({ select: vi.fn().mockResolvedValue({ role: 'admin' }) } as never)
+        .mockReturnValueOnce(mockQuery({
+          _id: { toString: () => 'admin-id' },
+          role: 'admin',
+          isActive: true,
+        }));
       vi.mocked(User.countDocuments).mockReturnValueOnce(mockQuery(0 as never));
 
       try {
-        await userService.permanentDeleteUser('admin-id', 'other-id');
+        await userService.permanentDeleteUser('admin-id', 'admin-actor');
         expect.unreachable('Expected error to be thrown');
       } catch (err: unknown) {
         const appErr = err as { code?: string; message?: string };
@@ -427,6 +479,46 @@ describe('userService', () => {
         const appErr = err as { code?: string; message?: string };
         expect(appErr.code).toBe('CANNOT_RESET_SELF');
       }
+    });
+
+    it('blocks non-admin from resetting an admin password', async () => {
+      vi.mocked(User.findById)
+        .mockResolvedValueOnce({ _id: 'actor-id', role: 'employee' } as never)
+        .mockResolvedValueOnce({ _id: 'admin-id', role: 'admin' } as never);
+
+      try {
+        await userService.adminResetUserPassword('admin-id', { newPassword: 'NewPass123' }, 'actor-id');
+        expect.unreachable('Expected error to be thrown');
+      } catch (err: unknown) {
+        const appErr = err as { code?: string; message?: string };
+        expect(appErr.code).toBe('FORBIDDEN');
+        expect(appErr.message).toContain('admin');
+      }
+    });
+
+    it('allows non-admin to reset an employee password', async () => {
+      const saveMock = vi.fn().mockResolvedValueOnce({} as never);
+      vi.mocked(User.findById)
+        .mockResolvedValueOnce({ _id: 'actor-id', role: 'employee' } as never)
+        .mockResolvedValueOnce({ _id: 'emp-id', role: 'employee', save: saveMock } as never);
+      vi.mocked(bcrypt.hash).mockResolvedValueOnce('new-hash' as never);
+
+      const result = await userService.adminResetUserPassword('emp-id', { newPassword: 'NewPass123' }, 'actor-id');
+      expect(bcrypt.hash).toHaveBeenCalledWith('NewPass123', 12);
+      expect(saveMock).toHaveBeenCalled();
+      expect(result).toEqual({ success: true });
+    });
+
+    it('allows admin to reset another admin password', async () => {
+      const saveMock = vi.fn().mockResolvedValueOnce({} as never);
+      vi.mocked(User.findById)
+        .mockResolvedValueOnce({ _id: 'admin-actor', role: 'admin' } as never)
+        .mockResolvedValueOnce({ _id: 'admin-id', role: 'admin', save: saveMock } as never);
+      vi.mocked(bcrypt.hash).mockResolvedValueOnce('new-hash' as never);
+
+      const result = await userService.adminResetUserPassword('admin-id', { newPassword: 'NewPass123' }, 'admin-actor');
+      expect(saveMock).toHaveBeenCalled();
+      expect(result).toEqual({ success: true });
     });
   });
 });

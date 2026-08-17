@@ -128,7 +128,7 @@ export async function updateTableStatus(id: string, dto: UpdateTableStatusDto) {
   }
 
   try {
-    getIO().emit('table:statusChanged', {
+    getIO().to('room:tables').emit('table:statusChanged', {
       tableId: updated._id.toString(),
       tableNumber: updated.tableNumber,
       status: updated.status,

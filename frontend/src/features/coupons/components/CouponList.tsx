@@ -145,7 +145,7 @@ export default function CouponList({ onEdit, onDelete }: CouponListProps) {
                       </button>
                       <div className="mt-2 text-xl font-bold text-slate-900">
                         {coupon.discountType === 'flat'
-                          ? `TK ${coupon.value.toFixed(2)}`
+                          ? `৳${coupon.value.toFixed(2)}`
                           : `${coupon.value}%`}
                         <span className="ml-1 text-sm font-normal text-slate-500">
                           {coupon.discountType === 'flat' ? 'off' : 'off'}
@@ -242,7 +242,7 @@ export default function CouponList({ onEdit, onDelete }: CouponListProps) {
                       </td>
                       <td className="px-5 py-3.5 text-slate-600">
                         {coupon.discountType === 'flat'
-                          ? `TK ${coupon.value.toFixed(2)}`
+                          ? `৳${coupon.value.toFixed(2)}`
                           : `${coupon.value}%`}
                         </td>
                       <td className="px-5 py-3.5 text-slate-600">

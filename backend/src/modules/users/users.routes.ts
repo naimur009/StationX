@@ -1,5 +1,4 @@
 import { Router } from 'express';
-import { z } from 'zod';
 import { authenticate } from '../../middleware/authenticate';
 import { authorize } from '../../middleware/authorize';
 import { validate } from '../../middleware/validate';
@@ -26,7 +25,9 @@ import {
   handleAdminResetPassword,
 } from './users.controller';
 
-const objectIdParam = z.object({ id: z.string().min(1) });
+import { objectIdParamSchema } from '../../lib/object-id';
+
+const objectIdParam = objectIdParamSchema;
 
 const router = Router();
 

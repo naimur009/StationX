@@ -42,7 +42,7 @@ function toResponse(task: ITask): TaskResponse {
 
 function emitTaskAssigned(taskId: string, assignedTo: string): void {
   try {
-    getIO().emit('task:assigned', { taskId, assignedTo });
+    getIO().to(`user:${assignedTo}`).emit('task:assigned', { taskId, assignedTo });
   } catch {
     // Socket.io not initialized — skip real-time event
   }
@@ -120,10 +120,12 @@ export async function createTask(dto: CreateTaskDto, userId: string) {
     status: 'pending',
   });
 
+  const assignedToId = task.assignedTo.toString();
+
   await task.populate('assignedTo', 'name');
   await task.populate('assignedBy', 'name');
 
-  emitTaskAssigned(task._id.toString(), task.assignedTo.toString());
+  emitTaskAssigned(task._id.toString(), assignedToId);
 
   return toResponse(task);
 }

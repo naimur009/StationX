@@ -79,5 +79,5 @@ async function syncTables(targetCount: number): Promise<void> {
     await Table.insertMany(toCreate);
   }
 
-  getIO().emit('table:statusChanged', {});
+  getIO().to('room:tables').emit('table:statusChanged', {});
 }

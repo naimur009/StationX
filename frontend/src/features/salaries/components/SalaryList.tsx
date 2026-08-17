@@ -16,6 +16,7 @@ import {
 import { useSalariesList, useAdjustmentsList, type SalaryResponse } from '../api';
 import { useEmployeesList } from '@/features/employees/api';
 import { usePermission } from '@/hooks/usePermission';
+import { formatCurrency } from '@/lib/format';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import PermissionGate from '@/components/shared/PermissionGate';
@@ -57,10 +58,6 @@ const PAYMENT_BADGE: Record<PaymentState, { variant: 'green' | 'yellow' | 'red' 
 
 const selectClass =
   'w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-700 ring-ring focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring';
-
-function formatCurrency(amount: number): string {
-  return `৳${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-}
 
 function getPaymentState(row: EmployeeRow): PaymentState {
   const salary = row.salary;

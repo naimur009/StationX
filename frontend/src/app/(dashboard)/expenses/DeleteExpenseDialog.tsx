@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useDeleteExpense, type ExpenseResponse } from '@/features/expenses/api';
 import { Dialog } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { formatCurrency } from '@/lib/format';
 import { AppError } from '@/lib/utils';
 
 interface DeleteExpenseDialogProps {
@@ -37,10 +38,6 @@ export default function DeleteExpenseDialog({ expense, onClose }: DeleteExpenseD
   }
 
   if (!expense) return null;
-
-  function formatCurrency(amount: number): string {
-    return `$${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-  }
 
   return (
     <Dialog
