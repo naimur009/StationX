@@ -63,22 +63,6 @@ export default function PermissionsEditor({ value, impliedPermissions = [], onCh
 
   const allModuleEntries = Object.entries(MODULE_ACTIONS);
 
-  const allActiveEntries = allModuleEntries.filter(([module]) => {
-    const implied = isImplied(module);
-    if (implied && isParentStillChecked(implied)) return true;
-    const current = getActionsForModule(module);
-    return current.length > 0;
-  });
-
-  const allInactiveEntries = allModuleEntries.filter(([module]) => {
-    const implied = isImplied(module);
-    if (implied && isParentStillChecked(implied)) return false;
-    const current = getActionsForModule(module);
-    return current.length === 0;
-  });
-
-  const sortedEntries = [...allActiveEntries, ...allInactiveEntries];
-
   return (
     <div className="overflow-x-auto rounded-xl border border-border">
       <table className="w-full text-left text-sm">
@@ -94,7 +78,7 @@ export default function PermissionsEditor({ value, impliedPermissions = [], onCh
           </tr>
         </thead>
         <tbody className="divide-y divide-border">
-          {sortedEntries.map(([module, validActions]) => {
+          {allModuleEntries.map(([module, validActions]) => {
             const implied = isImplied(module);
             const isDisabled = !!implied && isParentStillChecked(implied);
             const current = isDisabled
