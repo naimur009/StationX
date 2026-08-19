@@ -28,7 +28,7 @@ Then read these docs relevant to the feature being modified:
 **Module:** <Tables>
 **What to change:**
 
-remove delete option from table scetion and  change the color of maintenance table to yellow
+replace all $ sign to ৳ sign
 
 
 ## Scope Boundaries
